@@ -149,6 +149,7 @@
     <string name="activity_simplex_turbo">Simplex Turbo</string>
     <string name="activity_relentless">Relentless</string>
     <string name="activity_random_shapes">Random Shapes</string>
+    <string name="activity_overflowing">Overflowing</string>
     
     <!-- Wave shape display names -->
     <string name="wave_shape_sine">Sine</string>
