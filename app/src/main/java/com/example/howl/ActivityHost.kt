@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
+import com.example.howl.ActivityHost.ActivityInfo
 import com.example.howl.ui.theme.HowlTheme
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -78,23 +79,24 @@ object ActivityHost : PulseSource {
             ActivityInfo(context.getString(R.string.activity_simplex_pro), R.drawable.waveform, true) { SimplexProActivity() },
             ActivityInfo(context.getString(R.string.activity_simplex_turbo), R.drawable.waveform_path, true) { SimplexTurboActivity() },
             ActivityInfo(context.getString(R.string.activity_relentless), R.drawable.hammer, true) { RelentlessActivity() },
-            ActivityInfo(context.getString(R.string.activity_random_shapes), R.drawable.shapes, true) { RandomShapesActivity() }
+            ActivityInfo(context.getString(R.string.activity_random_shapes), R.drawable.shapes, true) { RandomShapesActivity() },
+            ActivityInfo(context.getString(R.string.activity_overflowing), R.drawable.water_drop, true) { OverflowingActivity() },
         )
     }
-    
+
     private var currentActivityInfo: ActivityInfo? = null
     private var currentActivity: Activity? = null
-    
+
     // 需要上下文参数的随机活动获取方法
     private fun getRandomActivities(context: Context): List<ActivityInfo> {
         return getAvailableActivities(context).filter { it.randomlySelect }
     }
-    
+
     // 初始化时不再调用changeActivity，需要在有上下文后再初始化
 
     // 存储上下文的变量
     private var context: Context? = null
-    
+
     // 设置上下文并初始化活动
     fun initializeWithContext(context: Context) {
         if (this.context == null) {
@@ -105,7 +107,7 @@ object ActivityHost : PulseSource {
             }
         }
     }
-    
+
     override fun updateState(currentTime: Double) {
         if (lastUpdateTime < 0 || lastUpdateTime > currentTime)
             lastUpdateTime = currentTime
@@ -144,7 +146,7 @@ object ActivityHost : PulseSource {
     fun changeActivity(context: Context) {
         val current = currentActivityInfo
         val randomActivities = getRandomActivities(context)
-        
+
         val candidates = if (current != null) {
             randomActivities.filter { it != current }
         } else {
@@ -191,7 +193,7 @@ fun ActivityHostPanel(
     val playerState by DataRepository.playerState.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == ActivityHost
     val context = androidx.compose.ui.platform.LocalContext.current
-    
+
     // 确保ActivityHost在组合时初始化上下文
     LaunchedEffect(Unit) {
         ActivityHost.initializeWithContext(context)

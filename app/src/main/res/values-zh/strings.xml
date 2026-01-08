@@ -151,6 +151,7 @@
     <string name="activity_simplex_turbo">简单模式疯狂版</string>
     <string name="activity_relentless">持续</string>
     <string name="activity_random_shapes">随机形状</string>
+    <string name="activity_overflowing">溢出</string>
     
     <!-- Wave shape display names -->
     <string name="wave_shape_sine">正弦</string>
@@ -205,4 +206,5 @@
     <string name="channel_a_frequency_adjust">通道A频率调整</string>
     <string name="channel_b_frequency_adjust">通道B频率调整</string>
     <string name="amplitude_gain">振幅增益</string>
+
 </resources>
