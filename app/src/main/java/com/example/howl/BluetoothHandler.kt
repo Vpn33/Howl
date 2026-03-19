@@ -24,6 +24,7 @@ import android.bluetooth.le.ScanResult
 import android.os.Build
 import androidx.annotation.RequiresPermission
 
+
 enum class ConnectionStatus {
     Disconnected,
     Connecting,

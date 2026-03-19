@@ -1,6 +1,7 @@
 package com.example.howl
 
 import android.util.Log
+
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.pow

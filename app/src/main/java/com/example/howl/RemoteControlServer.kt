@@ -1,5 +1,6 @@
 package com.example.howl
 
+
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.util.Base64
 import kotlin.random.Random
+import androidx.compose.ui.res.stringResource
 
 const val CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -87,7 +89,7 @@ object RemoteControlServer {
         if (server != null) return
         HLog.d("RemoteControlServer","Starting remote control server")
 
-        server = embeddedServer(CIO, port = port) {
+        server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) {
                 json()
             }

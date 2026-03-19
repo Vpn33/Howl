@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast // For displaying user feedback toast messages
+import com.example.howl.BadFileException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -35,7 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -432,10 +436,10 @@ fun AdvancedControlsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Player settings", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.player_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Playback speed",
+            label = stringResource(R.string.playback_speed),
             value = playerPlaybackSpeed,
             onValueChange = {
                 Prefs.playerPlaybackSpeed.value = it
@@ -447,7 +451,7 @@ fun AdvancedControlsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = "Remote latency (seconds)",
+            label = stringResource(R.string.remote_funscript_latency_seconds),
             value = playerRemoteLatency,
             onValueChange = { Prefs.playerRemoteLatency.value = it },
             onValueChangeFinished = { Prefs.playerRemoteLatency.save() },
@@ -456,7 +460,7 @@ fun AdvancedControlsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SwitchWithLabel(
-            label = "Show sync fine tune",
+            label = stringResource(R.string.show_sync_fine_tune),
             checked = playerShowSyncFineTune,
             onCheckedChange = {
                 Prefs.playerShowSyncFineTune.value = it
@@ -468,10 +472,10 @@ fun AdvancedControlsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Funscript settings", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.funscript_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Scaling coefficient",
+            label = stringResource(R.string.scaling_coefficient),
             value = funscriptVolume,
             onValueChange = { Prefs.funscriptVolume.value = it },
             onValueChangeFinished = { Prefs.funscriptVolume.save() },
@@ -591,10 +595,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Special effects", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.special_effects), style = MaterialTheme.typography.headlineSmall)
         }
         SwitchWithLabel(
-            label = "Apply special effects",
+            label = stringResource(R.string.apply_special_effects),
             checked = sfxEnabled,
             onCheckedChange = {
                 Prefs.sfxEnabled.value = it
@@ -606,10 +610,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Amplitude adjustments", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.amplitude_adjustments), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Amplitude feel (channel A)",
+            label = stringResource(R.string.amplitude_feel_channel_a),
             value = sfxAmplitudeFeelA,
             onValueChange = { Prefs.sfxAmplitudeFeelA.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeFeelA.save() },
@@ -619,7 +623,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Amplitude feel (channel B)",
+            label = stringResource(R.string.amplitude_feel_channel_b),
             value = sfxAmplitudeFeelB,
             onValueChange = { Prefs.sfxAmplitudeFeelB.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeFeelB.save() },
@@ -629,7 +633,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Scale amplitude (channel A)",
+            label = stringResource(R.string.scale_amplitude_channel_a),
             value = sfxAmplitudeScaleA,
             onValueChange = { Prefs.sfxAmplitudeScaleA.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeScaleA.save() },
@@ -639,7 +643,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Scale amplitude (channel B)",
+            label = stringResource(R.string.scale_amplitude_channel_b),
             value = sfxAmplitudeScaleB,
             onValueChange = { Prefs.sfxAmplitudeScaleB.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeScaleB.save() },
@@ -676,7 +680,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SwitchWithLabel(
-            label = "Invert channel A frequencies",
+            label = stringResource(R.string.invert_channel_a_frequencies),
             checked = sfxFrequencyInvertA,
             onCheckedChange = {
                 Prefs.sfxFrequencyInvertA.value = it
@@ -685,7 +689,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SwitchWithLabel(
-            label = "Invert channel B frequencies",
+            label = stringResource(R.string.invert_channel_b_frequencies),
             checked = sfxFrequencyInvertB,
             onCheckedChange = {
                 Prefs.sfxFrequencyInvertB.value = it

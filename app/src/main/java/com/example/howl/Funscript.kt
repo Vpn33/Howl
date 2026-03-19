@@ -5,8 +5,14 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.util.Log
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import java.util.TreeMap
 import kotlin.math.abs
@@ -21,8 +27,40 @@ enum class FrequencyAlgorithmType(val displayName: String) {
     FIXED("Fixed")
 }
 
-@Serializable
-data class Action(val at: Double, val pos: Double)
+@Serializable(with = Action.Companion::class)
+data class Action(val at: Double, val pos: Double) {
+    @kotlinx.serialization.Serializer(forClass = Action::class)
+    companion object : KSerializer<Action> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Action") {
+            element("at", Double.serializer().descriptor)
+            element("pos", Double.serializer().descriptor)
+        }
+
+        override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: Action) {
+            val structureEncoder = encoder.beginStructure(descriptor)
+            // 舍弃小数部分，只保留整数
+            structureEncoder.encodeDoubleElement(descriptor, 0, value.at.toInt().toDouble())
+            structureEncoder.encodeDoubleElement(descriptor, 1, value.pos)
+            structureEncoder.endStructure(descriptor)
+        }
+        
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Action {
+            val structureDecoder = decoder.beginStructure(descriptor)
+            var at = 0.0
+            var pos = 0.0
+            while (true) {
+                when (val index = structureDecoder.decodeElementIndex(descriptor)) {
+                    0 -> at = structureDecoder.decodeDoubleElement(descriptor, 0)
+                    1 -> pos = structureDecoder.decodeDoubleElement(descriptor, 1)
+                    kotlinx.serialization.encoding.CompositeDecoder.DECODE_DONE -> break
+                    else -> error("Unexpected index: $index")
+                }
+            }
+            structureDecoder.endStructure(descriptor)
+            return Action(at, pos)
+        }
+    }
+}
 
 @Serializable
 data class Funscript(

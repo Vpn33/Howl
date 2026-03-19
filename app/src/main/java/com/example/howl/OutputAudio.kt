@@ -5,11 +5,15 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
+
+
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
+
+
 
 enum class PlaybackState {
     Stopped,
@@ -113,7 +117,7 @@ open class AudioOutput : BaseOutput() {
         producerThread = null
         audioTrack?.release()
         audioTrack = null
-        HLog.d(TAG, "AudioTrack released")
+        Log.d(TAG, "AudioTrack released")
     }
 
     override fun handleBluetoothEvent(event: BluetoothEvent) {}
@@ -318,12 +322,12 @@ open class AudioOutput : BaseOutput() {
             AudioFormat.CHANNEL_OUT_STEREO,
             AudioFormat.ENCODING_PCM_16BIT
         )
-        HLog.d(TAG,"Minimum buffer size (bytes): $minBufferSize")
+        Log.d(TAG,"Minimum buffer size (bytes): $minBufferSize")
 
         val desiredBufferSizeFrames = (sampleRate * OUTPUT_TIMER * 2.0).toInt()
 
         val bufferSizeInBytes = maxOf(desiredBufferSizeFrames * 2, minBufferSize)
-        HLog.d(TAG,"Using buffer size (bytes): $bufferSizeInBytes")
+        Log.d(TAG,"Using buffer size (bytes): $bufferSizeInBytes")
         bufferSizeFrames = bufferSizeInBytes / 2
 
         audioTrack = AudioTrack.Builder()

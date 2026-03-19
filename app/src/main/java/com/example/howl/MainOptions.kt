@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -255,7 +257,7 @@ fun MainOptionsPanel(
             // Left side: Channel A controls
             PowerLevelPanel(
                 channelIndex = 0,
-                channelLabel = "A",
+                channelLabel = stringResource(R.string.channel_a),
                 power = mainOptionsState.channelAPower,
                 viewModel = viewModel
             )
@@ -275,7 +277,7 @@ fun MainOptionsPanel(
             // Right side: Channel B controls
             PowerLevelPanel(
                 channelIndex = 1,
-                channelLabel = "B",
+                channelLabel = stringResource(R.string.channel_b),
                 power = mainOptionsState.channelBPower,
                 viewModel = viewModel
             )
@@ -310,7 +312,11 @@ fun MainOptionsPanel(
                     containerColor = if (autoIncreasePower) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                 )
             ) {
-                Icon(painter = painterResource(R.drawable.auto_increase), contentDescription = "Auto increase power")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painter = painterResource(R.drawable.auto_increase), contentDescription = stringResource(R.string.auto_increase_power))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = stringResource(R.string.auto_increase_power))
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -324,7 +330,11 @@ fun MainOptionsPanel(
                     containerColor = if (pulseChartMode != PulseChartMode.Off) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                 )
             ) {
-                Icon(painter = painterResource(R.drawable.chart), contentDescription = "Pulse chart")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painter = painterResource(R.drawable.chart), contentDescription = stringResource(R.string.pulse_chart))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = stringResource(R.string.pulse_chart))
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -338,7 +348,11 @@ fun MainOptionsPanel(
                     containerColor = if (swapChannels) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                 )
             ) {
-                Icon(painter = painterResource(R.drawable.swap), contentDescription = "Swap channels")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painter = painterResource(R.drawable.swap), contentDescription = stringResource(R.string.swap_channels))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = stringResource(R.string.swap_channels))
+                }
             }
 
         }

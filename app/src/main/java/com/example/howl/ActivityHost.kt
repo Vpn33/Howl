@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.res.stringResource
 import com.example.howl.ui.theme.HowlTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +39,7 @@ object ActivityHost : PulseSource {
     val PROBABILITY_RANGE: ClosedFloatingPointRange<Float> = 0.0f..1.0f
 
     data class ActivityInfo(
-        val displayName: String,
+        val displayNameResId: Int,
         val iconResId: Int,
         val randomlySelect: Boolean,
         val factory: () -> Activity
@@ -57,24 +58,24 @@ object ActivityHost : PulseSource {
     private var lastSimulationTime = -1.0
 
     val availableActivities: List<ActivityInfo> = listOf(
-        ActivityInfo("Infinite licks", R.drawable.grin_tongue, true) { LickActivity() },
-        ActivityInfo("Penetration", R.drawable.rocket, true) { PenetrationActivity() },
-        ActivityInfo("Sliding vibrator", R.drawable.vibration, true) { VibroActivity() },
-        ActivityInfo("Milkmaster 3000", R.drawable.cow, true) { MilkerActivity() },
-        ActivityInfo("Chaos", R.drawable.chaos, true) { ChaosActivity() },
-        ActivityInfo("Luxury HJ", R.drawable.hand, true) { LuxuryHJActivity() },
-        ActivityInfo("Opposites", R.drawable.yin_yang, true) { OppositesActivity() },
-        ActivityInfo("Calibration 1", R.drawable.swapvert, false) { Calibration1Activity() },
-        ActivityInfo("Calibration 2", R.drawable.calibration, false) { Calibration2Activity() },
-        ActivityInfo("BJ megamix", R.drawable.lips, true) { BJActivity() },
-        ActivityInfo("Fast/slow", R.drawable.speed, true) { FastSlowActivity() },
-        ActivityInfo("Additive", R.drawable.additive, true) { AdditiveActivity() },
-        ActivityInfo("Simplex", R.drawable.wave_triangle, true) { SimplexActivity() },
-        ActivityInfo("Simplex Pro", R.drawable.waveform, true) { SimplexProActivity() },
-        ActivityInfo("Simplex Turbo", R.drawable.waveform_path, true) { SimplexTurboActivity() },
-        ActivityInfo("Relentless", R.drawable.hammer, true) { RelentlessActivity() },
-        ActivityInfo("Random shapes", R.drawable.shapes, true) { RandomShapesActivity() },
-        ActivityInfo("Overflowing", R.drawable.water_drop, true) { OverflowingActivity() },
+        ActivityInfo(R.string.activity_infinite_licks, R.drawable.grin_tongue, true) { LickActivity() },
+        ActivityInfo(R.string.activity_penetration, R.drawable.rocket, true) { PenetrationActivity() },
+        ActivityInfo(R.string.activity_sliding_vibrator, R.drawable.vibration, true) { VibroActivity() },
+        ActivityInfo(R.string.activity_milkmaster, R.drawable.cow, true) { MilkerActivity() },
+        ActivityInfo(R.string.activity_chaos, R.drawable.chaos, true) { ChaosActivity() },
+        ActivityInfo(R.string.activity_luxury_hj, R.drawable.hand, true) { LuxuryHJActivity() },
+        ActivityInfo(R.string.activity_opposites, R.drawable.yin_yang, true) { OppositesActivity() },
+        ActivityInfo(R.string.activity_calibration_1, R.drawable.swapvert, false) { Calibration1Activity() },
+        ActivityInfo(R.string.activity_calibration_2, R.drawable.calibration, false) { Calibration2Activity() },
+        ActivityInfo(R.string.activity_bj_megamix, R.drawable.lips, true) { BJActivity() },
+        ActivityInfo(R.string.activity_fast_slow, R.drawable.speed, true) { FastSlowActivity() },
+        ActivityInfo(R.string.activity_additive, R.drawable.additive, true) { AdditiveActivity() },
+        ActivityInfo(R.string.activity_simplex, R.drawable.wave_triangle, true) { SimplexActivity() },
+        ActivityInfo(R.string.activity_simplex_pro, R.drawable.waveform, true) { SimplexProActivity() },
+        ActivityInfo(R.string.activity_simplex_turbo, R.drawable.waveform_path, true) { SimplexTurboActivity() },
+        ActivityInfo(R.string.activity_relentless, R.drawable.hammer, true) { RelentlessActivity() },
+        ActivityInfo(R.string.activity_random_shapes, R.drawable.shapes, true) { RandomShapesActivity() },
+        ActivityInfo(R.string.activity_overflowing, R.drawable.water_drop, true) { OverflowingActivity() },
     )
     private val randomActivities = availableActivities.filter { it.randomlySelect }
     private var currentActivityInfo: ActivityInfo? = null
@@ -83,6 +84,7 @@ object ActivityHost : PulseSource {
     // used so the UI can respond to the current activity
     private val _currentActivityName = MutableStateFlow("")
     val currentActivityName: StateFlow<String> = _currentActivityName.asStateFlow()
+
 
     init {
         changeActivity()
@@ -120,7 +122,7 @@ object ActivityHost : PulseSource {
         currentActivity = newActivityInfo.factory().apply { initialise() }
         lastSimulationTime = -1.0
         lastUpdateTime = -1.0
-        _currentActivityName.value = newActivityInfo.displayName
+        _currentActivityName.value = ""
     }
 
     fun changeActivity() {
@@ -154,7 +156,6 @@ fun ActivityHostPanel(
     viewModel: ActivityHostViewModel,
     modifier: Modifier = Modifier
 ) {
-    val currentActivityName by ActivityHost.currentActivityName.collectAsStateWithLifecycle()
     val activityChangeProbability by Prefs.activityChangeProbability.collectAsStateWithLifecycle()
     val playerState by Player.playerState.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == ActivityHost
@@ -180,12 +181,12 @@ fun ActivityHostPanel(
                 if (isPlaying) {
                     Icon(
                         painter = painterResource(R.drawable.pause),
-                        contentDescription = "Pause"
+                        contentDescription = stringResource(R.string.button_pause)
                     )
                 } else {
                     Icon(
                         painter = painterResource(R.drawable.play),
-                        contentDescription = "Play"
+                        contentDescription = stringResource(R.string.button_play)
                     )
                 }
             }
@@ -196,7 +197,7 @@ fun ActivityHostPanel(
             style = MaterialTheme.typography.bodyLarge
         )*/
         SliderWithLabel(
-            label = "Random activity change probability",
+            label =  stringResource(R.string.activity_change_probability),
             value = activityChangeProbability,
             onValueChange = { Prefs.activityChangeProbability.value = it },
             onValueChangeFinished = { Prefs.activityChangeProbability.save() },
@@ -210,15 +211,13 @@ fun ActivityHostPanel(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(ActivityHost.availableActivities.sortedBy { it.displayName }) { info ->
-                val isCurrent = info.displayName == currentActivityName
+            items(ActivityHost.availableActivities) { info ->
+                val displayName = stringResource(info.displayNameResId)
                 Button(
                     onClick = {
                         viewModel.setCurrentActivity(info)
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCurrent) MaterialTheme.colorScheme.tertiary else ButtonDefaults.buttonColors().containerColor
-                    ),
+                    colors = ButtonDefaults.buttonColors(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
@@ -227,7 +226,7 @@ fun ActivityHostPanel(
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     Text(
-                        text = info.displayName,
+                        text = displayName,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,

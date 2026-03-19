@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -375,8 +376,8 @@ fun GeneratorPanel(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            GeneratorParametersInfo("Channel A", generatorState.channelAInfo, frequencyRange, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
-            GeneratorParametersInfo("Channel B", generatorState.channelBInfo, frequencyRange, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo(stringResource(R.string.channel_a), generatorState.channelAInfo, frequencyRange, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo(stringResource(R.string.channel_b), generatorState.channelBInfo, frequencyRange, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -393,12 +394,12 @@ fun GeneratorPanel(
                 if (isPlaying) {
                     Icon(
                         painter = painterResource(R.drawable.pause),
-                        contentDescription = "Pause"
+                        contentDescription = stringResource(R.string.button_pause)
                     )
                 } else {
                     Icon(
                         painter = painterResource(R.drawable.play),
-                        contentDescription = "Play"
+                        contentDescription = stringResource(R.string.button_play)
                     )
                 }
             }
@@ -407,9 +408,9 @@ fun GeneratorPanel(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.casino),
-                    contentDescription = "Randomise"
+                    contentDescription = stringResource(R.string.button_randomise)
                 )
-                Text(text = "Random", modifier = Modifier.padding(start = 8.dp))
+                Text(text = stringResource(R.string.generator_random), modifier = Modifier.padding(start = 8.dp))
             }
         }
         Row(
@@ -417,7 +418,7 @@ fun GeneratorPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Automatically change parameters", style = MaterialTheme.typography.labelLarge)
+            Text(text = stringResource(R.string.generator_automatic_change_parameters), style = MaterialTheme.typography.labelLarge)
             Switch(
                 checked = generatorAutoChange,
                 onCheckedChange = {
@@ -428,7 +429,7 @@ fun GeneratorPanel(
         }
         if (generatorAutoChange) {
             SliderWithLabel(
-                label = "Speed change probability",
+                label = stringResource(R.string.generator_speed_change_probability),
                 value = generatorSpeedChangeProbability,
                 onValueChange = { Prefs.generatorSpeedChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorSpeedChangeProbability.save() },
@@ -437,7 +438,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = "Amplitude change probability",
+                label = stringResource(R.string.generator_amplitude_change_probability),
                 value = generatorAmplitudeChangeProbability,
                 onValueChange = { Prefs.generatorAmplitudeChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorAmplitudeChangeProbability.save() },
@@ -446,7 +447,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = "Frequency change probability",
+                label = stringResource(R.string.generator_frequency_change_probability),
                 value = generatorFrequencyChangeProbability,
                 onValueChange = { Prefs.generatorFrequencyChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorFrequencyChangeProbability.save() },
@@ -455,7 +456,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = "Shape change probability",
+                label = stringResource(R.string.generator_shape_change_probability),
                 value = generatorWaveChangeProbability,
                 onValueChange = { Prefs.generatorWaveChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorWaveChangeProbability.save() },
@@ -477,7 +478,7 @@ fun GeneratorPanel(
                         viewModel = viewModel,
                         channel = 0,
                         generatorChannelInfo = generatorState.channelAInfo,
-                        title = "Channel A Settings"
+                        title = stringResource(R.string.channel_a_settings)
                     )
                 }
             }
@@ -495,7 +496,7 @@ fun GeneratorPanel(
                         viewModel = viewModel,
                         channel = 1,
                         generatorChannelInfo = generatorState.channelBInfo,
-                        title = "Channel B Settings"
+                        title = stringResource(R.string.channel_b_settings)
                     )
                 }
             }
@@ -534,7 +535,7 @@ fun GeneratorParametersSettings(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Wave shape")
+            Text(text = stringResource(R.string.generator_wave_shape))
             OptionPicker(
                 currentValue = generatorChannelInfo.ampWaveName,
                 onValueChange = { viewModel.setAmpWave(channel, it) },
@@ -543,7 +544,7 @@ fun GeneratorParametersSettings(
             )
         }
         SliderWithLabel(
-            label = "Start power",
+            label = stringResource(R.string.generator_start_power),
             value = generatorChannelInfo.minAmp.toFloat(),
             onValueChange = { viewModel.setMinAmp(channel = channel, amplitude = it.toDouble()) },
             onValueChangeFinished = { },
@@ -552,7 +553,7 @@ fun GeneratorParametersSettings(
             valueDisplay = { String.format(Locale.US, "%.0f%%", it * 100.0) }
         )
         SliderWithLabel(
-            label = "End power",
+            label = stringResource(R.string.generator_end_power),
             value = generatorChannelInfo.maxAmp.toFloat(),
             onValueChange = { viewModel.setMaxAmp(channel = channel, amplitude = it.toDouble()) },
             onValueChangeFinished = { },
@@ -566,7 +567,7 @@ fun GeneratorParametersSettings(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Freq shape")
+            Text(text = stringResource(R.string.generator_freq_shape))
             OptionPicker(
                 currentValue = generatorChannelInfo.freqWaveName,
                 onValueChange = { viewModel.setFreqWave(channel, it) },
@@ -575,7 +576,7 @@ fun GeneratorParametersSettings(
             )
         }
         SliderWithLabel(
-            label = "Start frequency",
+            label = stringResource(R.string.generator_start_frequency),
             value = generatorChannelInfo.minFreq.toFloat(),
             onValueChange = { viewModel.setMinFreq(channel = channel, frequency = it.toDouble()) },
             onValueChangeFinished = { },
@@ -584,7 +585,7 @@ fun GeneratorParametersSettings(
             valueDisplay = { String.format(Locale.US, "%.0f%%", it * 100.0) }
         )
         SliderWithLabel(
-            label = "End frequency",
+            label = stringResource(R.string.generator_end_frequency),
             value = generatorChannelInfo.maxFreq.toFloat(),
             onValueChange = { viewModel.setMaxFreq(channel = channel, frequency = it.toDouble()) },
             onValueChangeFinished = { },
@@ -618,22 +619,22 @@ fun GeneratorParametersInfo(
                 )
             }
             GeneratorParametersInfoRow(
-                category = "Shape",
+                category = stringResource(R.string.generator_category_shape),
                 value = generatorChannelInfo.ampWaveName
             )
             GeneratorParametersInfoRow(
-                category = "Speed",
+                category = stringResource(R.string.generator_category_speed),
                 value = String.format(Locale.US, "%.2f", generatorChannelInfo.speed)
             )
             val ampLow = String.format(Locale.US, "%.1f", generatorChannelInfo.minAmp * 100.0)
             val ampHigh = String.format(Locale.US, "%.1f", generatorChannelInfo.maxAmp * 100.0)
             val ampText = if (generatorChannelInfo.ampWaveName == "Constant") "$ampHigh%" else "$ampLow% - $ampHigh%"
             GeneratorParametersInfoRow(
-                category = "Power",
+                category = stringResource(R.string.generator_category_power),
                 value = ampText
             )
             GeneratorParametersInfoRow(
-                category = "Freq shape",
+                category = stringResource(R.string.generator_category_freq_shape),
                 value = generatorChannelInfo.freqWaveName
             )
             val freqLow =

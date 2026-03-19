@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -30,21 +31,30 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class TabLayoutViewModel : ViewModel() {
-    private val fixedTabs = listOf("Player", "Generator", "Activity", "Settings")
-    private val debugTab = "Debug"
+
 
     private val _tabIndex = MutableStateFlow(0)
     val tabIndex: StateFlow<Int> = _tabIndex.asStateFlow()
 
     val visibleTabs: StateFlow<List<String>> = Prefs.miscShowDebugLog.flow
         .map { showDebugLog ->
+            val tabs = mutableListOf(
+                "Player",
+                "Generator",
+                "Activity",
+                "Settings"
+            )
             if (showDebugLog) {
-                fixedTabs + debugTab
-            } else {
-                fixedTabs
+                tabs.add("Debug")
             }
+            tabs
         }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, fixedTabs)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf(
+            "Player",
+            "Generator",
+            "Activity",
+            "Settings"
+        ))
 
     fun setTabIndex(index: Int) {
         _tabIndex.update { index }
