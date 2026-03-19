@@ -40,7 +40,6 @@
     <string name="settings_power_auto_increase_delay_b">电源强度自动增加延迟B (秒)</string>
     
     <!-- 其他选项 -->
-    <string name="remote_access_options">远程访问选项</string>
     <string name="settings_allow_remote_access">允许远程访问 (未加密)</string>
     <string name="settings_smoother_charts">更平滑的图表和仪表 [*]</string>
     <string name="settings_show_power_meter">显示动画电源强度计 [*]</string>
@@ -75,6 +74,8 @@
     
     <!-- 活动相关 -->
     <string name="activity_change_probability">随机活动变更概率</string>
+    <string name="activity_infinite_licks">无限舔舐</string>
+    <string name="activity_penetration">穿透</string>
     <string name="activity_vibration">振动</string>
     <string name="activity_amplitude">振幅</string>
     <string name="activity_pulse">脉冲</string>
@@ -92,6 +93,7 @@
     <string name="generator_random_parameter_change">随机</string>
     <string name="generator_automatic_change_parameters">自动变更参数</string>
     <string name="generator_random">随机</string>
+    <string name="generator_auto_change_parameters">自动变更参数</string>
     <!-- 生成器类别标签 -->
     <string name="generator_category_shape">振幅形状</string>
     <string name="generator_category_speed">速度</string>
@@ -105,24 +107,14 @@
     <string name="debug_logs_copied">日志已复制到剪贴板</string>
     
     <!-- 额外活动名称 -->
-    <string name="activity_infinite_licks">无限舔舐</string>
-    <string name="activity_penetration">穿透</string>
     <string name="activity_sliding_vibrator">滑动振动</string>
-    <string name="activity_milkmaster">榨精大师 3000</string>
+    <string name="activity_milkmaster">榨精大师</string>
     <string name="activity_chaos">混乱</string>
     <string name="activity_luxury_hj">奢华手活</string>
     <string name="activity_opposites">相反</string>
     <string name="activity_calibration_1">校准 1</string>
     <string name="activity_calibration_2">校准 2</string>
     <string name="activity_bj_megamix">口交混音</string>
-    <string name="activity_fast_slow">快/慢</string>
-    <string name="activity_additive">叠加</string>
-    <string name="activity_simplex">简单模式</string>
-    <string name="activity_simplex_pro">简单模式专业版</string>
-    <string name="activity_simplex_turbo">简单模式疯狂版</string>
-    <string name="activity_relentless">持续</string>
-    <string name="activity_random_shapes">随机形状</string>
-    <string name="activity_overflowing">溢出</string>
     <string name="channel_a">通道A</string>
     <string name="channel_b">通道B</string>
     <string name="channel_a_settings">通道A设置</string>
@@ -152,6 +144,14 @@
     <string name="wave_shape_double_time">双倍速度</string>
     <string name="wave_shape_triple_trouble">三倍麻烦</string>
     <string name="wave_shape_steps">阶梯波</string>
+    <string name="activity_fast_slow">快与慢</string>
+    <string name="activity_additive">叠加</string>
+    <string name="activity_simplex">简单模式</string>
+    <string name="activity_simplex_pro">简单模式专业版</string>
+    <string name="activity_simplex_turbo">简单模式疯狂版</string>
+    <string name="activity_relentless">持续</string>
+    <string name="activity_random_shapes">随机形状</string>
+    <string name="activity_overflowing">溢出</string>
     
     <!-- Wave shape display names -->
     <string name="wave_shape_sine">正弦</string>
@@ -165,8 +165,7 @@
     <string name="player_settings">播放器设置</string>
     <string name="playback_speed">播放速度</string>
     <string name="funscript_settings">Funscript设置</string>
-    <string name="scaling_coefficient">缩放系数（增强慢速动作）</string>
-    <string name="amplitude_adjustments">振幅调整</string>
+    <string name="scaling_boosts_slower_movements">缩放（增强慢速动作）</string>
     <string name="positional_effect_strength">位置效果强度</string>
     <string name="remote_funscript_latency_seconds">远程Funscript延迟（秒）</string>
     <string name="amplitude_algorithm">振幅算法</string>
@@ -189,8 +188,6 @@
     <string name="invert_channel_b_frequencies">反转通道B频率</string>
     <string name="scale_amplitude_channel_a">通道A缩放振幅</string>
     <string name="scale_amplitude_channel_b">通道B缩放振幅</string>
-    <string name="amplitude_feel_channel_a">通道A振幅感觉</string>
-    <string name="amplitude_feel_channel_b">通道B振幅感觉</string>
     <string name="frequency_feel_adjustment">频率感受调整</string>
     <string name="random_amplitude_noise_amount">随机振幅噪声（量）</string>
     <string name="random_amplitude_noise_speed">随机振幅噪声（速度）</string>
@@ -209,16 +206,5 @@
     <string name="channel_a_frequency_adjust">通道A频率调整</string>
     <string name="channel_b_frequency_adjust">通道B频率调整</string>
     <string name="amplitude_gain">振幅增益</string>
-    
-    <!-- Main Options -->
-    <string name="auto_increase_power">自增强度</string>
-    <string name="pulse_chart">脉冲图表</string>
-    <string name="swap_channels">交换通道</string>
-    
-    <!-- Output Audio -->
-    <string name="error_timed_out_waiting_for_audio_track_to_stop">等待AudioTrack停止超时</string>
-    <string name="error_failed_to_initialise_audio_track">初始化音频轨道失败，状态: %1$d</string>
-    <string name="error_start_producer_thread_already_set">startProducerThread已调用但producerThread已设置</string>
-    <string name="error_audio_track_stop_failed">AudioTrack停止失败: %1$s</string>
 
 </resources>

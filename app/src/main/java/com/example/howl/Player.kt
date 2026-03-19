@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import android.widget.Toast // For displaying user feedback toast messages
-import com.example.howl.BadFileException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -15,17 +13,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,11 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -48,20 +47,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.howl.ui.theme.HowlTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.DurationUnit
 import kotlin.time.TimeSource.Monotonic.markNow
 import java.util.Locale
+import kotlin.math.pow
 import java.lang.ref.WeakReference
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
-import kotlin.time.TimeMark
 
 fun formatTime(position: Double): String {
     val minutes = (position / 60).toInt()
@@ -76,20 +69,6 @@ data class Pulse (
     val freqB: Float = 0.0f
 )
 
-data class PlayerState(
-    val activePulseSource: PulseSource? = null,
-    val startPosition: Double = 0.0,
-    val isPlaying: Boolean = false,
-    val startTime: TimeMark? = null,
-    val syncFineTune: Float = 0.0f,
-)
-
-data class RecordState(
-    val duration: Float = 0.0f,
-    val recordMode: Boolean = false,
-    val recording: Boolean = false,
-)
-
 interface PulseSource {
     val displayName: String
     val duration: Double?
@@ -97,36 +76,51 @@ interface PulseSource {
     val shouldLoop: Boolean
     val readyToPlay: Boolean
     val isRemote: Boolean
+    val remoteLatency: Double
     fun getPulseAtTime(time: Double): Pulse
     fun updateState(currentTime: Double)
 }
 
+interface Output {
+    val timerDelay: Double
+    val pulseBatchSize: Int
+    val sendSilenceWhenMuted: Boolean
+    var allowedFrequencyRange: IntRange
+    var defaultFrequencyRange: IntRange
+    var ready: Boolean
+    var latency: Double
+
+    val pulseTime: Double
+        get() = timerDelay / pulseBatchSize
+    fun initialise()
+    fun end()
+    fun start()
+    fun stop()
+    fun sendPulses(channelAPower: Int,
+                  channelBPower: Int,
+                  minFrequency: Double,
+                  maxFrequency: Double,
+                  pulses: List<Pulse>
+    )
+
+    fun handleBluetoothEvent(event: BluetoothEvent)
+}
+
 object Player {
     private var contextRef: WeakReference<Context>? = null
+    private var autoIncrementPowerCounterA: Int = 0
+    private var autoIncrementPowerCounterB: Int = 0
     var output: Output = DummyOutput()
-    var recorder: RecorderOutput = RecorderOutput()
     private val noiseGenerator = NoiseGenerator()
-
-    private val _playerState = MutableStateFlow(PlayerState())
-    val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
-
-    private val _recordState = MutableStateFlow(RecordState())
-    val recordState: StateFlow<RecordState> = _recordState.asStateFlow()
-
-    // split out of playerState because it changes very frequently and most observers don't
-    // actually need it (helps reduce UI recompositions)
-    private val _playerPosition = MutableStateFlow(0.0)
-    val playerPosition: StateFlow<Double> = _playerPosition.asStateFlow()
 
     fun initialise(context: Context) {
         contextRef = WeakReference(context)
     }
     fun switchOutput(outputType: OutputType) {
-        Prefs.outputType.value = outputType
         stopPlayer()
         output.end()
-        MainOptions.setChannelPower(0, 0)
-        MainOptions.setChannelPower(1, 0)
+        DataRepository.setChannelAPower(0)
+        DataRepository.setChannelBPower(0)
         output = when (outputType) {
             OutputType.COYOTE3 -> Coyote3Output()
             OutputType.COYOTE2 -> Coyote2Output()
@@ -134,27 +128,41 @@ object Player {
             OutputType.AUDIO_CONTINUOUS -> ContinuousAudioOutput()
         }
         output.initialise()
-        MainOptions.setFrequenciesToOutputDefaults(output)
-    }
-    fun setRecordState(newRecordState: RecordState) {
-        _recordState.update { newRecordState }
-    }
-    fun setPlayerPosition(position: Double) {
-        _playerPosition.update { position }
-    }
-    fun setSyncFineTune(offset: Float) {
-        _playerState.update { it.copy(syncFineTune = offset) }
-    }
 
-    fun getTimeAdjustment(): Double {
-        if (recordState.value.recordMode)
-            return 0.0
+        val frequencyRangeSubset = output.defaultFrequencyRange.toProportionOf(output.allowedFrequencyRange)
+        val minFreq = output.allowedFrequencyRange.lerp(frequencyRangeSubset.start.toDouble())
+        val maxFreq = output.allowedFrequencyRange.lerp(frequencyRangeSubset.endInclusive.toDouble())
+        DataRepository.setMainOptionsState(DataRepository.mainOptionsState.value.copy(
+            frequencyRange = output.allowedFrequencyRange,
+            frequencyRangeSelectedSubset = frequencyRangeSubset,
+            minFrequency = minFreq,
+            maxFrequency = maxFreq
+        ))
+        DataRepository.setOutputState(DataRepository.outputState.value.copy(outputType = outputType))
+    }
+    fun getNextTimes(time: Double): List<Double> {
+        val syncFineTune = DataRepository.playerState.value.syncFineTune
+        val playbackSpeed = DataRepository.playerAdvancedControlsState.value.playbackSpeed
+        val isRemote = DataRepository.playerState.value.activePulseSource?.isRemote ?: false
+        val latency = if (isRemote) DataRepository.playerState.value.activePulseSource?.remoteLatency ?: 0.0 else 0.0
+        val outputLatency = output.latency
 
-        val syncFineTune = playerState.value.syncFineTune
-        val isRemote = playerState.value.activePulseSource?.isRemote ?: false
-        val latency = if (isRemote) Prefs.playerRemoteLatency.value.toDouble() else 0.0
+        // Convert real-world offsets to media time
+        val adjustedSyncFineTune = syncFineTune * playbackSpeed
+        val adjustedLatency = latency * playbackSpeed
+        val adjustedPulseTime = output.pulseTime * playbackSpeed
+        //val adjustedOutputLatency = outputLatency * playbackSpeed
 
-        return syncFineTune + latency
+        return List(output.pulseBatchSize) { index ->
+            //(time + adjustedPulseTime * index.toDouble() + adjustedSyncFineTune + adjustedLatency + adjustedOutputLatency).coerceAtLeast(0.0)
+            (time + adjustedPulseTime * index.toDouble() + adjustedSyncFineTune + adjustedLatency).coerceAtLeast(0.0)
+        }
+    }
+    fun updatePlayerState(newPlayerState: DataRepository.PlayerState) {
+        DataRepository.setPlayerState(newPlayerState)
+    }
+    fun updateAdvancedControlsState(newAdvancedControlsState: DataRepository.PlayerAdvancedControlsState) {
+        DataRepository.setPlayerAdvancedControlsState(newAdvancedControlsState)
     }
     private fun applyNoise(time: Double, pulse: Pulse, ampNoiseAmount: Double, ampNoiseSpeed: Double, freqNoiseAmount: Double, freqNoiseSpeed: Double): Pulse {
         val noiseRotationSpeed = 0.05
@@ -180,93 +188,97 @@ object Player {
             freqB = (pulse.freqB + freqNoiseB * freqNoiseAmount).toFloat().coerceIn(0.0f..1.0f),
         )
     }
-    fun applySpecialEffects(time: Double, pulse: Pulse): Pulse {
-
+    private fun applyDeveloperOptions(pulse: Pulse): Pulse {
+        val devOpts = DataRepository.developerOptionsState.value
+        return pulse.copy(
+            ampA = (pulse.ampA.pow(devOpts.developerAmplitudeExponent) * devOpts.developerAmplitudeGain)
+                .coerceIn(0f, 1f),
+            ampB = (pulse.ampB.pow(devOpts.developerAmplitudeExponent) * devOpts.developerAmplitudeGain)
+                .coerceIn(0f, 1f),
+            freqA = (pulse.freqA.pow(devOpts.developerFrequencyExponent) * devOpts.developerFrequencyGain
+                    + devOpts.developerFrequencyAdjustA)
+                .coerceIn(0f, 1f),
+            freqB = (pulse.freqB.pow(devOpts.developerFrequencyExponent) * devOpts.developerFrequencyGain
+                    + devOpts.developerFrequencyAdjustB)
+                .coerceIn(0f, 1f)
+        )
+    }
+    fun applySpecialEffects(time: Double, pulse: Pulse, specialEffectsState: DataRepository.PlayerSpecialEffectsState): Pulse {
         var modifiedPulse = pulse.copy(
-            freqA = if (Prefs.sfxFrequencyInvertA.value) 1.0f - pulse.freqA else pulse.freqA,
-            freqB = if (Prefs.sfxFrequencyInvertB.value) 1.0f - pulse.freqB else pulse.freqB,
+            freqA = if (specialEffectsState.frequencyInversionA) 1.0f - pulse.freqA else pulse.freqA,
+            freqB = if (specialEffectsState.frequencyInversionB) 1.0f - pulse.freqB else pulse.freqB,
         )
 
-        if (Prefs.sfxAmplitudeNoiseAmount.value > 0.0 || Prefs.sfxFrequencyNoiseAmount.value > 0.0) {
+        modifiedPulse = modifiedPulse.copy(
+            freqA = calculateFeelAdjustment(
+                frequency = modifiedPulse.freqA,
+                exponent = specialEffectsState.frequencyFeel
+            ),
+            freqB = calculateFeelAdjustment(
+                frequency = modifiedPulse.freqB,
+                exponent = specialEffectsState.frequencyFeel
+            )
+        )
+
+        if (showDeveloperOptions)
+            modifiedPulse = applyDeveloperOptions(modifiedPulse)
+
+        if (specialEffectsState.amplitudeNoiseAmount > 0.0 || specialEffectsState.frequencyNoiseAmount > 0.0) {
             modifiedPulse = applyNoise(
                 time = time,
                 pulse = modifiedPulse,
-                ampNoiseAmount = Prefs.sfxAmplitudeNoiseAmount.value.toDouble(),
-                ampNoiseSpeed = Prefs.sfxAmplitudeNoiseSpeed.value.toDouble(),
-                freqNoiseAmount = Prefs.sfxFrequencyNoiseAmount.value.toDouble(),
-                freqNoiseSpeed = Prefs.sfxFrequencyNoiseSpeed.value.toDouble()
+                ampNoiseAmount = specialEffectsState.amplitudeNoiseAmount.toDouble(),
+                ampNoiseSpeed = specialEffectsState.amplitudeNoiseSpeed.toDouble(),
+                freqNoiseAmount = specialEffectsState.frequencyNoiseAmount.toDouble(),
+                freqNoiseSpeed = specialEffectsState.frequencyNoiseSpeed.toDouble()
             )
         }
 
         modifiedPulse = modifiedPulse.copy(
-            freqA = calculateFeelAdjustment(
-                value = modifiedPulse.freqA,
-                feel = Prefs.sfxFrequencyFeelA.value
-            ),
-            freqB = calculateFeelAdjustment(
-                value = modifiedPulse.freqB,
-                feel = Prefs.sfxFrequencyFeelB.value
-            ),
-            ampA = calculateFeelAdjustment(
-                value = modifiedPulse.ampA,
-                feel = Prefs.sfxAmplitudeFeelA.value
-            ),
-            ampB = calculateFeelAdjustment(
-                value = modifiedPulse.ampB,
-                feel = Prefs.sfxAmplitudeFeelB.value
-            )
-        )
-
-        modifiedPulse = modifiedPulse.copy(
-            ampA = (modifiedPulse.ampA * Prefs.sfxAmplitudeScaleA.value).coerceAtMost(1.0f),
-            ampB = (modifiedPulse.ampB * Prefs.sfxAmplitudeScaleB.value).coerceAtMost(1.0f),
-            freqA = (modifiedPulse.freqA + Prefs.sfxFrequencyAdjustA.value).coerceIn(0.0f..1.0f),
-            freqB = (modifiedPulse.freqB + Prefs.sfxFrequencyAdjustB.value).coerceIn(0.0f..1.0f)
+            ampA = (modifiedPulse.ampA * specialEffectsState.scaleAmplitudeA).coerceAtMost(1.0f),
+            ampB = (modifiedPulse.ampB * specialEffectsState.scaleAmplitudeB).coerceAtMost(1.0f)
         )
 
         return modifiedPulse
     }
     fun applyPostProcessing(time: Double, pulse: Pulse): Pulse {
-        val mainOptionsState = MainOptions.state.value
+        val mainOptionsState = DataRepository.mainOptionsState.value
+        val specialEffectsState = DataRepository.playerSpecialEffectsState.value
         val swapChannels = mainOptionsState.swapChannels
 
-        val inputPulse = if (swapChannels) {
-            pulse.copy(
-                ampA = pulse.ampB,
-                ampB = pulse.ampA,
-                freqA = pulse.freqB,
-                freqB = pulse.freqA
-            )
+        val processedPulse = if (specialEffectsState.specialEffectsEnabled) {
+            applySpecialEffects(time, pulse, specialEffectsState)
         } else {
             pulse
         }
-
-        return if (Prefs.sfxEnabled.value) {
-            applySpecialEffects(time, inputPulse)
+        
+        return if (swapChannels) {
+            processedPulse.copy(
+                ampA = processedPulse.ampB,
+                ampB = processedPulse.ampA,
+                freqA = processedPulse.freqB,
+                freqB = processedPulse.freqA
+            )
         } else {
-            inputPulse
+            processedPulse
         }
     }
     fun getPulseAtTime(time: Double): Pulse {
-        val activePulseSource = playerState.value.activePulseSource
+        val activePulseSource = DataRepository.playerState.value.activePulseSource
         val pulse = activePulseSource?.getPulseAtTime(time) ?: Pulse()
         return applyPostProcessing(time, pulse)
     }
     fun stopPlayer() {
-        _playerState.update { it.copy(isPlaying = false) }
+        updatePlayerState(DataRepository.playerState.value.copy(isPlaying = false))
         output.stop()
     }
     fun startPlayer(from: Double? = null) {
-        val playerState = playerState.value
-        val currentPosition = playerPosition.value
+        val playerState = DataRepository.playerState.value
+        val currentPosition = DataRepository.playerPosition.value
         val playFrom = from ?: currentPosition
         if(playerState.activePulseSource?.readyToPlay != true)
             return
-        _playerState.update { it.copy(
-            isPlaying = true,
-            startTime = markNow(),
-            startPosition = playFrom
-        ) }
+        updatePlayerState(playerState.copy(isPlaying = true, startTime = markNow(), startPosition = playFrom))
         output.start()
 
         val context = contextRef?.get() ?: return
@@ -274,7 +286,7 @@ object Player {
         context.startService(serviceIntent)
     }
     fun loadFile(uri: Uri, context: Context) {
-        setPlayerPosition(0.0)
+        DataRepository.setPlayerPosition(0.0)
         try {
             val pulseSource = HWLPulseSource()
             pulseSource.open(uri, context)
@@ -292,55 +304,86 @@ object Player {
         switchPulseSource(null)
     }
     fun switchPulseSource(source: PulseSource?) {
-        val playerState = playerState.value
+        val playerState = DataRepository.playerState.value
         if (source == null || playerState.activePulseSource != source) {
-            _playerState.update { it.copy(
-                activePulseSource = source,
-                startPosition = 0.0,
-                startTime = null,
-                isPlaying = false,
-                syncFineTune = 0.0f
-            ) }
-            setPlayerPosition(0.0)
+            updatePlayerState(DataRepository.PlayerState(activePulseSource = source))
+            DataRepository.setPlayerPosition(0.0)
         }
     }
     fun getCurrentPosition(): Double {
-        val playerState = playerState.value
-        val recordState = recordState.value
-        if (recordState.recordMode) {
-            val playerPosition = playerPosition.value
-            // Round to nearest 40th of a second
-            val roundedPosition = (playerPosition * 40).roundToInt() / 40.0
-            return roundedPosition
-        }
-        else {
-            val playbackSpeed = Prefs.playerPlaybackSpeed.value
-            val elapsed = playerState.startTime?.elapsedNow()?.toDouble(DurationUnit.SECONDS) ?: 0.0
-            return playerState.startPosition + elapsed * playbackSpeed
+        val playerState = DataRepository.playerState.value
+        val playbackSpeed = DataRepository.playerAdvancedControlsState.value.playbackSpeed
+        val elapsed = playerState.startTime?.elapsedNow()?.toDouble(DurationUnit.SECONDS) ?: 0.0
+        return playerState.startPosition + elapsed * playbackSpeed
+    }
+    fun handlePowerAutoIncrement() {
+        val mainOptionsState = DataRepository.mainOptionsState.value
+        val miscOptionsState = DataRepository.miscOptionsState.value
+
+        if (mainOptionsState.autoIncreasePower && !mainOptionsState.globalMute) {
+            if (mainOptionsState.channelAPower > 0)
+                autoIncrementPowerCounterA++
+            if (mainOptionsState.channelBPower > 0)
+                autoIncrementPowerCounterB++
+
+            val autoIncrementDelayA =
+                miscOptionsState.powerAutoIncrementDelayA
+            val autoIncrementDelayB =
+                miscOptionsState.powerAutoIncrementDelayB
+            //Log.d("Player", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
+            if (autoIncrementPowerCounterA >= autoIncrementDelayA * 10) {
+                autoIncrementPowerCounterA = 0
+                DataRepository.setChannelAPower(mainOptionsState.channelAPower + 1)
+            }
+            if (autoIncrementPowerCounterB >= autoIncrementDelayB * 10) {
+                autoIncrementPowerCounterB = 0
+                DataRepository.setChannelBPower(mainOptionsState.channelBPower + 1)
+            }
         }
     }
     fun seek(position: Double? = null) {
         // May also be called with null position to resync the player, for example when changing
         // playback speed
-        val playerState = playerState.value
-        val currentPosition = playerPosition.value
+        val playerState = DataRepository.playerState.value
+        val currentPosition = DataRepository.playerPosition.value
 
         val finite = playerState.activePulseSource?.isFinite ?: false
         val pos = if (!finite || position == null) currentPosition else position
-        _playerState.update { it.copy(
-            startTime = markNow(),
-            startPosition = pos
-        ) }
-        setPlayerPosition(pos)
+        updatePlayerState(
+            playerState.copy(
+                startTime = markNow(),
+                startPosition = pos
+            )
+        )
+        DataRepository.setPlayerPosition(pos)
+    }
+    fun setCurrentPosition(position: Double) {
+        DataRepository.setPlayerPosition(position)
     }
 }
 
 class PlayerViewModel() : ViewModel() {
-    val playerState: StateFlow<PlayerState> = Player.playerState
-    val recordState: StateFlow<RecordState> = Player.recordState
+    val playerState: StateFlow<DataRepository.PlayerState> = DataRepository.playerState
+    val advancedControlsState: StateFlow<DataRepository.PlayerAdvancedControlsState> =
+        DataRepository.playerAdvancedControlsState
+    val specialEffectsState: StateFlow<DataRepository.PlayerSpecialEffectsState> =
+        DataRepository.playerSpecialEffectsState
+    val developerOptionsState: StateFlow<DataRepository.DeveloperOptionsState> = DataRepository.developerOptionsState
 
-    fun updateRecordState(newRecordState: RecordState) {
-        Player.setRecordState(newRecordState)
+    fun updatePlayerState(newPlayerState: DataRepository.PlayerState) {
+        DataRepository.setPlayerState(newPlayerState)
+    }
+
+    fun updateAdvancedControlsState(newAdvancedControlsState: DataRepository.PlayerAdvancedControlsState) {
+        DataRepository.setPlayerAdvancedControlsState(newAdvancedControlsState)
+    }
+
+    fun updateSpecialEffectsState(newSpecialEffectsState: DataRepository.PlayerSpecialEffectsState) {
+        DataRepository.setPlayerSpecialEffectsState(newSpecialEffectsState)
+    }
+
+    fun updateDeveloperOptionsState(newDeveloperOptionsState: DataRepository.DeveloperOptionsState) {
+        DataRepository.setDeveloperOptionsState(newDeveloperOptionsState)
     }
 
     fun stopPlayer() {
@@ -359,51 +402,18 @@ class PlayerViewModel() : ViewModel() {
         Player.loadFile(uri, context)
     }
 
-    fun clearRecording() {
-        Player.recorder.clear()
-    }
-
-    fun resizeRecordingBuffer(duration: Int, clear: Boolean = false) {
-        Player.recorder.resize(duration, clear)
-    }
-
-    fun setRecordingMode(enable: Boolean) {
-        val recordBufferLengthPassive = 120
-        val recordBufferLengthActive = 7200
-
-        if(enable) {
-            resizeRecordingBuffer(recordBufferLengthActive, true)
+    fun updateFunscriptLatency(latency: Float) {
+        updateAdvancedControlsState(advancedControlsState.value.copy(funscriptRemoteLatency = latency))
+        if (playerState.value.activePulseSource is FunscriptPulseSource) {
+            val funscriptPulseSource = playerState.value.activePulseSource as FunscriptPulseSource
+            if (funscriptPulseSource.isRemote)
+                funscriptPulseSource.remoteLatency = latency.toDouble()
         }
-        else {
-            resizeRecordingBuffer(recordBufferLengthPassive, true)
-            seek(null)
-        }
-
-        updateRecordState(recordState.value.copy(recordMode = enable, recording = false))
     }
 
-    fun setRecording(enable: Boolean) {
-        updateRecordState(recordState.value.copy(recording = enable))
-    }
-
-    fun saveRecording(uri: Uri, context: Context) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val pulses = Player.recorder.getPulses()
-
-                if (pulses.isEmpty()) {
-                    Log.e("Player", "No pulses to save")
-                    return@launch
-                }
-
-                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    writeHWLFile(outputStream, pulses)
-                    Log.i("Player", "Recording saved: ${pulses.size} pulses")
-                } ?: Log.e("Player", "Failed to open output stream")
-
-            } catch (e: Exception) {
-                Log.e("Player", "Failed to save recording", e)
-            }
+    fun saveSettings() {
+        viewModelScope.launch {
+            DataRepository.saveSettings()
         }
     }
 }
@@ -413,18 +423,7 @@ fun AdvancedControlsPanel(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val playerShowSyncFineTune by Prefs.playerShowSyncFineTune.collectAsStateWithLifecycle()
-    val playerPlaybackSpeed by Prefs.playerPlaybackSpeed.collectAsStateWithLifecycle()
-    val playerRemoteLatency by Prefs.playerRemoteLatency.collectAsStateWithLifecycle()
-
-    val funscriptVolume by Prefs.funscriptVolume.collectAsStateWithLifecycle()
-    val funscriptPositionalEffectStrength by Prefs.funscriptPositionalEffectStrength.collectAsStateWithLifecycle()
-    val funscriptFrequencyTimeOffset by Prefs.funscriptFrequencyTimeOffset.collectAsStateWithLifecycle()
-    val funscriptFrequencyVarySpeed by Prefs.funscriptFrequencyVarySpeed.collectAsStateWithLifecycle()
-    val funscriptFrequencyBlendRatio by Prefs.funscriptFrequencyBlendRatio.collectAsStateWithLifecycle()
-    val funscriptFrequencyAlgorithm by Prefs.funscriptFrequencyAlgorithm.collectAsStateWithLifecycle()
-    val funscriptFrequencyFixedA by Prefs.funscriptFrequencyFixedA.collectAsStateWithLifecycle()
-    val funscriptFrequencyFixedB by Prefs.funscriptFrequencyFixedB.collectAsStateWithLifecycle()
+    val advancedControlsState by viewModel.advancedControlsState.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
@@ -438,34 +437,29 @@ fun AdvancedControlsPanel(
         ) {
             Text(text = stringResource(R.string.player_settings), style = MaterialTheme.typography.headlineSmall)
         }
+        SwitchWithLabel(
+            label = stringResource(R.string.show_sync_fine_tune),
+            checked = advancedControlsState.showSyncFineTune,
+            onCheckedChange = {
+                viewModel.updateAdvancedControlsState(
+                    advancedControlsState.copy(
+                        showSyncFineTune = it
+                    )
+                )
+                viewModel.saveSettings()
+            }
+        )
         SliderWithLabel(
             label = stringResource(R.string.playback_speed),
-            value = playerPlaybackSpeed,
+            value = advancedControlsState.playbackSpeed,
             onValueChange = {
-                Prefs.playerPlaybackSpeed.value = it
+                viewModel.updateAdvancedControlsState(advancedControlsState.copy(playbackSpeed = it))
                 viewModel.seek()
             },
-            onValueChangeFinished = { Prefs.playerPlaybackSpeed.save() },
+            onValueChangeFinished = { viewModel.saveSettings() },
             valueRange = 0.25f..4.0f,
             steps = 14,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.remote_funscript_latency_seconds),
-            value = playerRemoteLatency,
-            onValueChange = { Prefs.playerRemoteLatency.value = it },
-            onValueChangeFinished = { Prefs.playerRemoteLatency.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SwitchWithLabel(
-            label = stringResource(R.string.show_sync_fine_tune),
-            checked = playerShowSyncFineTune,
-            onCheckedChange = {
-                Prefs.playerShowSyncFineTune.value = it
-                Prefs.playerShowSyncFineTune.save()
-            }
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
@@ -475,87 +469,137 @@ fun AdvancedControlsPanel(
             Text(text = stringResource(R.string.funscript_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = stringResource(R.string.scaling_coefficient),
-            value = funscriptVolume,
-            onValueChange = { Prefs.funscriptVolume.value = it },
-            onValueChangeFinished = { Prefs.funscriptVolume.save() },
-            valueRange = 0.5f..1.0f,
-            steps = 49,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Positional effect strength",
-            value = funscriptPositionalEffectStrength,
-            onValueChange = { Prefs.funscriptPositionalEffectStrength.value = it },
-            onValueChangeFinished = { Prefs.funscriptPositionalEffectStrength.save() },
+            label = stringResource(R.string.scaling_boosts_slower_movements),
+            value = advancedControlsState.funscriptVolume,
+            onValueChange = {viewModel.updateAdvancedControlsState(advancedControlsState.copy(funscriptVolume = it))},
+            onValueChangeFinished = { viewModel.saveSettings() },
             valueRange = 0f..1.0f,
             steps = 99,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
+        SliderWithLabel(
+            label = stringResource(R.string.positional_effect_strength),
+            value = advancedControlsState.funscriptPositionalEffectStrength,
+            onValueChange = {viewModel.updateAdvancedControlsState(advancedControlsState.copy(funscriptPositionalEffectStrength = it))},
+            onValueChangeFinished = { viewModel.saveSettings() },
+            valueRange = 0f..1.0f,
+            steps = 99,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SliderWithLabel(
+            label = stringResource(R.string.remote_funscript_latency_seconds),
+            value = advancedControlsState.funscriptRemoteLatency,
+            onValueChange = { viewModel.updateFunscriptLatency(it) },
+            onValueChangeFinished = { viewModel.saveSettings() },
+            valueRange = 0.0f..1.0f,
+            steps = 99,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        // 在Composable上下文中创建振幅算法资源映射
+        val amplitudeAlgorithmResources = mapOf(
+            AmplitudeAlgorithmType.DEFAULT to R.string.amplitude_algorithm_default,
+            AmplitudeAlgorithmType.PENETRATIVE to R.string.amplitude_algorithm_position // 使用现有资源
+        )
+        
+        // 创建本地化的振幅算法文本映射
+        val amplitudeAlgorithmLabels = amplitudeAlgorithmResources.mapValues { stringResource(it.value) }
+        
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Frequency algorithm", style = MaterialTheme.typography.labelLarge)
+            Text(text = stringResource(R.string.amplitude_algorithm), style = MaterialTheme.typography.labelLarge)
             OptionPicker(
-                currentValue = funscriptFrequencyAlgorithm,
+                currentValue = advancedControlsState.funscriptAmplitudeAlgorithm,
                 onValueChange = {
-                    Prefs.funscriptFrequencyAlgorithm.value = it
-                    Prefs.funscriptFrequencyAlgorithm.save()
+                    viewModel.updateAdvancedControlsState(
+                        advancedControlsState.copy(
+                            funscriptAmplitudeAlgorithm = it
+                        )
+                    )
+                    viewModel.saveSettings()
+                },
+                options = AmplitudeAlgorithmType.entries,
+                getText = { amplitudeAlgorithmLabels.getOrDefault(it, it.displayName) }
+            )
+        }
+        // 在Composable上下文中创建频率算法资源映射
+        val frequencyAlgorithmResources = mapOf(
+            FrequencyAlgorithmType.BLEND to R.string.frequency_algorithm_blend,
+            FrequencyAlgorithmType.POSITION to R.string.amplitude_algorithm_position,
+            FrequencyAlgorithmType.VARIED to R.string.amplitude_algorithm_varied
+        )
+        
+        // 创建本地化的频率算法文本映射
+        val frequencyAlgorithmLabels = frequencyAlgorithmResources.mapValues { stringResource(it.value) }
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = stringResource(R.string.frequency_algorithm), style = MaterialTheme.typography.labelLarge)
+            OptionPicker(
+                currentValue = advancedControlsState.funscriptFrequencyAlgorithm,
+                onValueChange = {
+                    viewModel.updateAdvancedControlsState(
+                        advancedControlsState.copy(
+                            funscriptFrequencyAlgorithm = it
+                        )
+                    )
+                    viewModel.saveSettings()
                 },
                 options = FrequencyAlgorithmType.entries,
-                getText = { it.displayName }
+                getText = { frequencyAlgorithmLabels.getOrDefault(it, it.displayName) }
             )
         }
-        if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.FIXED) {
+        if (advancedControlsState.funscriptFrequencyAlgorithm == FrequencyAlgorithmType.POSITION) {
             SliderWithLabel(
-                label = "Channel A fixed frequency",
-                value = funscriptFrequencyFixedA,
-                onValueChange = { Prefs.funscriptFrequencyFixedA.value = it },
-                onValueChangeFinished = { Prefs.funscriptFrequencyFixedA.save() },
+                label = stringResource(R.string.ab_frequency_time_offset),
+                value = advancedControlsState.funscriptFrequencyTimeOffset,
+                onValueChange = {
+                    viewModel.updateAdvancedControlsState(
+                        advancedControlsState.copy(
+                            funscriptFrequencyTimeOffset = it
+                        )
+                    )
+                },
+                onValueChangeFinished = { viewModel.saveSettings() },
                 valueRange = 0f..1.0f,
                 steps = 99,
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
-            SliderWithLabel(
-                label = "Channel B fixed frequency",
-                value = funscriptFrequencyFixedB,
-                onValueChange = { Prefs.funscriptFrequencyFixedB.value = it },
-                onValueChangeFinished = { Prefs.funscriptFrequencyFixedB.save() },
-                valueRange = 0f..1.0f,
-                steps = 99,
-                valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-            )
         }
-        if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.POSITION) {
+        if (advancedControlsState.funscriptFrequencyAlgorithm != FrequencyAlgorithmType.POSITION) {
             SliderWithLabel(
-                label = "A/B frequency time offset",
-                value = funscriptFrequencyTimeOffset,
-                onValueChange = { Prefs.funscriptFrequencyTimeOffset.value = it },
-                onValueChangeFinished = { Prefs.funscriptFrequencyTimeOffset.save() },
-                valueRange = -0.3f..0.3f,
-                steps = 59,
-                valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-            )
-        }
-        if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.BLEND || funscriptFrequencyAlgorithm == FrequencyAlgorithmType.VARIED) {
-            SliderWithLabel(
-                label = "Frequency vary speed",
-                value = funscriptFrequencyVarySpeed,
-                onValueChange = { Prefs.funscriptFrequencyVarySpeed.value = it },
-                onValueChangeFinished = { Prefs.funscriptFrequencyVarySpeed.save() },
+                label = stringResource(R.string.frequency_vary_speed),
+                value = advancedControlsState.funscriptFrequencyVarySpeed,
+                onValueChange = {
+                    viewModel.updateAdvancedControlsState(
+                        advancedControlsState.copy(
+                            funscriptFrequencyVarySpeed = it
+                        )
+                    )
+                },
+                onValueChangeFinished = { viewModel.saveSettings() },
                 valueRange = 0.1f..5.0f,
                 steps = 48,
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
         }
-        if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.BLEND) {
+        if (advancedControlsState.funscriptFrequencyAlgorithm == FrequencyAlgorithmType.BLEND) {
             SliderWithLabel(
-                label = "Blend ratio (Position -> Varied)",
-                value = funscriptFrequencyBlendRatio,
-                onValueChange = { Prefs.funscriptFrequencyBlendRatio.value = it },
-                onValueChangeFinished = { Prefs.funscriptFrequencyBlendRatio.save() },
+                label = stringResource(R.string.blend_ratio_position_varied),
+                value = advancedControlsState.funscriptFrequencyBlendRatio,
+                onValueChange = {
+                    viewModel.updateAdvancedControlsState(
+                        advancedControlsState.copy(
+                            funscriptFrequencyBlendRatio = it
+                        )
+                    )
+                },
+                onValueChangeFinished = { viewModel.saveSettings() },
                 valueRange = 0f..1.0f,
                 steps = 99,
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
@@ -569,21 +613,13 @@ fun SpecialEffectsPanel(
     viewModel: PlayerViewModel,
     modifier: Modifier = Modifier
 ) {
-    val sfxEnabled by Prefs.sfxEnabled.collectAsStateWithLifecycle()
-    val sfxFrequencyInvertA by Prefs.sfxFrequencyInvertA.collectAsStateWithLifecycle()
-    val sfxFrequencyInvertB by Prefs.sfxFrequencyInvertB.collectAsStateWithLifecycle()
-    val sfxAmplitudeScaleA by Prefs.sfxAmplitudeScaleA.collectAsStateWithLifecycle()
-    val sfxAmplitudeScaleB by Prefs.sfxAmplitudeScaleB.collectAsStateWithLifecycle()
-    val sfxFrequencyFeelA by Prefs.sfxFrequencyFeelA.collectAsStateWithLifecycle()
-    val sfxFrequencyFeelB by Prefs.sfxFrequencyFeelB.collectAsStateWithLifecycle()
-    val sfxAmplitudeFeelA by Prefs.sfxAmplitudeFeelA.collectAsStateWithLifecycle()
-    val sfxAmplitudeFeelB by Prefs.sfxAmplitudeFeelB.collectAsStateWithLifecycle()
-    val sfxAmplitudeNoiseAmount by Prefs.sfxAmplitudeNoiseAmount.collectAsStateWithLifecycle()
-    val sfxAmplitudeNoiseSpeed by Prefs.sfxAmplitudeNoiseSpeed.collectAsStateWithLifecycle()
-    val sfxFrequencyNoiseAmount by Prefs.sfxFrequencyNoiseAmount.collectAsStateWithLifecycle()
-    val sfxFrequencyNoiseSpeed by Prefs.sfxFrequencyNoiseSpeed.collectAsStateWithLifecycle()
-    val sfxFrequencyAdjustA by Prefs.sfxFrequencyAdjustA.collectAsStateWithLifecycle()
-    val sfxFrequencyAdjustB by Prefs.sfxFrequencyAdjustB.collectAsStateWithLifecycle()
+    val specialEffectsState by viewModel.specialEffectsState.collectAsStateWithLifecycle()
+    val developerOptionsState by viewModel.developerOptionsState.collectAsStateWithLifecycle()
+    val enabled = specialEffectsState.specialEffectsEnabled
+
+    val developerExponentRange: ClosedFloatingPointRange<Float> = 0.5f .. 2.0f
+    val developerGainRange: ClosedFloatingPointRange<Float> = 0.5f .. 2.0f
+    val developerFrequencyAdjustRange: ClosedFloatingPointRange<Float> = -1.0f .. 1.0f
 
     Column(
         modifier = modifier
@@ -599,175 +635,208 @@ fun SpecialEffectsPanel(
         }
         SwitchWithLabel(
             label = stringResource(R.string.apply_special_effects),
-            checked = sfxEnabled,
+            checked = specialEffectsState.specialEffectsEnabled,
             onCheckedChange = {
-                Prefs.sfxEnabled.value = it
-                Prefs.sfxEnabled.save()
+                viewModel.updateSpecialEffectsState(
+                    specialEffectsState.copy(
+                        specialEffectsEnabled = it
+                    )
+                )
+                viewModel.saveSettings()
             }
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = stringResource(R.string.amplitude_adjustments), style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = stringResource(R.string.amplitude_feel_channel_a),
-            value = sfxAmplitudeFeelA,
-            onValueChange = { Prefs.sfxAmplitudeFeelA.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeFeelA.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.amplitude_feel_channel_b),
-            value = sfxAmplitudeFeelB,
-            onValueChange = { Prefs.sfxAmplitudeFeelB.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeFeelB.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.scale_amplitude_channel_a),
-            value = sfxAmplitudeScaleA,
-            onValueChange = { Prefs.sfxAmplitudeScaleA.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeScaleA.save() },
-            valueRange = 0.0f..2.0f,
-            steps = 39,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.scale_amplitude_channel_b),
-            value = sfxAmplitudeScaleB,
-            onValueChange = { Prefs.sfxAmplitudeScaleB.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeScaleB.save() },
-            valueRange = 0.0f..2.0f,
-            steps = 39,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Frequency adjustments", style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = "Frequency feel (channel A)",
-            value = sfxFrequencyFeelA,
-            onValueChange = { Prefs.sfxFrequencyFeelA.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyFeelA.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Frequency feel (channel B)",
-            value = sfxFrequencyFeelB,
-            onValueChange = { Prefs.sfxFrequencyFeelB.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyFeelB.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
         )
         SwitchWithLabel(
             label = stringResource(R.string.invert_channel_a_frequencies),
-            checked = sfxFrequencyInvertA,
+            checked = specialEffectsState.frequencyInversionA,
             onCheckedChange = {
-                Prefs.sfxFrequencyInvertA.value = it
-                Prefs.sfxFrequencyInvertA.save()
+                viewModel.updateSpecialEffectsState(
+                    specialEffectsState.copy(
+                        frequencyInversionA = it
+                    )
+                )
+                viewModel.saveSettings()
             },
-            enabled = sfxEnabled
+            enabled = enabled
         )
         SwitchWithLabel(
             label = stringResource(R.string.invert_channel_b_frequencies),
-            checked = sfxFrequencyInvertB,
+            checked = specialEffectsState.frequencyInversionB,
             onCheckedChange = {
-                Prefs.sfxFrequencyInvertB.value = it
-                Prefs.sfxFrequencyInvertB.save()
+                viewModel.updateSpecialEffectsState(
+                    specialEffectsState.copy(
+                        frequencyInversionB = it
+                    )
+                )
+                viewModel.saveSettings()
             },
-            enabled = sfxEnabled
+            enabled = enabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel A)",
-            value = sfxFrequencyAdjustA,
-            onValueChange = { Prefs.sfxFrequencyAdjustA.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyAdjustA.save() },
-            valueRange = -1.0f..1.0f,
-            steps = 199,
+            label = stringResource(R.string.scale_amplitude_channel_a),
+            value = specialEffectsState.scaleAmplitudeA,
+            onValueChange = {viewModel.updateSpecialEffectsState(specialEffectsState.copy(scaleAmplitudeA = it))},
+            onValueChangeFinished = { viewModel.saveSettings() },
+            valueRange = 0.0f..2.0f,
+            steps = 39,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
+            enabled = enabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel B)",
-            value = sfxFrequencyAdjustB,
-            onValueChange = { Prefs.sfxFrequencyAdjustB.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyAdjustB.save() },
-            valueRange = -1.0f..1.0f,
-            steps = 199,
+            label = stringResource(R.string.scale_amplitude_channel_b),
+            value = specialEffectsState.scaleAmplitudeB,
+            onValueChange = {viewModel.updateSpecialEffectsState(specialEffectsState.copy(scaleAmplitudeB = it))},
+            onValueChangeFinished = { viewModel.saveSettings() },
+            valueRange = 0.0f..2.0f,
+            steps = 39,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
+            enabled = enabled
         )
-
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Random noise", style = MaterialTheme.typography.headlineSmall)
-        }
         SliderWithLabel(
-            label = "Random amplitude noise (amount)",
-            value = sfxAmplitudeNoiseAmount,
-            onValueChange = { Prefs.sfxAmplitudeNoiseAmount.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeNoiseAmount.save() },
+            label = stringResource(R.string.frequency_feel_adjustment),
+            value = specialEffectsState.frequencyFeel,
+            onValueChange = {viewModel.updateSpecialEffectsState(specialEffectsState.copy(frequencyFeel = it))},
+            onValueChangeFinished = { viewModel.saveSettings() },
+            valueRange = 0.5f..2.0f,
+            steps = 149,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
+            enabled = enabled
+        )
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        SliderWithLabel(
+            label = stringResource(R.string.random_amplitude_noise_amount),
+            value = specialEffectsState.amplitudeNoiseAmount,
+            onValueChange = {
+                viewModel.updateSpecialEffectsState(
+                    specialEffectsState.copy(
+                        amplitudeNoiseAmount = it
+                    )
+                )
+            },
+            onValueChangeFinished = { viewModel.saveSettings() },
             valueRange = 0f..1.0f,
             steps = 99,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
+            enabled = enabled
         )
-        if (sfxAmplitudeNoiseAmount > 0f) {
+        if (specialEffectsState.amplitudeNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random amplitude noise (speed)",
-                value = sfxAmplitudeNoiseSpeed,
-                onValueChange = { Prefs.sfxAmplitudeNoiseSpeed.value = it },
-                onValueChangeFinished = { Prefs.sfxAmplitudeNoiseSpeed.save() },
+                label = stringResource(R.string.random_amplitude_noise_speed),
+                value = specialEffectsState.amplitudeNoiseSpeed,
+                onValueChange = {
+                    viewModel.updateSpecialEffectsState(
+                        specialEffectsState.copy(
+                            amplitudeNoiseSpeed = it
+                        )
+                    )
+                },
+                onValueChangeFinished = { viewModel.saveSettings() },
                 valueRange = 0.1f..20.0f,
                 steps = 198,
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-                enabled = sfxEnabled
+                enabled = enabled
             )
         }
         SliderWithLabel(
-            label = "Random frequency noise (amount)",
-            value = sfxFrequencyNoiseAmount,
-            onValueChange = { Prefs.sfxFrequencyNoiseAmount.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyNoiseAmount.save() },
+            label = stringResource(R.string.random_frequency_noise_amount),
+            value = specialEffectsState.frequencyNoiseAmount,
+            onValueChange = {
+                viewModel.updateSpecialEffectsState(
+                    specialEffectsState.copy(
+                        frequencyNoiseAmount = it
+                    )
+                )
+            },
+            onValueChangeFinished = { viewModel.saveSettings() },
             valueRange = 0f..1.0f,
             steps = 99,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
+            enabled = enabled
         )
-        if (sfxFrequencyNoiseAmount > 0f) {
+        if (specialEffectsState.frequencyNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random frequency noise (speed)",
-                value = sfxFrequencyNoiseSpeed,
-                onValueChange = { Prefs.sfxFrequencyNoiseSpeed.value = it },
-                onValueChangeFinished = { Prefs.sfxFrequencyNoiseSpeed.save() },
+                label = stringResource(R.string.random_frequency_noise_speed),
+                value = specialEffectsState.frequencyNoiseSpeed,
+                onValueChange = {
+                    viewModel.updateSpecialEffectsState(
+                        specialEffectsState.copy(
+                            frequencyNoiseSpeed = it
+                        )
+                    )
+                },
+                onValueChangeFinished = { viewModel.saveSettings() },
                 valueRange = 0.1f..20.0f,
                 steps = 198,
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-                enabled = sfxEnabled
+                enabled = enabled
+            )
+        }
+        if (showDeveloperOptions) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(text = stringResource(R.string.developer_options), style = MaterialTheme.typography.headlineSmall)
+            }
+            SliderWithLabel(
+                label = stringResource(R.string.frequency_exponent),
+                value = developerOptionsState.developerFrequencyExponent,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerFrequencyExponent = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerExponentRange,
+                steps = ((developerExponentRange.endInclusive - developerExponentRange.start) * 10.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%02.1f", it) },
+                enabled = enabled
+            )
+            SliderWithLabel(
+                label = stringResource(R.string.frequency_gain),
+                value = developerOptionsState.developerFrequencyGain,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerFrequencyGain = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerGainRange,
+                steps = ((developerGainRange.endInclusive - developerGainRange.start) * 10.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%02.1f", it) },
+                enabled = enabled
+            )
+            SliderWithLabel(
+                label = stringResource(R.string.channel_a_frequency_adjust),
+                value = developerOptionsState.developerFrequencyAdjustA,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerFrequencyAdjustA = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerFrequencyAdjustRange,
+                steps = ((developerFrequencyAdjustRange.endInclusive - developerFrequencyAdjustRange.start) * 20.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%03.2f", it) },
+                enabled = enabled
+            )
+            SliderWithLabel(
+                label = stringResource(R.string.channel_b_frequency_adjust),
+                value = developerOptionsState.developerFrequencyAdjustB,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerFrequencyAdjustB = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerFrequencyAdjustRange,
+                steps = ((developerFrequencyAdjustRange.endInclusive - developerFrequencyAdjustRange.start) * 20.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%03.2f", it) },
+                enabled = enabled
+            )
+            SliderWithLabel(
+                label = stringResource(R.string.amplitude_exponent),
+                value = developerOptionsState.developerAmplitudeExponent,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerAmplitudeExponent = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerExponentRange,
+                steps = ((developerExponentRange.endInclusive - developerExponentRange.start) * 10.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%02.1f", it) },
+                enabled = enabled
+            )
+            SliderWithLabel(
+                label = stringResource(R.string.amplitude_gain),
+                value = developerOptionsState.developerAmplitudeGain,
+                onValueChange = { viewModel.updateDeveloperOptionsState(developerOptionsState.copy(developerAmplitudeGain = it)) },
+                onValueChangeFinished = { },
+                valueRange = developerGainRange,
+                steps = ((developerGainRange.endInclusive - developerGainRange.start) * 10.0 - 1).roundToInt(),
+                valueDisplay = { String.format(Locale.US, "%02.1f", it) },
+                enabled = enabled
             )
         }
     }
@@ -779,24 +848,35 @@ fun PlayerPositionDisplay(
     onSeek: (Double) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentPosition by Player.playerPosition.collectAsStateWithLifecycle()
+    val currentPosition by DataRepository.playerPosition.collectAsStateWithLifecycle()
 
     // Temporary variables that we use to ensure the player position only gets
     // updated once the user finishes dragging the drag handle on the seek bar.
     // This prevents sending garbled output when the user drags during playback.
     var isDragging by remember { mutableStateOf(false) }
     var tempPosition by remember { mutableDoubleStateOf(currentPosition) }
-    val pos = if (isDragging) tempPosition else currentPosition
+
+    // Update tempPosition when currentPosition changes but user is not dragging
+    /*LaunchedEffect(currentPosition) {
+        if (!isDragging) {
+            tempPosition = currentPosition
+        }
+    }*/
 
     Row(
         modifier = modifier
-            .fillMaxWidth(),
-            //.padding(4.dp),
+            .fillMaxWidth()
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Position Display
+        val pos = if (isDragging) tempPosition else currentPosition
+        Text(text = formatTime(pos))
+        Spacer(modifier = Modifier.width(4.dp))
+
         // Seek Bar
         Slider(
-            modifier = Modifier.weight(1f),
             value = pos.toFloat(),
             onValueChange = {
                 tempPosition = it.toDouble()
@@ -808,151 +888,29 @@ fun PlayerPositionDisplay(
                 onSeek(tempPosition)
             }
         )
-        // Position Display
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = formatTime(pos),
-            maxLines = 1,
-            style = MaterialTheme.typography.headlineSmall
-        )
-    }
-}
-
-@Composable
-fun RecordPanel(
-    viewModel: PlayerViewModel,
-    modifier: Modifier = Modifier
-) {
-    val recordState by viewModel.recordState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    val duration = recordState.duration
-    val recordMode = recordState.recordMode
-    val recording = recordState.recording
-
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
-        onResult = { uri: Uri? ->
-            uri?.let { viewModel.saveRecording(it, context) }
-        }
-    )
-
-    val backgroundColor =
-        if (recordMode) MaterialTheme.colorScheme.secondaryContainer
-            else MaterialTheme.colorScheme.surface
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = backgroundColor,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
-        tonalElevation = 2.dp
-    ) {
-        Column(
-            //modifier = Modifier.padding(12.dp),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            // Section label and switch row
-            Row (
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Recorder",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                // Record mode toggle
-                Switch(
-                    checked = recordMode,
-                    onCheckedChange = { enable ->
-                        viewModel.setRecordingMode(enable)
-                    }
-                )
-            }
-            // Controls row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Start/stop recording button
-                if (recordMode) {
-                    Button(
-                        onClick = {
-                            viewModel.setRecording(!recording)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (recording)
-                                MaterialTheme.colorScheme.tertiary
-                            else
-                                MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.record),
-                            contentDescription = "Toggle recording"
-                        )
-                    }
-                }
-                // Save button
-                Button(
-                    enabled = duration > 0,
-                    onClick = {
-                        Player.stopPlayer()
-                        val formatter = DateTimeFormatter.ofPattern(
-                            "yyyy-MM-dd--HH-mm-ss",
-                            Locale.US
-                        )
-                        val now = LocalDateTime.now()
-                        val defaultFilename = "${now.format(formatter)}.hwl"
-                        saveLauncher.launch(defaultFilename)
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.save),
-                        contentDescription = "Save recording"
-                    )
-                }
-                if (recordMode) {
-                    // Clear button
-                    Button(
-                        onClick = {
-                            viewModel.clearRecording()
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.bin),
-                            contentDescription = "Clear recording"
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = formatTime(duration.toDouble()),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.headlineSmall
-                )
-            }
-        }
     }
 }
 
 @Composable
 fun PlayerPanel(
     viewModel: PlayerViewModel,
-    onAdvancedSettingsClick: () -> Unit,
-    onSpecialEffectsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val playerState by viewModel.playerState.collectAsStateWithLifecycle()
-    val playerShowSyncFineTune by Prefs.playerShowSyncFineTune.collectAsStateWithLifecycle()
-    val sfxEnabled by Prefs.sfxEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    //val currentPosition by DataRepository.playerPosition.collectAsStateWithLifecycle()
+    val advancedControlsState by viewModel.advancedControlsState.collectAsStateWithLifecycle()
+    val specialEffectsState by viewModel.specialEffectsState.collectAsStateWithLifecycle()
+    var showAdvancedSettings by remember { mutableStateOf(false) }
+    var showSpecialEffects by remember { mutableStateOf(false) }
+    val activeButtonColour = Color.Red
 
-    val activeButtonColour = MaterialTheme.colorScheme.tertiary
+    // Temporary variables that we use to ensure the player position only gets
+    // updated once the user finishes dragging the drag handle on the seek bar.
+    // This prevents sending garbled output when the user drags during playback.
+    //var isDragging by remember { mutableStateOf(false) }
+    //var tempPosition by remember { mutableDoubleStateOf(currentPosition) }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri: Uri? ->
@@ -962,168 +920,126 @@ fun PlayerPanel(
         }
     )
 
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
-        tonalElevation = 2.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // File Name Display
-            val displayName = playerState.activePulseSource?.displayName ?: "Player"
-            Text(
-                text = displayName,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 10.dp)
-            )
-
-            // Position display and seek bar
-            PlayerPositionDisplay(
-                duration = playerState.activePulseSource?.duration ?: 0.0,
-                onSeek = { viewModel.seek(it) }
-            )
-
-            // Control buttons row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Play/Pause Button
-                Button(
-                    onClick = {
-                        if (playerState.isPlaying)
-                            viewModel.stopPlayer()
-                        else
-                            viewModel.startPlayer()
-                    }
-                ) {
-                    if (playerState.isPlaying) {
-                        Icon(
-                            painter = painterResource(R.drawable.pause),
-                            contentDescription = "Pause"
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.play),
-                            contentDescription = "Play"
-                        )
-                    }
-                }
-
-                // File Picker Button
-                Button(
-                    onClick = {
-                        viewModel.stopPlayer()
-                        filePickerLauncher.launch(arrayOf("*/*"))
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.folder_open),
-                        contentDescription = "Open file"
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Special effects options button
-                Button(
-                    onClick = onSpecialEffectsClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (sfxEnabled) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                    )
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.special_effects),
-                        contentDescription = "Special effects"
-                    )
-                }
-
-                // Advanced options button
-                Button(
-                    onClick = onAdvancedSettingsClick
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.settings),
-                        contentDescription = "Advanced settings"
-                    )
-                }
-            }
-            // Sync fine tune (if enabled)
-            if (playerShowSyncFineTune) {
-                SliderWithLabel(
-                    label = "Sync fine tune (seconds)",
-                    value = playerState.syncFineTune,
-                    onValueChange = { Player.setSyncFineTune(it) },
-                    onValueChangeFinished = { },
-                    valueRange = -0.5f..0.5f,
-                    steps = 99,
-                    valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CombinedPanel(
-    viewModel: PlayerViewModel,
-    modifier: Modifier = Modifier
-) {
-    var showAdvancedSettings by remember { mutableStateOf(false) }
-    var showSpecialEffects by remember { mutableStateOf(false) }
-
     Column(
         modifier = modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Main player panel
-        PlayerPanel(
-            viewModel = viewModel,
-            onAdvancedSettingsClick = { showAdvancedSettings = true },
-            onSpecialEffectsClick = { showSpecialEffects = true },
-            modifier = Modifier.fillMaxWidth()
+        // File Name Display
+        val displayName = playerState.activePulseSource?.displayName ?: "Howl Player"
+        val duration = playerState.activePulseSource?.duration ?: 0.0
+        Text(text = displayName, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
+
+        PlayerPositionDisplay(
+            duration = playerState.activePulseSource?.duration ?: 0.0,
+            onSeek = { viewModel.seek(it) }
         )
 
-        // Record panel
-        RecordPanel(viewModel = viewModel)
-    }
-
-    // Dialogs
-    if (showAdvancedSettings) {
-        Dialog(
-            onDismissRequest = { showAdvancedSettings = false }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+            // Play/Pause Button
+            Button(
+                onClick = {
+                    if (playerState.isPlaying)
+                        viewModel.stopPlayer()
+                    else
+                        viewModel.startPlayer()
+                }
             ) {
-                AdvancedControlsPanel(
-                    viewModel = viewModel,
+                if (playerState.isPlaying) {
+                    Icon(
+                        painter = painterResource(R.drawable.pause),
+                        contentDescription = context.getString(R.string.button_pause)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.play),
+                        contentDescription = context.getString(R.string.button_play)
+                    )
+                }
+            }
+            // File Picker Button
+            Button(
+                onClick = {
+                    viewModel.stopPlayer()
+                    filePickerLauncher.launch(arrayOf("*/*"))
+                }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.folder_open),
+                    contentDescription = stringResource(R.string.content_description_open_file),
+                )
+            }
+            // Special effects options button
+            Button(
+                onClick = {
+                    showSpecialEffects = true
+                },
+                colors = ButtonDefaults.buttonColors(
+                containerColor = if (specialEffectsState.specialEffectsEnabled) activeButtonColour else ButtonDefaults.buttonColors().containerColor
+                )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.special_effects),
+                    contentDescription = stringResource(R.string.content_description_special_effects),
+                )
+            }
+            // Advanced options button
+            Button(
+                onClick = {
+                    showAdvancedSettings = true
+                }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.settings),
+                    contentDescription = stringResource(R.string.content_description_advanced_settings),
                 )
             }
         }
-    }
+        Spacer(modifier = Modifier.height(8.dp))
+        if (advancedControlsState.showSyncFineTune) {
+            SliderWithLabel(
+                label = stringResource(R.string.sync_fine_tune),
+                value = playerState.syncFineTune,
+                onValueChange = { viewModel.updatePlayerState(playerState.copy(syncFineTune = it)) },
+                onValueChangeFinished = { },
+                valueRange = -0.5f..0.5f,
+                steps = 99,
+                valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+            )
+        }
 
-    if (showSpecialEffects) {
-        Dialog(
-            onDismissRequest = { showSpecialEffects = false }
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+        if (showAdvancedSettings) {
+            Dialog(
+                onDismissRequest = { showAdvancedSettings = false }
             ) {
-                SpecialEffectsPanel(
-                    viewModel = viewModel,
-                )
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    AdvancedControlsPanel(
+                        viewModel = viewModel,
+                    )
+                }
+            }
+        }
+        if (showSpecialEffects) {
+            Dialog(
+                onDismissRequest = { showSpecialEffects = false }
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    SpecialEffectsPanel (
+                        viewModel = viewModel,
+                    )
+                }
             }
         }
     }
@@ -1134,7 +1050,7 @@ fun CombinedPanel(
 fun PlayerPreview() {
     HowlTheme {
         val viewModel: PlayerViewModel = viewModel()
-        CombinedPanel(
+        PlayerPanel(
             viewModel = viewModel,
             modifier = Modifier.fillMaxHeight()
         )

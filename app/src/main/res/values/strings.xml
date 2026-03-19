@@ -40,7 +40,6 @@
     <string name="settings_power_auto_increase_delay_b">Power auto increase delay B (seconds)</string>
     
     <!-- Misc options -->
-    <string name="remote_access_options">Remote access options</string>
     <string name="settings_allow_remote_access">Allow remote access (not secured)</string>
     <string name="settings_smoother_charts">Smoother charts &amp; meters [*]</string>
     <string name="settings_show_power_meter">Show animated power meters [*]</string>
@@ -73,6 +72,8 @@
     
     <!-- Activity related -->
     <string name="activity_change_probability">Random activity change probability</string>
+    <string name="activity_infinite_licks">Infinite licks</string>
+    <string name="activity_penetration">Penetration</string>
     <string name="activity_vibration">Vibration</string>
     <string name="activity_amplitude">Amplitude</string>
     <string name="activity_pulse">Pulse</string>
@@ -90,6 +91,7 @@
     <string name="generator_random_parameter_change">Random</string>
     <string name="generator_automatic_change_parameters">Automatically change parameters</string>
     <string name="generator_random">Random</string>
+    <string name="generator_auto_change_parameters">Automatically change parameters</string>
     <!-- Generator category labels -->
     <string name="generator_category_shape">Shape</string>
     <string name="generator_category_speed">Speed</string>
@@ -103,24 +105,14 @@
     <string name="debug_logs_copied">Logs copied to clipboard</string>
     
     <!-- Additional activity names -->
-    <string name="activity_infinite_licks">Infinite licks</string>
-    <string name="activity_penetration">Penetration</string>
     <string name="activity_sliding_vibrator">Sliding vibrator</string>
-    <string name="activity_milkmaster">Milkmaster 3000</string>
+    <string name="activity_milkmaster">Milkmaster</string>
     <string name="activity_chaos">Chaos</string>
     <string name="activity_luxury_hj">Luxury HJ</string>
     <string name="activity_opposites">Opposites</string>
     <string name="activity_calibration_1">Calibration 1</string>
     <string name="activity_calibration_2">Calibration 2</string>
-    <string name="activity_bj_megamix">BJ megamix</string>
-    <string name="activity_fast_slow">Fast/slow</string>
-    <string name="activity_additive">Additive</string>
-    <string name="activity_simplex">Simplex</string>
-    <string name="activity_simplex_pro">Simplex Pro</string>
-    <string name="activity_simplex_turbo">Simplex Turbo</string>
-    <string name="activity_relentless">Relentless</string>
-    <string name="activity_random_shapes">Random shapes</string>
-    <string name="activity_overflowing">Overflowing</string>
+    <string name="activity_bj_megamix">BJ Megamix</string>
     <string name="channel_a">Channel A</string>
     <string name="channel_b">Channel B</string>
     <string name="channel_a_settings">Channel A Settings</string>
@@ -150,6 +142,14 @@
     <string name="wave_shape_double_time">Double time</string>
     <string name="wave_shape_triple_trouble">Triple trouble</string>
     <string name="wave_shape_steps">Steps</string>
+    <string name="activity_fast_slow">Fast Slow</string>
+    <string name="activity_additive">Additive</string>
+    <string name="activity_simplex">Simplex</string>
+    <string name="activity_simplex_pro">Simplex Pro</string>
+    <string name="activity_simplex_turbo">Simplex Turbo</string>
+    <string name="activity_relentless">Relentless</string>
+    <string name="activity_random_shapes">Random Shapes</string>
+    <string name="activity_overflowing">Overflowing</string>
     
     <!-- Wave shape display names -->
     <string name="wave_shape_sine">Sine</string>
@@ -163,8 +163,7 @@
     <string name="player_settings">Player settings</string>
     <string name="playback_speed">Playback speed</string>
     <string name="funscript_settings">Funscript settings</string>
-    <string name="scaling_coefficient">Scaling coefficient</string>
-    <string name="amplitude_adjustments">Amplitude adjustments</string>
+    <string name="scaling_boosts_slower_movements">Scaling (boosts slower movements)</string>
     <string name="positional_effect_strength">Positional effect strength</string>
     <string name="remote_funscript_latency_seconds">Remote funscript latency (seconds)</string>
     <string name="amplitude_algorithm">Amplitude algorithm</string>
@@ -187,8 +186,6 @@
     <string name="invert_channel_b_frequencies">Invert channel B frequencies</string>
     <string name="scale_amplitude_channel_a">Scale amplitude (channel A)</string>
     <string name="scale_amplitude_channel_b">Scale amplitude (channel B)</string>
-    <string name="amplitude_feel_channel_a">Amplitude feel (channel A)</string>
-    <string name="amplitude_feel_channel_b">Amplitude feel (channel B)</string>
     <string name="frequency_feel_adjustment">Frequency feel adjustment</string>
     <string name="random_amplitude_noise_amount">Random amplitude noise (amount)</string>
     <string name="random_amplitude_noise_speed">Random amplitude noise (speed)</string>
@@ -207,15 +204,4 @@
     <string name="channel_a_frequency_adjust">Channel A frequency adjust</string>
     <string name="channel_b_frequency_adjust">Channel B frequency adjust</string>
     <string name="amplitude_gain">Amplitude gain</string>
-    
-    <!-- Main Options -->
-    <string name="auto_increase_power">Auto increase power</string>
-    <string name="pulse_chart">Pulse chart</string>
-    <string name="swap_channels">Swap channels</string>
-    
-    <!-- Output Audio -->
-    <string name="error_timed_out_waiting_for_audio_track_to_stop">Timed out waiting for AudioTrack to stop</string>
-    <string name="error_failed_to_initialise_audio_track">Failed to initialise audio track, state: %1$d</string>
-    <string name="error_start_producer_thread_already_set">startProducerThread called but producerThread already set</string>
-    <string name="error_audio_track_stop_failed">AudioTrack stop failed: %1$s</string>
 </resources>
