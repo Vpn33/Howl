@@ -132,6 +132,8 @@
     <string name="generator_freq_shape">Freq shape</string>
     <string name="generator_start_frequency">Start frequency</string>
     <string name="generator_end_frequency">End frequency</string>
+    
+
     <string name="wave_shape_sawtooth">Sawtooth</string>
     <string name="wave_shape_triangle">Triangle</string>
     <string name="wave_shape_square">Square</string>
@@ -170,15 +172,20 @@
     <string name="amplitude_algorithm">Amplitude algorithm</string>
     <string name="frequency_algorithm">Frequency algorithm</string>
     <string name="ab_frequency_time_offset">A/B frequency time offset</string>
+    <string name="channel_a_fixed_frequency">Channel A fixed frequency</string>
+    <string name="channel_b_fixed_frequency">Channel B fixed frequency</string>
     <string name="frequency_vary_speed">Frequency vary speed</string>
     <string name="blend_ratio_position_varied">Blend ratio (Position -&gt; Varied)</string>
     <string name="show_sync_fine_tune">Show sync fine tune</string>
-    <string name="sync_fine_tune">Sync fine tune</string>
+    <string name="sync_fine_tune">Sync fine tune (seconds)</string>
     <string name="amplitude_algorithm_default">Default</string>
     <string name="amplitude_algorithm_blend">Blend</string>
     <string name="amplitude_algorithm_position">Position</string>
     <string name="amplitude_algorithm_varied">Varied</string>
     <string name="frequency_algorithm_blend">Blend</string>
+    <string name="frequency_algorithm_position">Position</string>
+    <string name="frequency_algorithm_varied">Varied</string>
+    <string name="frequency_algorithm_fixed">Fixed</string>
     
     <!-- Special Effects -->
     <string name="special_effects">Special effects</string>
@@ -190,15 +197,23 @@
     <string name="amplitude_feel_channel_a">Amplitude feel (channel A)</string>
     <string name="amplitude_feel_channel_b">Amplitude feel (channel B)</string>
     <string name="frequency_feel_adjustment">Frequency feel adjustment</string>
-    <string name="random_amplitude_noise_amount">Random amplitude noise (amount)</string>
-    <string name="random_amplitude_noise_speed">Random amplitude noise (speed)</string>
-    <string name="random_frequency_noise_amount">Random frequency noise (amount)</string>
-    <string name="random_frequency_noise_speed">Random frequency noise (speed)</string>
     
     <!-- Developer Options -->
     <string name="developer_options">Developer options</string>
     <string name="frequency_exponent">Frequency exponent</string>
     <string name="frequency_gain">Frequency gain</string>
+    
+    <!-- Special Effects -->
+    <string name="frequency_adjustments">Frequency adjustments</string>
+    <string name="frequency_feel_channel_a">Frequency feel (channel A)</string>
+    <string name="frequency_feel_channel_b">Frequency feel (channel B)</string>
+    <string name="frequency_adjust_channel_a">Frequency adjust (channel A)</string>
+    <string name="frequency_adjust_channel_b">Frequency adjust (channel B)</string>
+    <string name="random_noise">Random noise</string>
+    <string name="random_amplitude_noise_amount">Random amplitude noise (amount)</string>
+    <string name="random_amplitude_noise_speed">Random amplitude noise (speed)</string>
+    <string name="random_frequency_noise_amount">Random frequency noise (amount)</string>
+    <string name="random_frequency_noise_speed">Random frequency noise (speed)</string>
     
     <!-- Accessibility -->
     <string name="content_description_open_file">Open file</string>

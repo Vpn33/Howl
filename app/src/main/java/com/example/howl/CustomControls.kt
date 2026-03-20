@@ -112,9 +112,7 @@ fun <T> OptionPicker(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val sortedOptions = remember(options, getText) {
-        options.sortedBy { getText(it) }
-    }
+    val sortedOptions = options
 
     Box(modifier = modifier.wrapContentSize(Alignment.TopStart)) {
         OutlinedButton(onClick = { expanded = true }) {

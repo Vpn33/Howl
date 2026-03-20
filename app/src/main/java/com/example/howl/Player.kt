@@ -484,7 +484,7 @@ fun AdvancedControlsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = "Positional effect strength",
+            label = stringResource(R.string.positional_effect_strength),
             value = funscriptPositionalEffectStrength,
             onValueChange = { Prefs.funscriptPositionalEffectStrength.value = it },
             onValueChangeFinished = { Prefs.funscriptPositionalEffectStrength.save() },
@@ -497,7 +497,13 @@ fun AdvancedControlsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Frequency algorithm", style = MaterialTheme.typography.labelLarge)
+            Text(text = stringResource(R.string.frequency_algorithm), style = MaterialTheme.typography.labelLarge)
+            val algorithmNames = mapOf(
+                FrequencyAlgorithmType.POSITION to stringResource(R.string.frequency_algorithm_position),
+                FrequencyAlgorithmType.VARIED to stringResource(R.string.frequency_algorithm_varied),
+                FrequencyAlgorithmType.BLEND to stringResource(R.string.frequency_algorithm_blend),
+                FrequencyAlgorithmType.FIXED to stringResource(R.string.frequency_algorithm_fixed)
+            )
             OptionPicker(
                 currentValue = funscriptFrequencyAlgorithm,
                 onValueChange = {
@@ -505,12 +511,12 @@ fun AdvancedControlsPanel(
                     Prefs.funscriptFrequencyAlgorithm.save()
                 },
                 options = FrequencyAlgorithmType.entries,
-                getText = { it.displayName }
+                getText = { algorithmNames[it] ?: it.name }
             )
         }
         if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.FIXED) {
             SliderWithLabel(
-                label = "Channel A fixed frequency",
+                label = stringResource(R.string.channel_a_fixed_frequency),
                 value = funscriptFrequencyFixedA,
                 onValueChange = { Prefs.funscriptFrequencyFixedA.value = it },
                 onValueChangeFinished = { Prefs.funscriptFrequencyFixedA.save() },
@@ -519,7 +525,7 @@ fun AdvancedControlsPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = "Channel B fixed frequency",
+                label = stringResource(R.string.channel_b_fixed_frequency),
                 value = funscriptFrequencyFixedB,
                 onValueChange = { Prefs.funscriptFrequencyFixedB.value = it },
                 onValueChangeFinished = { Prefs.funscriptFrequencyFixedB.save() },
@@ -530,7 +536,7 @@ fun AdvancedControlsPanel(
         }
         if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.POSITION) {
             SliderWithLabel(
-                label = "A/B frequency time offset",
+                label = stringResource(R.string.ab_frequency_time_offset),
                 value = funscriptFrequencyTimeOffset,
                 onValueChange = { Prefs.funscriptFrequencyTimeOffset.value = it },
                 onValueChangeFinished = { Prefs.funscriptFrequencyTimeOffset.save() },
@@ -541,7 +547,7 @@ fun AdvancedControlsPanel(
         }
         if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.BLEND || funscriptFrequencyAlgorithm == FrequencyAlgorithmType.VARIED) {
             SliderWithLabel(
-                label = "Frequency vary speed",
+                label = stringResource(R.string.frequency_vary_speed),
                 value = funscriptFrequencyVarySpeed,
                 onValueChange = { Prefs.funscriptFrequencyVarySpeed.value = it },
                 onValueChangeFinished = { Prefs.funscriptFrequencyVarySpeed.save() },
@@ -552,7 +558,7 @@ fun AdvancedControlsPanel(
         }
         if (funscriptFrequencyAlgorithm == FrequencyAlgorithmType.BLEND) {
             SliderWithLabel(
-                label = "Blend ratio (Position -> Varied)",
+                label = stringResource(R.string.blend_ratio_position_varied),
                 value = funscriptFrequencyBlendRatio,
                 onValueChange = { Prefs.funscriptFrequencyBlendRatio.value = it },
                 onValueChangeFinished = { Prefs.funscriptFrequencyBlendRatio.save() },
@@ -657,10 +663,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Frequency adjustments", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.frequency_adjustments), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Frequency feel (channel A)",
+            label = stringResource(R.string.frequency_feel_channel_a),
             value = sfxFrequencyFeelA,
             onValueChange = { Prefs.sfxFrequencyFeelA.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyFeelA.save() },
@@ -670,7 +676,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency feel (channel B)",
+            label = stringResource(R.string.frequency_feel_channel_b),
             value = sfxFrequencyFeelB,
             onValueChange = { Prefs.sfxFrequencyFeelB.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyFeelB.save() },
@@ -698,7 +704,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel A)",
+            label = stringResource(R.string.frequency_adjust_channel_a),
             value = sfxFrequencyAdjustA,
             onValueChange = { Prefs.sfxFrequencyAdjustA.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyAdjustA.save() },
@@ -708,7 +714,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel B)",
+            label = stringResource(R.string.frequency_adjust_channel_b),
             value = sfxFrequencyAdjustB,
             onValueChange = { Prefs.sfxFrequencyAdjustB.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyAdjustB.save() },
@@ -724,10 +730,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Random noise", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.random_noise), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Random amplitude noise (amount)",
+            label = stringResource(R.string.random_amplitude_noise_amount),
             value = sfxAmplitudeNoiseAmount,
             onValueChange = { Prefs.sfxAmplitudeNoiseAmount.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeNoiseAmount.save() },
@@ -738,7 +744,7 @@ fun SpecialEffectsPanel(
         )
         if (sfxAmplitudeNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random amplitude noise (speed)",
+                label = stringResource(R.string.random_amplitude_noise_speed),
                 value = sfxAmplitudeNoiseSpeed,
                 onValueChange = { Prefs.sfxAmplitudeNoiseSpeed.value = it },
                 onValueChangeFinished = { Prefs.sfxAmplitudeNoiseSpeed.save() },
@@ -749,7 +755,7 @@ fun SpecialEffectsPanel(
             )
         }
         SliderWithLabel(
-            label = "Random frequency noise (amount)",
+            label = stringResource(R.string.random_frequency_noise_amount),
             value = sfxFrequencyNoiseAmount,
             onValueChange = { Prefs.sfxFrequencyNoiseAmount.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyNoiseAmount.save() },
@@ -760,7 +766,7 @@ fun SpecialEffectsPanel(
         )
         if (sfxFrequencyNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random frequency noise (speed)",
+                label = stringResource(R.string.random_frequency_noise_speed),
                 value = sfxFrequencyNoiseSpeed,
                 onValueChange = { Prefs.sfxFrequencyNoiseSpeed.value = it },
                 onValueChangeFinished = { Prefs.sfxFrequencyNoiseSpeed.save() },
@@ -1057,7 +1063,7 @@ fun PlayerPanel(
             // Sync fine tune (if enabled)
             if (playerShowSyncFineTune) {
                 SliderWithLabel(
-                    label = "Sync fine tune (seconds)",
+                    label = stringResource(R.string.sync_fine_tune),
                     value = playerState.syncFineTune,
                     onValueChange = { Player.setSyncFineTune(it) },
                     onValueChangeFinished = { },

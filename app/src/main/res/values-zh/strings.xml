@@ -134,6 +134,33 @@
     <string name="generator_freq_shape">频率波形</string>
     <string name="generator_start_frequency">起始频率</string>
     <string name="generator_end_frequency">结束频率</string>
+    
+    <!-- Player settings -->
+    <string name="player_settings">播放器设置</string>
+    <string name="playback_speed">播放速度</string>
+    <string name="funscript_settings">Funscript设置</string>
+    <string name="scaling_coefficient">缩放系数</string>
+    <string name="amplitude_adjustments">幅度调整</string>
+    <string name="positional_effect_strength">位置效果强度</string>
+    <string name="remote_funscript_latency_seconds">远程Funscript延迟（秒）</string>
+    <string name="amplitude_algorithm">幅度算法</string>
+    <string name="frequency_algorithm">频率算法</string>
+    <string name="ab_frequency_time_offset">A/B频率时间偏移</string>
+    <string name="channel_a_fixed_frequency">通道A固定频率</string>
+    <string name="channel_b_fixed_frequency">通道B固定频率</string>
+    <string name="frequency_vary_speed">频率变化速度</string>
+    <string name="blend_ratio_position_varied">混合比例 (位置 -> 变化)</string>
+    <string name="show_sync_fine_tune">显示同步微调</string>
+    <string name="sync_fine_tune">同步微调(秒)</string>
+    <string name="amplitude_algorithm_default">默认</string>
+    <string name="amplitude_algorithm_blend">混合</string>
+    <string name="amplitude_algorithm_position">位置</string>
+    <string name="amplitude_algorithm_varied">变化</string>
+    <string name="frequency_algorithm_blend">混合</string>
+    <string name="frequency_algorithm_position">位置</string>
+    <string name="frequency_algorithm_varied">变化</string>
+    <string name="frequency_algorithm_fixed">固定</string>
+    
     <string name="wave_shape_sawtooth">锯齿波</string>
     <string name="wave_shape_triangle">三角波</string>
     <string name="wave_shape_square">方波</string>
@@ -160,28 +187,7 @@
     <string name="phase_type_same">相同</string>
     <string name="phase_type_offset">偏移</string>
     <string name="phase_type_opposite">相反</string>
-    
-    <!-- Player settings -->
-    <string name="player_settings">播放器设置</string>
-    <string name="playback_speed">播放速度</string>
-    <string name="funscript_settings">Funscript设置</string>
-    <string name="scaling_coefficient">缩放系数（增强慢速动作）</string>
-    <string name="amplitude_adjustments">振幅调整</string>
-    <string name="positional_effect_strength">位置效果强度</string>
-    <string name="remote_funscript_latency_seconds">远程Funscript延迟（秒）</string>
-    <string name="amplitude_algorithm">振幅算法</string>
-    <string name="frequency_algorithm">频率算法</string>
-    <string name="ab_frequency_time_offset">A/B频率时间偏移</string>
-    <string name="frequency_vary_speed">频率变化速度</string>
-    <string name="blend_ratio_position_varied">混合比例（位置 -&gt; 变化）</string>
-    <string name="show_sync_fine_tune">显示同步微调</string>
-    <string name="sync_fine_tune">同步微调</string>
-    <string name="amplitude_algorithm_default">默认</string>
-    <string name="amplitude_algorithm_blend">混合</string>
-    <string name="amplitude_algorithm_position">位置</string>
-    <string name="amplitude_algorithm_varied">变化</string>
-    <string name="frequency_algorithm_blend">混合</string>
-    
+
     <!-- Special Effects -->
     <string name="special_effects">特效</string>
     <string name="apply_special_effects">应用特效</string>
@@ -192,15 +198,23 @@
     <string name="amplitude_feel_channel_a">通道A振幅感觉</string>
     <string name="amplitude_feel_channel_b">通道B振幅感觉</string>
     <string name="frequency_feel_adjustment">频率感受调整</string>
-    <string name="random_amplitude_noise_amount">随机振幅噪声（量）</string>
-    <string name="random_amplitude_noise_speed">随机振幅噪声（速度）</string>
-    <string name="random_frequency_noise_amount">随机频率噪声（量）</string>
-    <string name="random_frequency_noise_speed">随机频率噪声（速度）</string>
     
     <!-- Developer Options -->
     <string name="developer_options">开发者选项</string>
     <string name="frequency_exponent">频率指数</string>
     <string name="frequency_gain">频率增益</string>
+    
+    <!-- Special Effects -->
+    <string name="frequency_adjustments">频率调整</string>
+    <string name="frequency_feel_channel_a">频率感受（通道A）</string>
+    <string name="frequency_feel_channel_b">频率感受（通道B）</string>
+    <string name="frequency_adjust_channel_a">频率调整（通道A）</string>
+    <string name="frequency_adjust_channel_b">频率调整（通道B）</string>
+    <string name="random_noise">随机噪声</string>
+    <string name="random_amplitude_noise_amount">随机幅度噪声（量）</string>
+    <string name="random_amplitude_noise_speed">随机幅度噪声（速度）</string>
+    <string name="random_frequency_noise_amount">随机频率噪声（量）</string>
+    <string name="random_frequency_noise_speed">随机频率噪声（速度）</string>
     
     <!-- Accessibility -->
     <string name="content_description_open_file">打开文件</string>

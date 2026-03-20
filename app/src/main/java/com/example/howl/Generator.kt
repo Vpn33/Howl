@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -474,7 +475,7 @@ fun GeneratorPanel(
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                 ) {
-                    GeneratorParametersSettings(
+                    GeneratorParametersInfo(
                         viewModel = viewModel,
                         channel = 0,
                         generatorChannelInfo = generatorState.channelAInfo,
@@ -492,7 +493,7 @@ fun GeneratorPanel(
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                 ) {
-                    GeneratorParametersSettings(
+                    GeneratorParametersInfo(
                         viewModel = viewModel,
                         channel = 1,
                         generatorChannelInfo = generatorState.channelBInfo,
@@ -505,13 +506,33 @@ fun GeneratorPanel(
 }
 
 @Composable
-fun GeneratorParametersSettings(
+fun GeneratorParametersInfo(
     viewModel: GeneratorViewModel,
     channel: Int,
     generatorChannelInfo: GeneratorChannelInfo,
     title: String,
     modifier: Modifier = Modifier
 ) {
+    val waveNames = mapOf(
+        "Sawtooth" to stringResource(R.string.wave_shape_sawtooth),
+        "Triangle" to stringResource(R.string.wave_shape_triangle),
+        "Square" to stringResource(R.string.wave_shape_square),
+        "Constant" to stringResource(R.string.wave_shape_constant),
+        "Fangs" to stringResource(R.string.wave_shape_fangs),
+        "Curvy triangle" to stringResource(R.string.wave_shape_curvy_triangle),
+        "Curvy fangs" to stringResource(R.string.wave_shape_curvy_fangs),
+        "Curvy trapezium" to stringResource(R.string.wave_shape_curvy_trapezium),
+        "Gentle attack" to stringResource(R.string.wave_shape_gentle_attack),
+        "Fast attack" to stringResource(R.string.wave_shape_fast_attack),
+        "Faster attack" to stringResource(R.string.wave_shape_faster_attack),
+        "Rising tide" to stringResource(R.string.wave_shape_rising_tide),
+        "Flourish" to stringResource(R.string.wave_shape_flourish),
+        "Jelly" to stringResource(R.string.wave_shape_jelly),
+        "Tap + slide" to stringResource(R.string.wave_shape_tap_slide),
+        "Double time" to stringResource(R.string.wave_shape_double_time),
+        "Triple trouble" to stringResource(R.string.wave_shape_triple_trouble),
+        "Steps" to stringResource(R.string.wave_shape_steps)
+    )
     Column (modifier=modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)){
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
@@ -521,7 +542,7 @@ fun GeneratorParametersSettings(
             Text(text = title, style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Speed (repetitions/sec)",
+            label = stringResource(R.string.generator_speed_label),
             value = generatorChannelInfo.speed.toFloat(),
             onValueChange = { viewModel.setSpeed(channel = channel, speed = it.toDouble()) },
             onValueChangeFinished = { },
@@ -540,7 +561,7 @@ fun GeneratorParametersSettings(
                 currentValue = generatorChannelInfo.ampWaveName,
                 onValueChange = { viewModel.setAmpWave(channel, it) },
                 options = generatorWaveShapes.map { it.name },
-                getText = { it }
+                getText = { waveNames[it] ?: it }
             )
         }
         SliderWithLabel(
@@ -572,7 +593,7 @@ fun GeneratorParametersSettings(
                 currentValue = generatorChannelInfo.freqWaveName,
                 onValueChange = { viewModel.setFreqWave(channel, it) },
                 options = generatorWaveShapes.map { it.name },
-                getText = { it }
+                getText = { waveNames[it] ?: it }
             )
         }
         SliderWithLabel(

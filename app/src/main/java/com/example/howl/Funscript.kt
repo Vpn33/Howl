@@ -20,11 +20,11 @@ import kotlin.math.pow
 
 class BadFileException (message: String) : Exception(message)
 
-enum class FrequencyAlgorithmType(val displayName: String) {
-    POSITION("Position"),
-    VARIED("Varied"),
-    BLEND("Blend"),
-    FIXED("Fixed")
+enum class FrequencyAlgorithmType {
+    POSITION,
+    VARIED,
+    BLEND,
+    FIXED
 }
 
 @Serializable(with = Action.Companion::class)
