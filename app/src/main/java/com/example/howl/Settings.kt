@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ import java.util.Locale
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
+import androidx.compose.foundation.layout.widthIn
 
 fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
     return this.first.toFloat()..this.last.toFloat()
@@ -340,6 +342,24 @@ fun PowerSettingsPanel(
     val powerStepB by Prefs.powerStepB.collectAsStateWithLifecycle()
     val powerAutoIncrementDelayA by Prefs.powerAutoIncrementDelayA.collectAsStateWithLifecycle()
     val powerAutoIncrementDelayB by Prefs.powerAutoIncrementDelayB.collectAsStateWithLifecycle()
+    val powerRampEnabled by Prefs.powerRampEnabled.collectAsStateWithLifecycle()
+    val powerRampChannelMode by Prefs.powerRampChannelMode.collectAsStateWithLifecycle()
+    val powerRampIntensityARangeStart by Prefs.powerRampIntensityARangeStart.collectAsStateWithLifecycle()
+    val powerRampIntensityARangeEnd by Prefs.powerRampIntensityARangeEnd.collectAsStateWithLifecycle()
+    val powerRampIntensityBRangeStart by Prefs.powerRampIntensityBRangeStart.collectAsStateWithLifecycle()
+    val powerRampIntensityBRangeEnd by Prefs.powerRampIntensityBRangeEnd.collectAsStateWithLifecycle()
+    val powerRampSpeedA by Prefs.powerRampSpeedA.collectAsStateWithLifecycle()
+    val powerRampSpeedB by Prefs.powerRampSpeedB.collectAsStateWithLifecycle()
+    val powerRampPeakTimeModeA by Prefs.powerRampPeakTimeModeA.collectAsStateWithLifecycle()
+    val powerRampPeakTimeFixedA by Prefs.powerRampPeakTimeFixedA.collectAsStateWithLifecycle()
+    val powerRampPeakTimeRandomMinA by Prefs.powerRampPeakTimeRandomMinA.collectAsStateWithLifecycle()
+    val powerRampPeakTimeRandomMaxA by Prefs.powerRampPeakTimeRandomMaxA.collectAsStateWithLifecycle()
+    val powerRampCycleModeA by Prefs.powerRampCycleModeA.collectAsStateWithLifecycle()
+    val powerRampPeakTimeModeB by Prefs.powerRampPeakTimeModeB.collectAsStateWithLifecycle()
+    val powerRampPeakTimeFixedB by Prefs.powerRampPeakTimeFixedB.collectAsStateWithLifecycle()
+    val powerRampPeakTimeRandomMinB by Prefs.powerRampPeakTimeRandomMinB.collectAsStateWithLifecycle()
+    val powerRampPeakTimeRandomMaxB by Prefs.powerRampPeakTimeRandomMaxB.collectAsStateWithLifecycle()
+    val powerRampCycleModeB by Prefs.powerRampCycleModeB.collectAsStateWithLifecycle()
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(4.dp),
@@ -414,6 +434,534 @@ fun PowerSettingsPanel(
         steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
         valueDisplay = { it.roundToInt().toString() }
     )
+    
+    SwitchWithLabel(
+        label = "电源强度自动爬坡",
+        checked = powerRampEnabled,
+        onCheckedChange = {
+            Prefs.powerRampEnabled.value = it
+            Prefs.powerRampEnabled.save()
+        }
+    )
+    
+    if (powerRampEnabled) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "爬坡通道", style = MaterialTheme.typography.labelLarge)
+            OptionPicker(
+                currentValue = powerRampChannelMode,
+                onValueChange = {
+                    Prefs.powerRampChannelMode.value = it
+                    Prefs.powerRampChannelMode.save()
+                },
+                options = listOf("AB_SYNC", "AB_INDEPENDENT", "A_ONLY", "B_ONLY"),
+                getText = {
+                    when (it) {
+                        "AB_SYNC" -> "AB同步"
+                        "AB_INDEPENDENT" -> "AB单独"
+                        "A_ONLY" -> "仅A"
+                        "B_ONLY" -> "仅B"
+                        else -> it
+                    }
+                }
+            )
+        }
+        
+        when (powerRampChannelMode) {
+            "AB_SYNC" -> {
+                Text(text = "A&B通道强度：从 ${powerRampIntensityARangeStart} 逐渐变化到 +${powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    RangeSlider(
+                        modifier = Modifier.weight(1f),
+                        value = powerRampIntensityARangeStart.toFloat()..powerRampIntensityARangeEnd.toFloat(),
+                        onValueChange = { newRange ->
+                            Prefs.powerRampIntensityARangeStart.value = newRange.start.roundToInt()
+                            Prefs.powerRampIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            Prefs.powerRampIntensityARangeStart.save()
+                            Prefs.powerRampIntensityARangeEnd.save()
+                        },
+                        valueRange = -50.0f..50.0f,
+                        steps = 99
+                    )
+                    Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                }
+                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                val totalTimeA = powerRampSpeedA * changeCountA
+                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                SliderWithLabel(
+                    label = "",
+                    value = powerRampSpeedA,
+                    onValueChange = { Prefs.powerRampSpeedA.value = it },
+                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                    valueRange = 0.1f..60.0f,
+                    steps = 599,
+                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                )
+                
+                // 坡顶时间模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡顶时间模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampPeakTimeModeA,
+                        onValueChange = {
+                            Prefs.powerRampPeakTimeModeA.value = it
+                            Prefs.powerRampPeakTimeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 坡顶持续时间
+                if (powerRampPeakTimeModeA == "FIXED") {
+                    SliderWithLabel(
+                        label = "坡顶持续时间(秒)",
+                        value = powerRampPeakTimeFixedA.toFloat(),
+                        onValueChange = { Prefs.powerRampPeakTimeFixedA.value = it.roundToInt() },
+                        onValueChangeFinished = { Prefs.powerRampPeakTimeFixedA.save() },
+                        valueRange = 0.0f..60.0f,
+                        steps = 59,
+                        valueDisplay = { it.roundToInt().toString() }
+                    )
+                } else {
+                    Text(text = "坡顶持续时间(秒): ${powerRampPeakTimeRandomMinA} - ${powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampPeakTimeRandomMinA.toFloat()..powerRampPeakTimeRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampPeakTimeRandomMinA.value = newRange.start.roundToInt()
+                                Prefs.powerRampPeakTimeRandomMaxA.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampPeakTimeRandomMinA.save()
+                                Prefs.powerRampPeakTimeRandomMaxA.save()
+                            },
+                            valueRange = 0.0f..60.0f,
+                            steps = 59
+                        )
+                        Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+            }
+            "AB_INDEPENDENT" -> {
+                Text(text = "A通道：强度从 ${powerRampIntensityARangeStart} 逐渐变化到 ${powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    RangeSlider(
+                        modifier = Modifier.weight(1f),
+                        value = powerRampIntensityARangeStart.toFloat()..powerRampIntensityARangeEnd.toFloat(),
+                        onValueChange = { newRange ->
+                            Prefs.powerRampIntensityARangeStart.value = newRange.start.roundToInt()
+                            Prefs.powerRampIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            Prefs.powerRampIntensityARangeStart.save()
+                            Prefs.powerRampIntensityARangeEnd.save()
+                        },
+                        valueRange = -50.0f..50.0f,
+                        steps = 99
+                    )
+                    Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                }
+                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                val totalTimeA = powerRampSpeedA * changeCountA
+                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                SliderWithLabel(
+                    label = "",
+                    value = powerRampSpeedA,
+                    onValueChange = { Prefs.powerRampSpeedA.value = it },
+                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                    valueRange = 0.1f..60.0f,
+                    steps = 599,
+                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                )
+                
+                // A通道坡顶时间模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道坡顶时间模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampPeakTimeModeA,
+                        onValueChange = {
+                            Prefs.powerRampPeakTimeModeA.value = it
+                            Prefs.powerRampPeakTimeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // A通道坡顶持续时间
+                if (powerRampPeakTimeModeA == "FIXED") {
+                    SliderWithLabel(
+                        label = "A通道坡顶持续时间(秒)",
+                        value = powerRampPeakTimeFixedA.toFloat(),
+                        onValueChange = { Prefs.powerRampPeakTimeFixedA.value = it.roundToInt() },
+                        onValueChangeFinished = { Prefs.powerRampPeakTimeFixedA.save() },
+                        valueRange = 0.0f..60.0f,
+                        steps = 59,
+                        valueDisplay = { it.roundToInt().toString() }
+                    )
+                } else {
+                    Text(text = "A通道坡顶持续时间(秒): ${powerRampPeakTimeRandomMinA} - ${powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampPeakTimeRandomMinA.toFloat()..powerRampPeakTimeRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampPeakTimeRandomMinA.value = newRange.start.roundToInt()
+                                Prefs.powerRampPeakTimeRandomMaxA.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampPeakTimeRandomMinA.save()
+                                Prefs.powerRampPeakTimeRandomMaxA.save()
+                            },
+                            valueRange = 0.0f..60.0f,
+                            steps = 59
+                        )
+                        Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+                
+                Text(text = "B通道：强度从 ${powerRampIntensityBRangeStart} 逐渐变化到 ${powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${powerRampIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                    RangeSlider(
+                        modifier = Modifier.weight(1f),
+                        value = powerRampIntensityBRangeStart.toFloat()..powerRampIntensityBRangeEnd.toFloat(),
+                        onValueChange = { newRange ->
+                            Prefs.powerRampIntensityBRangeStart.value = newRange.start.roundToInt()
+                            Prefs.powerRampIntensityBRangeEnd.value = newRange.endInclusive.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            Prefs.powerRampIntensityBRangeStart.save()
+                            Prefs.powerRampIntensityBRangeEnd.save()
+                        },
+                        valueRange = -50.0f..50.0f,
+                        steps = 99
+                    )
+                    Text(text = "${powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                }
+                val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
+                val totalTimeB = powerRampSpeedB * changeCountB
+                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                SliderWithLabel(
+                    label = "",
+                    value = powerRampSpeedB,
+                    onValueChange = { Prefs.powerRampSpeedB.value = it },
+                    onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
+                    valueRange = 0.1f..60.0f,
+                    steps = 599,
+                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                )
+                
+                // B通道坡顶时间模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "B通道坡顶时间模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampPeakTimeModeB,
+                        onValueChange = {
+                            Prefs.powerRampPeakTimeModeB.value = it
+                            Prefs.powerRampPeakTimeModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // B通道坡顶持续时间
+                if (powerRampPeakTimeModeB == "FIXED") {
+                    SliderWithLabel(
+                        label = "B通道坡顶持续时间(秒)",
+                        value = powerRampPeakTimeFixedB.toFloat(),
+                        onValueChange = { Prefs.powerRampPeakTimeFixedB.value = it.roundToInt() },
+                        onValueChangeFinished = { Prefs.powerRampPeakTimeFixedB.save() },
+                        valueRange = 0.0f..60.0f,
+                        steps = 59,
+                        valueDisplay = { it.roundToInt().toString() }
+                    )
+                } else {
+                    Text(text = "B通道坡顶持续时间(秒): ${powerRampPeakTimeRandomMinB} - ${powerRampPeakTimeRandomMaxB}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampPeakTimeRandomMinB}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampPeakTimeRandomMinB.toFloat()..powerRampPeakTimeRandomMaxB.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampPeakTimeRandomMinB.value = newRange.start.roundToInt()
+                                Prefs.powerRampPeakTimeRandomMaxB.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampPeakTimeRandomMinB.save()
+                                Prefs.powerRampPeakTimeRandomMaxB.save()
+                            },
+                            valueRange = 0.0f..60.0f,
+                            steps = 59
+                        )
+                        Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+            }
+            "A_ONLY" -> {
+                Text(text = "A通道：强度从 ${powerRampIntensityARangeStart} 逐渐变化到 ${powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    RangeSlider(
+                        modifier = Modifier.weight(1f),
+                        value = powerRampIntensityARangeStart.toFloat()..powerRampIntensityARangeEnd.toFloat(),
+                        onValueChange = { newRange ->
+                            Prefs.powerRampIntensityARangeStart.value = newRange.start.roundToInt()
+                            Prefs.powerRampIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            Prefs.powerRampIntensityARangeStart.save()
+                            Prefs.powerRampIntensityARangeEnd.save()
+                        },
+                        valueRange = -50.0f..50.0f,
+                        steps = 99
+                    )
+                    Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                }
+                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                val totalTimeA = powerRampSpeedA * changeCountA
+                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                SliderWithLabel(
+                    label = "",
+                    value = powerRampSpeedA,
+                    onValueChange = { Prefs.powerRampSpeedA.value = it },
+                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                    valueRange = 0.1f..60.0f,
+                    steps = 599,
+                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                )
+                
+                // 坡顶时间模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡顶时间模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampPeakTimeModeA,
+                        onValueChange = {
+                            Prefs.powerRampPeakTimeModeA.value = it
+                            Prefs.powerRampPeakTimeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 坡顶持续时间
+                if (powerRampPeakTimeModeA == "FIXED") {
+                    SliderWithLabel(
+                        label = "坡顶持续时间(秒)",
+                        value = powerRampPeakTimeFixedA.toFloat(),
+                        onValueChange = { Prefs.powerRampPeakTimeFixedA.value = it.roundToInt() },
+                        onValueChangeFinished = { Prefs.powerRampPeakTimeFixedA.save() },
+                        valueRange = 0.0f..60.0f,
+                        steps = 59,
+                        valueDisplay = { it.roundToInt().toString() }
+                    )
+                } else {
+                    Text(text = "坡顶持续时间(秒): ${powerRampPeakTimeRandomMinA} - ${powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampPeakTimeRandomMinA.toFloat()..powerRampPeakTimeRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampPeakTimeRandomMinA.value = newRange.start.roundToInt()
+                                Prefs.powerRampPeakTimeRandomMaxA.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampPeakTimeRandomMinA.save()
+                                Prefs.powerRampPeakTimeRandomMaxA.save()
+                            },
+                            valueRange = 0.0f..60.0f,
+                            steps = 59
+                        )
+                        Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+            }
+            "B_ONLY" -> {
+                Text(text = "B通道：强度从 ${powerRampIntensityBRangeStart} 逐渐变化到 ${powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${powerRampIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                    RangeSlider(
+                        modifier = Modifier.weight(1f),
+                        value = powerRampIntensityBRangeStart.toFloat()..powerRampIntensityBRangeEnd.toFloat(),
+                        onValueChange = { newRange ->
+                            Prefs.powerRampIntensityBRangeStart.value = newRange.start.roundToInt()
+                            Prefs.powerRampIntensityBRangeEnd.value = newRange.endInclusive.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            Prefs.powerRampIntensityBRangeStart.save()
+                            Prefs.powerRampIntensityBRangeEnd.save()
+                        },
+                        valueRange = -50.0f..50.0f,
+                        steps = 99
+                    )
+                    Text(text = "${powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                }
+                val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
+                val totalTimeB = powerRampSpeedB * changeCountB
+                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                SliderWithLabel(
+                    label = "",
+                    value = powerRampSpeedB,
+                    onValueChange = { Prefs.powerRampSpeedB.value = it },
+                    onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
+                    valueRange = 0.1f..60.0f,
+                    steps = 599,
+                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                )
+                
+                // 坡顶时间模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡顶时间模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampPeakTimeModeB,
+                        onValueChange = {
+                            Prefs.powerRampPeakTimeModeB.value = it
+                            Prefs.powerRampPeakTimeModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 坡顶持续时间
+                if (powerRampPeakTimeModeB == "FIXED") {
+                    SliderWithLabel(
+                        label = "坡顶持续时间(秒)",
+                        value = powerRampPeakTimeFixedB.toFloat(),
+                        onValueChange = { Prefs.powerRampPeakTimeFixedB.value = it.roundToInt() },
+                        onValueChangeFinished = { Prefs.powerRampPeakTimeFixedB.save() },
+                        valueRange = 0.0f..60.0f,
+                        steps = 59,
+                        valueDisplay = { it.roundToInt().toString() }
+                    )
+                } else {
+                    Text(text = "坡顶持续时间(秒): ${powerRampPeakTimeRandomMinB} - ${powerRampPeakTimeRandomMaxB}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampPeakTimeRandomMinB}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampPeakTimeRandomMinB.toFloat()..powerRampPeakTimeRandomMaxB.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampPeakTimeRandomMinB.value = newRange.start.roundToInt()
+                                Prefs.powerRampPeakTimeRandomMaxB.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampPeakTimeRandomMinB.save()
+                                Prefs.powerRampPeakTimeRandomMaxB.save()
+                            },
+                            valueRange = 0.0f..60.0f,
+                            steps = 59
+                        )
+                        Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
