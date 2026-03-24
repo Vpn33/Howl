@@ -342,6 +342,7 @@ fun PowerSettingsPanel(
     val powerStepB by Prefs.powerStepB.collectAsStateWithLifecycle()
     val powerAutoIncrementDelayA by Prefs.powerAutoIncrementDelayA.collectAsStateWithLifecycle()
     val powerAutoIncrementDelayB by Prefs.powerAutoIncrementDelayB.collectAsStateWithLifecycle()
+    val powerSyncEnabled by Prefs.powerSyncEnabled.collectAsStateWithLifecycle()
     val powerRampEnabled by Prefs.powerRampEnabled.collectAsStateWithLifecycle()
     val powerRampChannelMode by Prefs.powerRampChannelMode.collectAsStateWithLifecycle()
     val powerRampIntensityARangeStart by Prefs.powerRampIntensityARangeStart.collectAsStateWithLifecycle()
@@ -433,6 +434,15 @@ fun PowerSettingsPanel(
         valueRange = autoIncrementRange.toClosedFloatingPointRange(),
         steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
         valueDisplay = { it.roundToInt().toString() }
+    )
+
+    SwitchWithLabel(
+        label = "电源强度同步",
+        checked = powerSyncEnabled,
+        onCheckedChange = {
+            Prefs.powerSyncEnabled.value = it
+            Prefs.powerSyncEnabled.save()
+        }
     )
     
     SwitchWithLabel(

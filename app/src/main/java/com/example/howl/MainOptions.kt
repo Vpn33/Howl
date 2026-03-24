@@ -92,17 +92,20 @@ object MainOptions {
     private var powerRampDirectionB: Int = 1
 
     fun setChannelPower(channel: Int, power: Int) {
+
         when (channel) {
             0 -> {
                 val limit = Prefs.powerLimitA.value
                 val newPower = power.coerceIn(0..limit)
                 _state.update { it.copy(channelAPower = newPower) }
             }
+
             1 -> {
                 val limit = Prefs.powerLimitB.value
                 val newPower = power.coerceIn(0..limit)
                 _state.update { it.copy(channelBPower = newPower) }
             }
+
             else -> {}
         }
     }
@@ -111,12 +114,18 @@ object MainOptions {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current + stepSize)
+        if (Prefs.powerSyncEnabled.value) {
+            incrementChannelPower(if (channel == 0) 1 else 0, 1)
+        }
     }
 
     fun decrementChannelPower(channel: Int, step: Int = 0) {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current - stepSize)
+        if (Prefs.powerSyncEnabled.value) {
+            decrementChannelPower(if (channel == 0) 1 else 0, 1)
+        }
     }
 
     fun getChannelPower(channel: Int): Int {
@@ -512,7 +521,8 @@ fun MainOptionsPanel(
             modifier = Modifier.fillMaxWidth()
         ) {
             Button(
-                modifier = Modifier.weight(1.0f)
+                modifier = Modifier
+                    .weight(1.0f)
                     .height(toolbarButtonHeight),
                 contentPadding = PaddingValues(2.dp),
                 onClick = {
@@ -699,7 +709,10 @@ fun PowerLevelPanel(
                         painter = painterResource(R.drawable.minus),
                         contentDescription = "Lower power",
                     )
-                    Text(text = channelLabel, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Text(
+                        text = channelLabel,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -713,7 +726,10 @@ fun PowerLevelPanel(
                         painter = painterResource(R.drawable.plus),
                         contentDescription = "Increase power",
                     )
-                    Text(text = channelLabel, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Text(
+                        text = channelLabel,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
             }
         }

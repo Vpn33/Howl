@@ -159,6 +159,7 @@ object Prefs {
     val powerStepB = register("power_step_b", 1, IntAdapter)
     val powerAutoIncrementDelayA = register("power_auto_inc_delay_a", 120, IntAdapter)
     val powerAutoIncrementDelayB = register("power_auto_inc_delay_b", 120, IntAdapter)
+    val powerSyncEnabled = register("power_sync_enabled", false, BooleanAdapter)
     val powerRampEnabled = register("power_ramp_enabled", false, BooleanAdapter)
     val powerRampChannelMode = register("power_ramp_channel_mode", "AB_SYNC", StringAdapter)
     val powerRampIntensityARangeStart = register("power_ramp_intensity_a_start", -40, IntAdapter)
