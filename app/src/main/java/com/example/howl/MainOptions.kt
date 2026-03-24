@@ -111,20 +111,31 @@ object MainOptions {
     }
 
     fun incrementChannelPower(channel: Int, step: Int = 0) {
+        incrementChannelPower(channel, step, true)
+    }
+    fun incrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current + stepSize)
         if (Prefs.powerSyncEnabled.value) {
-            incrementChannelPower(if (channel == 0) 1 else 0, 1)
+            if(sync){
+                incrementChannelPower(if (channel == 0) 1 else 0, 1, false)
+            }
         }
     }
 
     fun decrementChannelPower(channel: Int, step: Int = 0) {
+        decrementChannelPower(channel, step, true)
+    }
+
+    fun decrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current - stepSize)
         if (Prefs.powerSyncEnabled.value) {
-            decrementChannelPower(if (channel == 0) 1 else 0, 1)
+            if(sync){
+                decrementChannelPower(if (channel == 0) 1 else 0, 1, false)
+            }
         }
     }
 
