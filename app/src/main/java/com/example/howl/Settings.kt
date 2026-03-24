@@ -568,6 +568,30 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
+                
+                // 循环方式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "循环方式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampCycleModeA,
+                        onValueChange = {
+                            Prefs.powerRampCycleModeA.value = it
+                            Prefs.powerRampCycleModeA.save()
+                        },
+                        options = listOf("LOOP", "REPEAT"),
+                        getText = {
+                            when (it) {
+                                "LOOP" -> "循环"
+                                "REPEAT" -> "往复"
+                                else -> it
+                            }
+                        }
+                    )
+                }
             }
             "AB_INDEPENDENT" -> {
                 Text(text = "A通道：强度从 ${powerRampIntensityARangeStart} 逐渐变化到 ${powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -667,6 +691,30 @@ fun PowerSettingsPanel(
                     }
                 }
                 
+                // A通道循环方式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道循环方式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampCycleModeA,
+                        onValueChange = {
+                            Prefs.powerRampCycleModeA.value = it
+                            Prefs.powerRampCycleModeA.save()
+                        },
+                        options = listOf("LOOP", "REPEAT"),
+                        getText = {
+                            when (it) {
+                                "LOOP" -> "循环"
+                                "REPEAT" -> "往复"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
                 Text(text = "B通道：强度从 ${powerRampIntensityBRangeStart} 逐渐变化到 ${powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -762,6 +810,30 @@ fun PowerSettingsPanel(
                         )
                         Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
                     }
+                }
+                
+                // B通道循环方式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "B通道循环方式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampCycleModeB,
+                        onValueChange = {
+                            Prefs.powerRampCycleModeB.value = it
+                            Prefs.powerRampCycleModeB.save()
+                        },
+                        options = listOf("LOOP", "REPEAT"),
+                        getText = {
+                            when (it) {
+                                "LOOP" -> "循环"
+                                "REPEAT" -> "往复"
+                                else -> it
+                            }
+                        }
+                    )
                 }
             }
             "A_ONLY" -> {
@@ -861,6 +933,30 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
+                
+                // 循环方式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "循环方式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampCycleModeA,
+                        onValueChange = {
+                            Prefs.powerRampCycleModeA.value = it
+                            Prefs.powerRampCycleModeA.save()
+                        },
+                        options = listOf("LOOP", "REPEAT"),
+                        getText = {
+                            when (it) {
+                                "LOOP" -> "循环"
+                                "REPEAT" -> "往复"
+                                else -> it
+                            }
+                        }
+                    )
+                }
             }
             "B_ONLY" -> {
                 Text(text = "B通道：强度从 ${powerRampIntensityBRangeStart} 逐渐变化到 ${powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -958,6 +1054,30 @@ fun PowerSettingsPanel(
                         )
                         Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
                     }
+                }
+                
+                // 循环方式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "循环方式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampCycleModeB,
+                        onValueChange = {
+                            Prefs.powerRampCycleModeB.value = it
+                            Prefs.powerRampCycleModeB.save()
+                        },
+                        options = listOf("LOOP", "REPEAT"),
+                        getText = {
+                            when (it) {
+                                "LOOP" -> "循环"
+                                "REPEAT" -> "往复"
+                                else -> it
+                            }
+                        }
+                    )
                 }
             }
         }

@@ -87,6 +87,10 @@ object MainOptions {
     private var powerRampCurrentPeakTimeA: Long = 0L
     private var powerRampCurrentPeakTimeB: Long = 0L
 
+    // 爬坡方向 (1: 增加, -1: 减少)
+    private var powerRampDirectionA: Int = 1
+    private var powerRampDirectionB: Int = 1
+
     fun setChannelPower(channel: Int, power: Int) {
         when (channel) {
             0 -> {
@@ -155,9 +159,9 @@ object MainOptions {
                     // 计算最小强度
                     val minA = Prefs.powerRampIntensityARangeStart.value
                     powerRampCurrentA += minA
-                    // 不能小于0
-                    if (powerRampCurrentA < 0) {
-                        powerRampCurrentA = 0
+                    // 不能小于1
+                    if (powerRampCurrentA < 1) {
+                        powerRampCurrentA = 1
                         powerRampRecordA = 1
                     }
                     // 计算爬坡最大强度
@@ -199,9 +203,9 @@ object MainOptions {
                     // 计算最小强度
                     val minB = Prefs.powerRampIntensityBRangeStart.value
                     powerRampCurrentB += minB
-                    // 不能小于0
-                    if (powerRampCurrentB < 0) {
-                        powerRampCurrentB = 0
+                    // 不能小于1
+                    if (powerRampCurrentB < 1) {
+                        powerRampCurrentB = 1
                         powerRampRecordA = 1
                     }
                     // 计算爬坡最大强度
@@ -244,21 +248,30 @@ object MainOptions {
                 //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
                 if (powerRampChannelMode == "AB_SYNC") {
                     if (powerRampPeakCounterA >= autoIncrementDelayA) {
-                        val tempPower = powerRampCurrentA + 1
-                        if (tempPower <= powerRampMaxA) {
+                        val tempPower = powerRampCurrentA + powerRampDirectionA
+                        if (tempPower <= powerRampMaxA && tempPower >= powerRampRecordA) {
                             setChannelPower(0, tempPower)
                             setChannelPower(1, tempPower)
                         } else {
-                            setChannelPower(0, powerRampRecordA)
-                            setChannelPower(1, powerRampRecordA)
-                            // 到达坡顶后 重置强度重新开始爬坡
-                            powerRampRecordA = -1
-                            powerRampMaxA = -1
-                            powerRampPeakCounterA = 0L
+                            val cycleMode = Prefs.powerRampCycleModeA.value
+                            if (cycleMode == "LOOP") {
+                                // 循环模式：重置强度重新开始爬坡
+                                setChannelPower(0, powerRampRecordA)
+                                setChannelPower(1, powerRampRecordA)
+                                powerRampRecordA = -1
+                                powerRampMaxA = -1
+                                powerRampPeakCounterA = 0L
+                                powerRampDirectionA = 1
 
-                            powerRampRecordB = -1
-                            powerRampMaxB = -1
-                            powerRampPeakCounterB = 0L
+                                powerRampRecordB = -1
+                                powerRampMaxB = -1
+                                powerRampPeakCounterB = 0L
+                                powerRampDirectionB = 1
+                            } else {
+                                // 往复模式：反向爬坡
+                                powerRampDirectionA = -powerRampDirectionA
+                                powerRampDirectionB = -powerRampDirectionB
+                            }
                         }
                         // 重置爬坡计时器
                         powerRampPeakCounterA = 0L
@@ -267,15 +280,23 @@ object MainOptions {
                 } else {
                     if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "A_ONLY") {
                         if (powerRampPeakCounterA >= autoIncrementDelayA) {
-                            val tempPower = powerRampCurrentA + 1
-                            if (tempPower <= powerRampMaxA) {
+                            val tempPower = powerRampCurrentA + powerRampDirectionA
+                            if (tempPower <= powerRampMaxA && tempPower >= powerRampRecordA) {
                                 setChannelPower(0, tempPower)
+                                powerRampCurrentA = tempPower
                             } else {
-                                setChannelPower(0, powerRampRecordA)
-                                // 到达坡顶后 重置强度重新开始爬坡
-                                powerRampRecordA = -1
-                                powerRampMaxA = -1
-                                powerRampPeakCounterA = 0L
+                                val cycleMode = Prefs.powerRampCycleModeA.value
+                                if (cycleMode == "LOOP") {
+                                    // 循环模式：重置强度重新开始爬坡
+                                    setChannelPower(0, powerRampRecordA)
+                                    powerRampRecordA = -1
+                                    powerRampMaxA = -1
+                                    powerRampPeakCounterA = 0L
+                                    powerRampDirectionA = 1
+                                } else {
+                                    // 往复模式：反向爬坡
+                                    powerRampDirectionA = -powerRampDirectionA
+                                }
                             }
                             // 重置爬坡计时器
                             powerRampPeakCounterA = 0L
@@ -283,15 +304,23 @@ object MainOptions {
                     }
                     if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "B_ONLY") {
                         if (powerRampPeakCounterB >= autoIncrementDelayB) {
-                            val tempPower = powerRampCurrentB + 1
-                            if (tempPower <= powerRampMaxB) {
+                            val tempPower = powerRampCurrentB + powerRampDirectionB
+                            if (tempPower <= powerRampMaxB && tempPower >= powerRampRecordB) {
                                 setChannelPower(1, tempPower)
+                                powerRampCurrentB = tempPower
                             } else {
-                                setChannelPower(1, powerRampRecordB)
-                                // 到达坡顶后 重置强度重新开始爬坡
-                                powerRampRecordB = -1
-                                powerRampMaxB = -1
-                                powerRampPeakCounterB = 0L
+                                val cycleMode = Prefs.powerRampCycleModeB.value
+                                if (cycleMode == "LOOP") {
+                                    // 循环模式：重置强度重新开始爬坡
+                                    setChannelPower(1, powerRampRecordB)
+                                    powerRampRecordB = -1
+                                    powerRampMaxB = -1
+                                    powerRampPeakCounterB = 0L
+                                    powerRampDirectionB = 1
+                                } else {
+                                    // 往复模式：反向爬坡
+                                    powerRampDirectionB = -powerRampDirectionB
+                                }
                             }
                             // 重置爬坡计时器
                             powerRampPeakCounterB = 0L
@@ -344,6 +373,9 @@ object MainOptions {
         powerRampMaxB = -1
         powerRampPeakCounterA = 0L
         powerRampPeakCounterB = 0L
+        // 重置爬坡增量 避免关闭重开后 爬坡反向的问题
+        powerRampDirectionA = 1
+        powerRampDirectionB = 1
 
         _state.update { it.copy(autoIncreasePower = autoIncrease) }
     }
