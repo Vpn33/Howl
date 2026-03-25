@@ -1067,8 +1067,8 @@ fun PlayerPanel(
                     value = playerState.syncFineTune,
                     onValueChange = { Player.setSyncFineTune(it) },
                     onValueChangeFinished = { },
-                    valueRange = -0.5f..0.5f,
-                    steps = 99,
+                    valueRange = -2f..2f,
+                    steps = 400,
                     valueDisplay = { String.format(Locale.US, "%03.2f", it) }
                 )
             }
