@@ -349,8 +349,16 @@ fun PowerSettingsPanel(
     val powerRampIntensityARangeEnd by Prefs.powerRampIntensityARangeEnd.collectAsStateWithLifecycle()
     val powerRampIntensityBRangeStart by Prefs.powerRampIntensityBRangeStart.collectAsStateWithLifecycle()
     val powerRampIntensityBRangeEnd by Prefs.powerRampIntensityBRangeEnd.collectAsStateWithLifecycle()
+    val powerRampSpeedModeA by Prefs.powerRampSpeedModeA.collectAsStateWithLifecycle()
     val powerRampSpeedA by Prefs.powerRampSpeedA.collectAsStateWithLifecycle()
+    val powerRampSpeedRandomMinA by Prefs.powerRampSpeedRandomMinA.collectAsStateWithLifecycle()
+    val powerRampSpeedRandomMaxA by Prefs.powerRampSpeedRandomMaxA.collectAsStateWithLifecycle()
+    val powerRampSpeedModeB by Prefs.powerRampSpeedModeB.collectAsStateWithLifecycle()
     val powerRampSpeedB by Prefs.powerRampSpeedB.collectAsStateWithLifecycle()
+    val powerRampSpeedRandomMinB by Prefs.powerRampSpeedRandomMinB.collectAsStateWithLifecycle()
+    val powerRampSpeedRandomMaxB by Prefs.powerRampSpeedRandomMaxB.collectAsStateWithLifecycle()
+    val powerRampSpeedIntervalModeA by Prefs.powerRampSpeedIntervalModeA.collectAsStateWithLifecycle()
+    val powerRampSpeedIntervalModeB by Prefs.powerRampSpeedIntervalModeB.collectAsStateWithLifecycle()
     val powerRampPeakTimeModeA by Prefs.powerRampPeakTimeModeA.collectAsStateWithLifecycle()
     val powerRampPeakTimeFixedA by Prefs.powerRampPeakTimeFixedA.collectAsStateWithLifecycle()
     val powerRampPeakTimeRandomMinA by Prefs.powerRampPeakTimeRandomMinA.collectAsStateWithLifecycle()
@@ -505,18 +513,97 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
-                val totalTimeA = powerRampSpeedA * changeCountA
-                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
-                SliderWithLabel(
-                    label = "",
-                    value = powerRampSpeedA,
-                    onValueChange = { Prefs.powerRampSpeedA.value = it },
-                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
-                    valueRange = 0.1f..60.0f,
-                    steps = 599,
-                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
-                )
+                
+                // 变化速度类型
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "变化速度类型", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedModeA.value = it
+                            Prefs.powerRampSpeedModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 变化速度间隔
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "变化速度间隔", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedIntervalModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedIntervalModeA.value = it
+                            Prefs.powerRampSpeedIntervalModeA.save()
+                        },
+                        options = listOf("INITIAL", "EVERY"),
+                        getText = {
+                            when (it) {
+                                "INITIAL" -> "每次爬坡初始"
+                                "EVERY" -> "每次坡度变化"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 变化速度
+                if (powerRampSpeedModeA == "FIXED") {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeA = powerRampSpeedA * changeCountA
+                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    SliderWithLabel(
+                        label = "",
+                        value = powerRampSpeedA,
+                        onValueChange = { Prefs.powerRampSpeedA.value = it },
+                        onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                        valueRange = 0.1f..60.0f,
+                        steps = 599,
+                        valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                    )
+                } else {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeMinA = powerRampSpeedRandomMinA * changeCountA
+                    val totalTimeMaxA = powerRampSpeedRandomMaxA * changeCountA
+                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampSpeedRandomMinA.toFloat()..powerRampSpeedRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampSpeedRandomMinA.value = newRange.start
+                                Prefs.powerRampSpeedRandomMaxA.value = newRange.endInclusive
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampSpeedRandomMinA.save()
+                                Prefs.powerRampSpeedRandomMaxA.save()
+                            },
+                            valueRange = 0.1f..60.0f,
+                            steps = 599
+                        )
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
                 
                 // 坡顶时间模式
                 Row(
@@ -627,18 +714,120 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
-                val totalTimeA = powerRampSpeedA * changeCountA
-                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
-                SliderWithLabel(
-                    label = "",
-                    value = powerRampSpeedA,
-                    onValueChange = { Prefs.powerRampSpeedA.value = it },
-                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
-                    valueRange = 0.1f..60.0f,
-                    steps = 599,
-                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
-                )
+                // A通道变化速度类型
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道变化速度类型", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedModeA.value = it
+                            Prefs.powerRampSpeedModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // A通道变化速度间隔
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道变化速度间隔", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedIntervalModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedIntervalModeA.value = it
+                            Prefs.powerRampSpeedIntervalModeA.save()
+                        },
+                        options = listOf("INITIAL", "EVERY"),
+                        getText = {
+                            when (it) {
+                                "INITIAL" -> "每次爬坡初始"
+                                "EVERY" -> "每次坡度变化"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // A通道变化速度间隔
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道变化速度间隔", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedIntervalModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedIntervalModeA.value = it
+                            Prefs.powerRampSpeedIntervalModeA.save()
+                        },
+                        options = listOf("INITIAL", "EVERY"),
+                        getText = {
+                            when (it) {
+                                "INITIAL" -> "每次爬坡初始"
+                                "EVERY" -> "每次坡度变化"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // A通道变化速度
+                if (powerRampSpeedModeA == "FIXED") {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeA = powerRampSpeedA * changeCountA
+                    Text(text = "A通道变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    SliderWithLabel(
+                        label = "",
+                        value = powerRampSpeedA,
+                        onValueChange = { Prefs.powerRampSpeedA.value = it },
+                        onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                        valueRange = 0.1f..60.0f,
+                        steps = 599,
+                        valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                    )
+                } else {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeMinA = powerRampSpeedRandomMinA * changeCountA
+                    val totalTimeMaxA = powerRampSpeedRandomMaxA * changeCountA
+                    Text(text = "A通道变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampSpeedRandomMinA.toFloat()..powerRampSpeedRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampSpeedRandomMinA.value = newRange.start
+                                Prefs.powerRampSpeedRandomMaxA.value = newRange.endInclusive
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampSpeedRandomMinA.save()
+                                Prefs.powerRampSpeedRandomMaxA.save()
+                            },
+                            valueRange = 0.1f..60.0f,
+                            steps = 599
+                        )
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
                 
                 // A通道坡顶时间模式
                 Row(
@@ -748,18 +937,96 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
-                val totalTimeB = powerRampSpeedB * changeCountB
-                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
-                SliderWithLabel(
-                    label = "",
-                    value = powerRampSpeedB,
-                    onValueChange = { Prefs.powerRampSpeedB.value = it },
-                    onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
-                    valueRange = 0.1f..60.0f,
-                    steps = 599,
-                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
-                )
+                // B通道变化速度类型
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "B通道变化速度类型", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedModeB,
+                        onValueChange = {
+                            Prefs.powerRampSpeedModeB.value = it
+                            Prefs.powerRampSpeedModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // B通道变化速度间隔
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "B通道变化速度间隔", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedIntervalModeB,
+                        onValueChange = {
+                            Prefs.powerRampSpeedIntervalModeB.value = it
+                            Prefs.powerRampSpeedIntervalModeB.save()
+                        },
+                        options = listOf("INITIAL", "EVERY"),
+                        getText = {
+                            when (it) {
+                                "INITIAL" -> "每次爬坡初始"
+                                "EVERY" -> "每次坡度变化"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // B通道变化速度
+                if (powerRampSpeedModeB == "FIXED") {
+                    val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
+                    val totalTimeB = powerRampSpeedB * changeCountB
+                    Text(text = "B通道变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    SliderWithLabel(
+                        label = "",
+                        value = powerRampSpeedB,
+                        onValueChange = { Prefs.powerRampSpeedB.value = it },
+                        onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
+                        valueRange = 0.1f..60.0f,
+                        steps = 599,
+                        valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                    )
+                } else {
+                    val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
+                    val totalTimeMinB = powerRampSpeedRandomMinB * changeCountB
+                    val totalTimeMaxB = powerRampSpeedRandomMaxB * changeCountB
+                    Text(text = "B通道变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinB)}~${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinB)}~${String.format(Locale.US, "%.1f", totalTimeMaxB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinB)}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampSpeedRandomMinB.toFloat()..powerRampSpeedRandomMaxB.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampSpeedRandomMinB.value = newRange.start
+                                Prefs.powerRampSpeedRandomMaxB.value = newRange.endInclusive
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampSpeedRandomMinB.save()
+                                Prefs.powerRampSpeedRandomMaxB.save()
+                            },
+                            valueRange = 0.1f..60.0f,
+                            steps = 599
+                        )
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
                 
                 // B通道坡顶时间模式
                 Row(
@@ -870,18 +1137,72 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
-                val totalTimeA = powerRampSpeedA * changeCountA
-                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
-                SliderWithLabel(
-                    label = "",
-                    value = powerRampSpeedA,
-                    onValueChange = { Prefs.powerRampSpeedA.value = it },
-                    onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
-                    valueRange = 0.1f..60.0f,
-                    steps = 599,
-                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
-                )
+                // 变化速度类型
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "变化速度类型", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedModeA,
+                        onValueChange = {
+                            Prefs.powerRampSpeedModeA.value = it
+                            Prefs.powerRampSpeedModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 变化速度
+                if (powerRampSpeedModeA == "FIXED") {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeA = powerRampSpeedA * changeCountA
+                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    SliderWithLabel(
+                        label = "",
+                        value = powerRampSpeedA,
+                        onValueChange = { Prefs.powerRampSpeedA.value = it },
+                        onValueChangeFinished = { Prefs.powerRampSpeedA.save() },
+                        valueRange = 0.1f..60.0f,
+                        steps = 599,
+                        valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                    )
+                } else {
+                    val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
+                    val totalTimeMinA = powerRampSpeedRandomMinA * changeCountA
+                    val totalTimeMaxA = powerRampSpeedRandomMaxA * changeCountA
+                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampSpeedRandomMinA.toFloat()..powerRampSpeedRandomMaxA.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampSpeedRandomMinA.value = newRange.start
+                                Prefs.powerRampSpeedRandomMaxA.value = newRange.endInclusive
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampSpeedRandomMinA.save()
+                                Prefs.powerRampSpeedRandomMaxA.save()
+                            },
+                            valueRange = 0.1f..60.0f,
+                            steps = 599
+                        )
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
                 
                 // 坡顶时间模式
                 Row(
@@ -992,18 +1313,69 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
-                val totalTimeB = powerRampSpeedB * changeCountB
-                Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
-                SliderWithLabel(
-                    label = "",
-                    value = powerRampSpeedB,
-                    onValueChange = { Prefs.powerRampSpeedB.value = it },
-                    onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
-                    valueRange = 0.1f..60.0f,
-                    steps = 599,
-                    valueDisplay = { String.format(Locale.US, "%.1f", it) }
-                )
+                // 变化速度类型
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "变化速度类型", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampSpeedModeB,
+                        onValueChange = {
+                            Prefs.powerRampSpeedModeB.value = it
+                            Prefs.powerRampSpeedModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+                
+                // 变化速度
+                if (powerRampSpeedModeB == "FIXED") {
+                    val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
+                    val totalTimeB = powerRampSpeedB * changeCountB
+                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    SliderWithLabel(
+                        label = "",
+                        value = powerRampSpeedB,
+                        onValueChange = { Prefs.powerRampSpeedB.value = it },
+                        onValueChangeFinished = { Prefs.powerRampSpeedB.save() },
+                        valueRange = 0.1f..60.0f,
+                        steps = 599,
+                        valueDisplay = { String.format(Locale.US, "%.1f", it) }
+                    )
+                } else {
+                    Text(text = "变化速度(秒): ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinB)} - ${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMinB)}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampSpeedRandomMinB.toFloat()..powerRampSpeedRandomMaxB.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampSpeedRandomMinB.value = newRange.start
+                                Prefs.powerRampSpeedRandomMaxB.value = newRange.endInclusive
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampSpeedRandomMinB.save()
+                                Prefs.powerRampSpeedRandomMaxB.save()
+                            },
+                            valueRange = 0.1f..60.0f,
+                            steps = 599
+                        )
+                        Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
                 
                 // 坡顶时间模式
                 Row(
