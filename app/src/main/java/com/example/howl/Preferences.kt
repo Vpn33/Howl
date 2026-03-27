@@ -166,8 +166,18 @@ object Prefs {
     val powerRampIntensityARangeEnd = register("power_ramp_intensity_a_end", 40, IntAdapter)
     val powerRampIntensityBRangeStart = register("power_ramp_intensity_b_start", -10, IntAdapter)
     val powerRampIntensityBRangeEnd = register("power_ramp_intensity_b_end", 10, IntAdapter)
+    val powerRampSpeedModeA = register("power_ramp_speed_mode_a", "FIXED", StringAdapter)
     val powerRampSpeedA = register("power_ramp_speed_a", 8.0f, FloatAdapter)
+    val powerRampSpeedRandomMinA = register("power_ramp_speed_random_min_a", 1.0f, FloatAdapter)
+    val powerRampSpeedRandomMaxA = register("power_ramp_speed_random_max_a", 10.0f, FloatAdapter)
+    val powerRampSpeedModeB = register("power_ramp_speed_mode_b", "FIXED", StringAdapter)
     val powerRampSpeedB = register("power_ramp_speed_b", 2.0f, FloatAdapter)
+    val powerRampSpeedRandomMinB = register("power_ramp_speed_random_min_b", 1.0f, FloatAdapter)
+    val powerRampSpeedRandomMaxB = register("power_ramp_speed_random_max_b", 10.0f, FloatAdapter)
+    
+    // 变化速度间隔模式
+    val powerRampSpeedIntervalModeA = register("power_ramp_speed_interval_mode_a", "INITIAL", StringAdapter)
+    val powerRampSpeedIntervalModeB = register("power_ramp_speed_interval_mode_b", "INITIAL", StringAdapter)
     val powerRampPeakTimeModeA = register("power_ramp_peak_time_mode_a", "RANDOM", StringAdapter)
     val powerRampPeakTimeFixedA = register("power_ramp_peak_time_fixed_a", 5, IntAdapter)
     val powerRampPeakTimeRandomMinA = register("power_ramp_peak_time_random_min_a", 2, IntAdapter)

@@ -91,6 +91,10 @@ object MainOptions {
     private var powerRampDirectionA: Int = 1
     private var powerRampDirectionB: Int = 1
 
+    // 开启爬坡时是否随机时间
+    private var powerRampIntervalTimeA: Float = -1f
+    private var powerRampIntervalTimeB: Float = -1f
+
     fun setChannelPower(channel: Int, power: Int) {
 
         when (channel) {
@@ -113,12 +117,13 @@ object MainOptions {
     fun incrementChannelPower(channel: Int, step: Int = 0) {
         incrementChannelPower(channel, step, true)
     }
+
     fun incrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current + stepSize)
         if (Prefs.powerSyncEnabled.value) {
-            if(sync){
+            if (sync) {
                 incrementChannelPower(if (channel == 0) 1 else 0, 1, false)
             }
         }
@@ -133,7 +138,7 @@ object MainOptions {
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current - stepSize)
         if (Prefs.powerSyncEnabled.value) {
-            if(sync){
+            if (sync) {
                 decrementChannelPower(if (channel == 0) 1 else 0, 1, false)
             }
         }
@@ -203,6 +208,18 @@ object MainOptions {
                             (minTime + Math.random() * (maxTime - minTime)).toLong()
                         powerRampCurrentPeakTimeA = randomTime * 1000
                     }
+
+                    // 爬坡触发时间 随机
+                    if (Prefs.powerRampSpeedModeA.value == "RANDOM") {
+                        val minSpeed = Prefs.powerRampSpeedRandomMinA.value
+                        val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
+                        powerRampIntervalTimeA =
+                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                    } else {
+                        // 爬坡触发时间 固定
+                        powerRampIntervalTimeA = Prefs.powerRampSpeedA.value
+                    }
+
                     var message = "Starting power auto ramp";
                     if (powerRampChannelMode == "AB_SYNC") {
                         message += " channel_A&B:[${powerRampCurrentA}~${powerRampMaxA}]"
@@ -247,6 +264,16 @@ object MainOptions {
                             (minTime + Math.random() * (maxTime - minTime)).toLong()
                         powerRampCurrentPeakTimeB = randomTime * 1000
                     }
+                    // 爬坡触发时间 随机
+                    if (Prefs.powerRampSpeedModeB.value == "RANDOM") {
+                        val minSpeed = Prefs.powerRampSpeedRandomMinB.value
+                        val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
+                        powerRampIntervalTimeB =
+                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                    } else {
+                        // 爬坡触发时间 固定
+                        powerRampIntervalTimeB = Prefs.powerRampSpeedB.value
+                    }
                 }
 
                 // Power ramp logic
@@ -256,12 +283,29 @@ object MainOptions {
                 if (options.channelBPower > 0) powerRampPeakCounterB += elapsedMs
 
                 // 获取爬坡触发时间
-                var autoIncrementDelayA = (Prefs.powerRampSpeedA.value * 1000).toLong()
+                var currentSpeedA = powerRampIntervalTimeA
+
+                // 如果是A通道每次坡度变化 且是随机 就重新生成一个时间
+                if (Prefs.powerRampSpeedIntervalModeA.value == "EVERY" && Prefs.powerRampSpeedModeA.value == "RANDOM") {
+                    val minSpeed = Prefs.powerRampSpeedRandomMinA.value
+                    val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
+                    currentSpeedA = (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                }
+                var autoIncrementDelayA = (currentSpeedA * 1000).toLong()
                 // 如果到达坡顶 就需要增加坡顶的持续时间
                 if (powerRampCurrentA > 0 && powerRampCurrentA == powerRampMaxA) {
                     autoIncrementDelayA += powerRampCurrentPeakTimeA
                 }
-                var autoIncrementDelayB = (Prefs.powerRampSpeedB.value * 1000).toLong()
+
+                // 获取爬坡触发时间
+                var currentSpeedB = powerRampIntervalTimeB
+                // 如果是B通道每次坡度变化 且是随机 就重新生成一个时间
+                if (Prefs.powerRampSpeedIntervalModeB.value == "EVERY" && Prefs.powerRampSpeedModeB.value == "RANDOM") {
+                    val minSpeed = Prefs.powerRampSpeedRandomMinB.value
+                    val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
+                    currentSpeedB = (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                }
+                var autoIncrementDelayB = (currentSpeedB * 1000).toLong()
                 if (powerRampCurrentB > 0 && powerRampCurrentB == powerRampMaxB) {
                     autoIncrementDelayB += powerRampCurrentPeakTimeB
                 }
@@ -393,9 +437,14 @@ object MainOptions {
         powerRampMaxB = -1
         powerRampPeakCounterA = 0L
         powerRampPeakCounterB = 0L
+        powerRampCurrentPeakTimeA = 0L
+        powerRampCurrentPeakTimeB = 0L
         // 重置爬坡增量 避免关闭重开后 爬坡反向的问题
         powerRampDirectionA = 1
         powerRampDirectionB = 1
+        powerRampIntervalTimeA = -1f
+        powerRampIntervalTimeB = -1f
+
 
         _state.update { it.copy(autoIncreasePower = autoIncrease) }
     }
