@@ -243,3 +243,20 @@ On Android versions before 12, the app will ask for location permissions. Howl d
 ## License
 
 All original code is released under the MIT License. There is an additional stipulation that if you distribute this app or any part of it (with or without changes), you may not use the name Howl, or any very similar name. This is to help make it clear to users that your distribution is not associated with this project.
+
+## my fork added features
+1. Added an internationalization framework (supporting English and Chinese). 增加国际化框架（支持英文和中文）
+2. Fixed an error where playing FapTap Funscript scripts resulted in a non-integer data error. 修正播放faptap的Funscript脚本出现数据非整型错误的问题
+3. Enhance the openness of the RemoteControlServer to enable other devices to invoke its interfaces. 增加RemoteControlServer的开放性，使得其他设备也可以调用接口；
+4. Add automatic power ramp. 增加自动爬坡的功能
+    
+    Automatic power ramp for keep edgeing with ruined。
+    
+    Settings Tab's  Power Ramp configuration options
+    ![Image](https://github.com/user-attachments/assets/a7d73dbd-35d7-43e3-bd21-0c361e84ce50)
+    
+    Loop mode:
+    ![Image](https://github.com/user-attachments/assets/849318ac-e7b3-4700-8ef5-ca0c1bdc6dcc)
+    
+    Repeat mode:
+    ![Image](https://github.com/user-attachments/assets/37649ff4-693c-4f0c-82d5-ae8e8224716b)
