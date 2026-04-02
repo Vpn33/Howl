@@ -43,6 +43,7 @@ fun HowlAppScreen(
     generatorViewModel: GeneratorViewModel = viewModel(),
     activityHostViewModel: ActivityHostViewModel = viewModel(),
     settingsViewModel: SettingsViewModel = viewModel(),
+    waveViewModel: WaveViewModel = viewModel(),
 ) {
     val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
     val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
@@ -87,12 +88,12 @@ fun HowlAppScreen(
                 modifier = Modifier.navigationBarsPadding()
             )
         }
-    ) { innerPadding ->
+    ) {
+        innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
         ) {
             MainOptionsPanel(viewModel = mainOptionsViewModel)
             TabLayout(
@@ -101,6 +102,8 @@ fun HowlAppScreen(
                 settingsViewModel = settingsViewModel,
                 generatorViewModel = generatorViewModel,
                 activityHostViewModel = activityHostViewModel,
+                waveViewModel = waveViewModel,
+                modifier = Modifier.weight(1f)
             )
         }
     }

@@ -85,6 +85,10 @@ object ActivityHost : PulseSource {
     private val _currentActivityName = MutableStateFlow("")
     val currentActivityName: StateFlow<String> = _currentActivityName.asStateFlow()
 
+    // used to track the current activity info for UI highlighting
+    private val _currentActivityInfoFlow = MutableStateFlow<ActivityInfo?>(null)
+    val currentActivityInfoFlow: StateFlow<ActivityInfo?> = _currentActivityInfoFlow.asStateFlow()
+
 
     init {
         changeActivity()
@@ -123,6 +127,7 @@ object ActivityHost : PulseSource {
         lastSimulationTime = -1.0
         lastUpdateTime = -1.0
         _currentActivityName.value = ""
+        _currentActivityInfoFlow.value = newActivityInfo
     }
 
     fun changeActivity() {
@@ -159,6 +164,7 @@ fun ActivityHostPanel(
     val activityChangeProbability by Prefs.activityChangeProbability.collectAsStateWithLifecycle()
     val playerState by Player.playerState.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == ActivityHost
+    val currentActivityInfo by ActivityHost.currentActivityInfoFlow.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier.padding(16.dp),
@@ -213,11 +219,19 @@ fun ActivityHostPanel(
         ) {
             items(ActivityHost.availableActivities) { info ->
                 val displayName = stringResource(info.displayNameResId)
+                val isCurrentActivity = info == currentActivityInfo
                 Button(
                     onClick = {
                         viewModel.setCurrentActivity(info)
                     },
-                    colors = ButtonDefaults.buttonColors(),
+                    colors = if (isCurrentActivity) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(

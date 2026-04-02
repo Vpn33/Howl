@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
@@ -1476,10 +1478,12 @@ fun SettingsPanel(
     val remoteAccess by Prefs.remoteAccess.collectAsStateWithLifecycle()
     val remoteAPIKey by Prefs.remoteAPIKey.collectAsStateWithLifecycle()
 
+    val scrollState = rememberScrollState()
     Column(
         modifier = modifier
             .padding(16.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .verticalScroll(scrollState),
     ) {
         OutputSettingsPanel(viewModel, modifier)
         PowerSettingsPanel(viewModel, modifier)
