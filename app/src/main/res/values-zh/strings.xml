@@ -48,6 +48,22 @@
     <string name="settings_resource_note">标有[*]的选项会增加资源使用。在低端设备上禁用可提高性能并减少能耗。</string>
     
     <!-- 语言设置 -->
+    <string name="select_local_folder">选择本地文件夹</string>
+    <string name="select_wave">选择波形</string>
+    <string name="stop">停止</string>
+    <string name="start">开始</string>
+    
+    <!-- 播放模式选项 -->
+    <string name="play_mode_list_loop">列表循环</string>
+    <string name="play_mode_single_loop">单曲循环</string>
+    <string name="play_mode_random">随机</string>
+    
+    <!-- 播放时间选项 -->
+    <string name="play_time_5s">5秒</string>
+    <string name="play_time_10s">10秒</string>
+    <string name="play_time_30s">30秒</string>
+    <string name="play_time_60s">60秒</string>
+    <string name="play_time_120s">120秒</string>
     <string name="settings_view">显示选项</string>
     <string name="settings_language">语言</string>
     <string name="language_english">English</string>

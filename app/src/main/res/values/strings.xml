@@ -48,6 +48,22 @@
     <string name="settings_resource_note">Options marked with [*] increase resource usage. Disable to improve performance on low-end devices and reduce energy use.</string>
     
     <!-- Language settings -->
+    <string name="select_local_folder">Select Local Folder</string>
+    <string name="select_wave">Select Wave</string>
+    <string name="stop">Stop</string>
+    <string name="start">Start</string>
+    
+    <!-- Play mode options -->
+    <string name="play_mode_list_loop">List Loop</string>
+    <string name="play_mode_single_loop">Single Loop</string>
+    <string name="play_mode_random">Random</string>
+    
+    <!-- Play time options -->
+    <string name="play_time_5s">5s</string>
+    <string name="play_time_10s">10s</string>
+    <string name="play_time_30s">30s</string>
+    <string name="play_time_60s">60s</string>
+    <string name="play_time_120s">120s</string>
     <string name="settings_view">View options</string>
     <string name="settings_language">Language</string>
     <string name="language_english">English</string>
