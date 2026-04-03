@@ -56,16 +56,6 @@ import java.io.File
 import java.util.Date
 
 class WaveViewModel : ViewModel() {
-    // 播放模式选项
-    val playModeOptions = listOf(
-        "List Loop",
-        "Single Loop",
-        "Random"
-    )
-
-    // 播放时间选项
-    val playTimeOptions = listOf("5s", "10s", "30s", "60s", "120s")
-
     // 所有可用的波形列表
     private val _availableWaves = MutableStateFlow<List<WaveInfo>>(emptyList())
     val availableWaves: StateFlow<List<WaveInfo>> = _availableWaves.asStateFlow()
@@ -129,54 +119,94 @@ class WaveViewModel : ViewModel() {
         val aChannelPlayTime = prefs.getString("aChannelPlayTime", "10秒") ?: "10秒"
         val bChannelPlayTime = prefs.getString("bChannelPlayTime", "10秒") ?: "10秒"
         
-        // 根据语言设置转换为对应的英文
+        // 根据语言设置转换为对应的语言
         val language = Prefs.language.value
-        val convertedAChannelPlayMode = if (language == "en") {
-            when (aChannelPlayMode) {
-                "列表循环" -> "List Loop"
-                "单曲循环" -> "Single Loop"
-                "随机" -> "Random"
-                else -> aChannelPlayMode
+        val convertedAChannelPlayMode = when (language) {
+            "en" -> {
+                when (aChannelPlayMode) {
+                    "列表循环" -> "List Loop"
+                    "单曲循环" -> "Single Loop"
+                    "随机" -> "Random"
+                    else -> aChannelPlayMode
+                }
             }
-        } else {
-            aChannelPlayMode
+            "zh" -> {
+                when (aChannelPlayMode) {
+                    "List Loop" -> "列表循环"
+                    "Single Loop" -> "单曲循环"
+                    "Random" -> "随机"
+                    else -> aChannelPlayMode
+                }
+            }
+            else -> aChannelPlayMode
         }
         
-        val convertedBChannelPlayMode = if (language == "en") {
-            when (bChannelPlayMode) {
-                "列表循环" -> "List Loop"
-                "单曲循环" -> "Single Loop"
-                "随机" -> "Random"
-                else -> bChannelPlayMode
+        val convertedBChannelPlayMode = when (language) {
+            "en" -> {
+                when (bChannelPlayMode) {
+                    "列表循环" -> "List Loop"
+                    "单曲循环" -> "Single Loop"
+                    "随机" -> "Random"
+                    else -> bChannelPlayMode
+                }
             }
-        } else {
-            bChannelPlayMode
+            "zh" -> {
+                when (bChannelPlayMode) {
+                    "List Loop" -> "列表循环"
+                    "Single Loop" -> "单曲循环"
+                    "Random" -> "随机"
+                    else -> bChannelPlayMode
+                }
+            }
+            else -> bChannelPlayMode
         }
         
-        val convertedAChannelPlayTime = if (language == "en") {
-            when (aChannelPlayTime) {
-                "5秒" -> "5s"
-                "10秒" -> "10s"
-                "30秒" -> "30s"
-                "60秒" -> "60s"
-                "120秒" -> "120s"
-                else -> aChannelPlayTime
+        val convertedAChannelPlayTime = when (language) {
+            "en" -> {
+                when (aChannelPlayTime) {
+                    "5秒" -> "5s"
+                    "10秒" -> "10s"
+                    "30秒" -> "30s"
+                    "60秒" -> "60s"
+                    "120秒" -> "120s"
+                    else -> aChannelPlayTime
+                }
             }
-        } else {
-            aChannelPlayTime
+            "zh" -> {
+                when (aChannelPlayTime) {
+                    "5s" -> "5秒"
+                    "10s" -> "10秒"
+                    "30s" -> "30秒"
+                    "60s" -> "60秒"
+                    "120s" -> "120秒"
+                    else -> aChannelPlayTime
+                }
+            }
+            else -> aChannelPlayTime
         }
         
-        val convertedBChannelPlayTime = if (language == "en") {
-            when (bChannelPlayTime) {
-                "5秒" -> "5s"
-                "10秒" -> "10s"
-                "30秒" -> "30s"
-                "60秒" -> "60s"
-                "120秒" -> "120s"
-                else -> bChannelPlayTime
+        val convertedBChannelPlayTime = when (language) {
+            "en" -> {
+                when (bChannelPlayTime) {
+                    "5秒" -> "5s"
+                    "10秒" -> "10s"
+                    "30秒" -> "30s"
+                    "60秒" -> "60s"
+                    "120秒" -> "120s"
+                    else -> bChannelPlayTime
+                }
             }
-        } else {
-            bChannelPlayTime
+            "zh" -> {
+                when (bChannelPlayTime) {
+                    "5s" -> "5秒"
+                    "10s" -> "10秒"
+                    "30s" -> "30秒"
+                    "60s" -> "60秒"
+                    "120s" -> "120秒"
+                    else -> bChannelPlayTime
+                }
+            }
+            else -> bChannelPlayTime
         }
 
         // 更新状态
@@ -1078,7 +1108,7 @@ fun WavePanel(viewModel: WaveViewModel) {
             Button(onClick = {
                 folderPickerLauncher.launch(null)
             }) {
-                Text(text = "Select Local Folder")
+                Text(text = stringResource(R.string.select_local_folder))
             }
         }
 
@@ -1124,8 +1154,24 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
     val isPlaying = if (channel == "A") state.aChannelPlaying else state.bChannelPlaying
     val playMode = if (channel == "A") state.aChannelPlayMode else state.bChannelPlayMode
     val playTime = if (channel == "A") state.aChannelPlayTime else state.bChannelPlayTime
-    val selectedWaves =
+    val selectedWaves = 
         if (channel == "A") state.aChannelSelectedWaves else state.bChannelSelectedWaves
+    
+    // 生成播放模式选项
+    val playModeOptions = listOf(
+        stringResource(R.string.play_mode_list_loop),
+        stringResource(R.string.play_mode_single_loop),
+        stringResource(R.string.play_mode_random)
+    )
+    
+    // 生成播放时间选项
+    val playTimeOptions = listOf(
+        stringResource(R.string.play_time_5s),
+        stringResource(R.string.play_time_10s),
+        stringResource(R.string.play_time_30s),
+        stringResource(R.string.play_time_60s),
+        stringResource(R.string.play_time_120s)
+    )
 
     Column(
         modifier = modifier
@@ -1146,7 +1192,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                 onClick = { viewModel.toggleChannelPlay(context, channel) },
                 modifier = Modifier.width(80.dp)
             ) {
-                Text(text = if (isPlaying) "Stop" else "Start")
+                Text(text = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.start))
             }
         }
 
@@ -1161,7 +1207,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(painter = painterResource(R.drawable.plus), contentDescription = null)
-                    Text(text = "Select Wave")
+                    Text(text = stringResource(R.string.select_wave))
                 }
             }
         }
@@ -1189,7 +1235,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     expanded = modeExpanded,
                     onDismissRequest = { modeExpanded = false }
                 ) {
-                    viewModel.playModeOptions.forEach { mode ->
+                    playModeOptions.forEach { mode ->
                         DropdownMenuItem(
                             text = { Text(text = mode) },
                             onClick = {
@@ -1219,7 +1265,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     expanded = timeExpanded,
                     onDismissRequest = { timeExpanded = false }
                 ) {
-                    viewModel.playTimeOptions.forEach { time ->
+                    playTimeOptions.forEach { time ->
                         DropdownMenuItem(
                             text = { Text(text = time) },
                             onClick = {
