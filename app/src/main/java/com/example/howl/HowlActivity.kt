@@ -26,6 +26,16 @@ import com.example.howl.ui.theme.HowlTheme
 class HowlActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 应用语言设置
+        val language = Prefs.language.value
+        val locale = java.util.Locale(language)
+        java.util.Locale.setDefault(locale)
+        val resources = resources
+        val configuration = resources.configuration
+        configuration.setLocale(locale)
+        resources.updateConfiguration(configuration, resources.displayMetrics)
+        
         enableEdgeToEdge()
         setContent {
             HowlTheme {
