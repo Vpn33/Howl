@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -22,12 +23,16 @@ import com.example.howl.ui.theme.HowlTheme
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.res.stringResource
 import java.util.Locale
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.Resources
 import androidx.compose.foundation.layout.widthIn
+import kotlinx.coroutines.runBlocking
 
 fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
     return this.first.toFloat()..this.last.toFloat()
@@ -45,13 +50,21 @@ class SettingsViewModel() : ViewModel() {
         }
     }
     
-    fun setLanguage(language: String) {
-        val locale = Locale(language)
-        Locale.setDefault(locale)
-        val resources = Resources.getSystem()
-        val configuration = resources.configuration
-        configuration.setLocale(locale)
-        resources.updateConfiguration(configuration, resources.displayMetrics)
+    fun setLanguage(language: String, context: Context) {
+        // 保存语言设置到Prefs
+        Prefs.language.value = language
+        // 阻塞等待保存完成
+        runBlocking {
+            Prefs.save(pref = Prefs.language)
+        }
+        
+        // 重启应用以应用语言设置
+        val packageManager = context.packageManager
+        val intent = packageManager.getLaunchIntentForPackage(context.packageName)
+        val componentName = intent?.component
+        val restartIntent = Intent.makeRestartActivityTask(componentName)
+        context.startActivity(restartIntent)
+        System.exit(0)
     }
     fun setOutputType(outputType: OutputType) {
         BluetoothHandler.disconnect()
@@ -1538,6 +1551,44 @@ fun SettingsPanel(
                 Prefs.miscShowDebugLog.save()
             }
         )
+
+        // Language settings
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(text = stringResource(R.string.settings_language), style = MaterialTheme.typography.headlineSmall)
+        }
+        val language by Prefs.language.collectAsStateWithLifecycle()
+        val context = LocalContext.current
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = {
+                    viewModel.setLanguage("zh", context)
+                },
+                modifier = Modifier.padding(4.dp),
+                colors = if (language == "zh") ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) else ButtonDefaults.buttonColors()
+            ) {
+                Text("中文")
+            }
+            Button(
+                onClick = {
+                    viewModel.setLanguage("en", context)
+                },
+                modifier = Modifier.padding(4.dp),
+                colors = if (language == "en") ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) else ButtonDefaults.buttonColors()
+            ) {
+                Text("English")
+            }
+        }
     }
 }
 

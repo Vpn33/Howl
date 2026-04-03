@@ -250,6 +250,9 @@ object Prefs {
     val outputAudioCarrierFrequency = register("output_audio_carrier_freq", 1000, IntAdapter)
     val outputAudioWaveletWidth = register("output_audio_wavelet_width", 5, IntAdapter)
     val outputAudioWaveletFade = register("output_audio_wavelet_fade", 0.5f, FloatAdapter)
+
+    // Language settings
+    val language = register("language", "zh", StringAdapter)
 }
 
 @Composable

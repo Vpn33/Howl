@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -55,10 +57,14 @@ import java.util.Date
 
 class WaveViewModel : ViewModel() {
     // 播放模式选项
-    val playModeOptions = listOf("列表循环", "单曲循环", "随机")
+    val playModeOptions = listOf(
+        "List Loop",
+        "Single Loop",
+        "Random"
+    )
 
     // 播放时间选项
-    val playTimeOptions = listOf("5秒", "10秒", "30秒", "60秒", "120秒")
+    val playTimeOptions = listOf("5s", "10s", "30s", "60s", "120s")
 
     // 所有可用的波形列表
     private val _availableWaves = MutableStateFlow<List<WaveInfo>>(emptyList())
@@ -122,23 +128,71 @@ class WaveViewModel : ViewModel() {
         val bChannelPlayMode = prefs.getString("bChannelPlayMode", "列表循环") ?: "列表循环"
         val aChannelPlayTime = prefs.getString("aChannelPlayTime", "10秒") ?: "10秒"
         val bChannelPlayTime = prefs.getString("bChannelPlayTime", "10秒") ?: "10秒"
+        
+        // 根据语言设置转换为对应的英文
+        val language = Prefs.language.value
+        val convertedAChannelPlayMode = if (language == "en") {
+            when (aChannelPlayMode) {
+                "列表循环" -> "List Loop"
+                "单曲循环" -> "Single Loop"
+                "随机" -> "Random"
+                else -> aChannelPlayMode
+            }
+        } else {
+            aChannelPlayMode
+        }
+        
+        val convertedBChannelPlayMode = if (language == "en") {
+            when (bChannelPlayMode) {
+                "列表循环" -> "List Loop"
+                "单曲循环" -> "Single Loop"
+                "随机" -> "Random"
+                else -> bChannelPlayMode
+            }
+        } else {
+            bChannelPlayMode
+        }
+        
+        val convertedAChannelPlayTime = if (language == "en") {
+            when (aChannelPlayTime) {
+                "5秒" -> "5s"
+                "10秒" -> "10s"
+                "30秒" -> "30s"
+                "60秒" -> "60s"
+                "120秒" -> "120s"
+                else -> aChannelPlayTime
+            }
+        } else {
+            aChannelPlayTime
+        }
+        
+        val convertedBChannelPlayTime = if (language == "en") {
+            when (bChannelPlayTime) {
+                "5秒" -> "5s"
+                "10秒" -> "10s"
+                "30秒" -> "30s"
+                "60秒" -> "60s"
+                "120秒" -> "120s"
+                else -> bChannelPlayTime
+            }
+        } else {
+            bChannelPlayTime
+        }
 
         // 更新状态
         _state.value = WaveState(
             aChannelPlaying = false, // 重启后默认停止播放
             bChannelPlaying = false, // 重启后默认停止播放
-            aChannelPlayMode = aChannelPlayMode,
-            bChannelPlayMode = bChannelPlayMode,
-            aChannelPlayTime = aChannelPlayTime,
-            bChannelPlayTime = bChannelPlayTime,
+            aChannelPlayMode = convertedAChannelPlayMode,
+            bChannelPlayMode = convertedBChannelPlayMode,
+            aChannelPlayTime = convertedAChannelPlayTime,
+            bChannelPlayTime = convertedBChannelPlayTime,
             aChannelSelectedWaves = aChannelWaves,
             bChannelSelectedWaves = bChannelWaves,
             aChannelPlayIndex = 0, // 重启后重置播放索引
             bChannelPlayIndex = 0, // 重启后重置播放索引
             aChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
-            bChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
-            aChannelWaitingNext = false, // 重启后重置等待状态
-            bChannelWaitingNext = false // 重启后重置等待状态
+            bChannelPlayElapsedTime = 0.0 // 重启后重置播放时间
         )
     }
 
@@ -356,15 +410,13 @@ class WaveViewModel : ViewModel() {
                 "A" -> it.copy(
                     aChannelSelectedWaves = updatedWaves,
                     aChannelPlayIndex = 0,
-                    aChannelPlayElapsedTime = 0.0,
-                    aChannelWaitingNext = false
+                    aChannelPlayElapsedTime = 0.0
                 )
 
                 "B" -> it.copy(
                     bChannelSelectedWaves = updatedWaves,
                     bChannelPlayIndex = 0,
-                    bChannelPlayElapsedTime = 0.0,
-                    bChannelWaitingNext = false
+                    bChannelPlayElapsedTime = 0.0
                 )
 
                 else -> it
@@ -385,15 +437,13 @@ class WaveViewModel : ViewModel() {
                 "A" -> it.copy(
                     aChannelSelectedWaves = waveInfos,
                     aChannelPlayIndex = 0,
-                    aChannelPlayElapsedTime = 0.0,
-                    aChannelWaitingNext = false
+                    aChannelPlayElapsedTime = 0.0
                 )
 
                 "B" -> it.copy(
                     bChannelSelectedWaves = waveInfos,
                     bChannelPlayIndex = 0,
-                    bChannelPlayElapsedTime = 0.0,
-                    bChannelWaitingNext = false
+                    bChannelPlayElapsedTime = 0.0
                 )
 
                 else -> it
@@ -446,15 +496,15 @@ class WaveViewModel : ViewModel() {
                 "A" -> it.copy(
                     aChannelPlayIndex = waveIndex,
                     aChannelPlayElapsedTime = 0.0,
-                    aChannelWaitingNext = false,
                     aChannelPlaying = true
                 )
+
                 "B" -> it.copy(
                     bChannelPlayIndex = waveIndex,
                     bChannelPlayElapsedTime = 0.0,
-                    bChannelWaitingNext = false,
                     bChannelPlaying = true
                 )
+
                 else -> it
             }
         }
@@ -540,9 +590,7 @@ class WaveViewModel : ViewModel() {
                     aChannelPlayIndex = currentState.aChannelPlayIndex,
                     bChannelPlayIndex = currentState.bChannelPlayIndex,
                     aChannelPlayElapsedTime = currentState.aChannelPlayElapsedTime,
-                    bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime,
-                    aChannelWaitingNext = currentState.aChannelWaitingNext,
-                    bChannelWaitingNext = currentState.bChannelWaitingNext
+                    bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime
                 )
                 Player.switchPulseSource(wavePulseSource)
                 Player.startPlayer()
@@ -562,7 +610,7 @@ class WaveViewModel : ViewModel() {
         if (waveCache.containsKey(path)) {
             return waveCache[path]
         }
-        
+
         return try {
             if (path.startsWith("assets/")) {
                 // 从assets目录读取
@@ -608,7 +656,7 @@ class WaveViewModel : ViewModel() {
         if (ctrlItemCache.containsKey(wave.path)) {
             return ctrlItemCache[wave.path]
         }
-        
+
         // 读取文件内容
         val content = readPulseFile(context, wave.path)
         if (content != null) {
@@ -680,9 +728,7 @@ class WaveViewModel : ViewModel() {
         private var aChannelPlayIndex: Int,
         private var bChannelPlayIndex: Int,
         private var aChannelPlayElapsedTime: Double,
-        private var bChannelPlayElapsedTime: Double,
-        private var aChannelWaitingNext: Boolean,
-        private var bChannelWaitingNext: Boolean
+        private var bChannelPlayElapsedTime: Double
     ) : PulseSource {
         override val displayName: String = "波形播放"
         override val duration: Double? = null
@@ -694,91 +740,102 @@ class WaveViewModel : ViewModel() {
         private var aChannelIdx = 0
         private var bChannelIdx = 0
         private var lastUpdateTime = 0.0
-        private var isGenerating = false
+        private var isChannelAGenerating = false
+        private var isChannelBGenerating = false
+
+        // 同步时间到ViewModel
+        private fun syncTimeToViewModel() {
+            val currentState = viewModel.state.value
+            aChannelPlayElapsedTime = currentState.aChannelPlayElapsedTime
+            bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime
+        }
 
         override fun getPulseAtTime(time: Double): Pulse {
             // 计算时间差
             val deltaTime = if (lastUpdateTime > 0) time - lastUpdateTime else 0.01
             lastUpdateTime = time
 
+            // 从ViewModel同步最新的播放时间
+            syncTimeToViewModel()
+
             // 更新播放时间
             aChannelPlayElapsedTime += deltaTime
             bChannelPlayElapsedTime += deltaTime
 
+            // 将更新后的时间同步回ViewModel
+            viewModel.updateElapsedTime(aChannelPlayElapsedTime, bChannelPlayElapsedTime)
+
             // 检查是否需要切换A通道波形
-            if (aChannelWaves.isNotEmpty() && !isGenerating) {
+            if (aChannelWaves.isNotEmpty() && !isChannelAGenerating) {
                 val currentAWave = aChannelWaves[aChannelPlayIndex]
                 val aCtrlItem = viewModel.getCtrlItem(context, currentAWave)
                 if (aCtrlItem != null) {
                     val aDuration = aCtrlItem.getTotalTime() / 1000.0 // 转换为秒
                     val aMinPlayTime = viewModel.parsePlayTime(aChannelPlayTime).toDouble()
-                    // 波形时长小于最小播放时间，继续循环播放
-                    if (aChannelPlayElapsedTime >= aMinPlayTime) {
-                        // 已经播放完一次波形，继续累加时间
-                        aChannelWaitingNext = true
-                    }
-                    if (aChannelWaitingNext) {
-                        if (aChannelPlayElapsedTime >= aDuration) {
-                            // 切换到下一个波形
-                            val newAChannelPlayIndex = viewModel.getNextPlayIndex(
-                                aChannelPlayMode,
-                                aChannelPlayIndex,
-                                aChannelWaves.size
-                            )
+                    // 检查是否需要切换波形
+                    // 情况1：波形时长大于等于最小播放时间，且已经播放完毕
+                    // 情况2：波形时长小于最小播放时间，但已经达到最小播放时间
+                    val shouldSwitch =
+                        (aDuration >= aMinPlayTime && aChannelPlayElapsedTime >= aDuration) ||
+                                (aDuration < aMinPlayTime && aChannelPlayElapsedTime >= aMinPlayTime)
 
-                            // 更新viewModel的状态
-                            viewModel.updatePlayState(
-                                channel = "A",
-                                playIndex = newAChannelPlayIndex,
-                                playElapsedTime = 0.0,
-                                waitingNext = false
-                            )
+                    if (shouldSwitch) {
+                        // 切换到下一个波形
+                        val newAChannelPlayIndex = viewModel.getNextPlayIndex(
+                            aChannelPlayMode,
+                            aChannelPlayIndex,
+                            aChannelWaves.size
+                        )
+                        isChannelAGenerating = true
 
-                            // 重新生成通道数据
-                            isGenerating = true
-                            viewModel.generateChannelPlayData(context)
-                            isGenerating = false
-                        }
+                        // 更新viewModel的状态
+                        viewModel.updatePlayState(
+                            channel = "A",
+                            playIndex = newAChannelPlayIndex,
+                            playElapsedTime = 0.0
+                        )
+
+                        // 重新生成通道数据
+                        viewModel.generateChannelPlayData(context)
+                        isChannelAGenerating = false
+
                     }
                 }
             }
 
             // 检查是否需要切换B通道波形
-            if (bChannelWaves.isNotEmpty() && !isGenerating) {
+            if (bChannelWaves.isNotEmpty() && !isChannelBGenerating) {
                 val currentBWave = bChannelWaves[bChannelPlayIndex]
                 val bCtrlItem = viewModel.getCtrlItem(context, currentBWave)
                 if (bCtrlItem != null) {
                     val bDuration = bCtrlItem.getTotalTime() / 1000.0 // 转换为秒
                     val bMinPlayTime = viewModel.parsePlayTime(bChannelPlayTime).toDouble()
 
-                    if (bChannelPlayElapsedTime >= bMinPlayTime) {
-                        // 波形时长小于最小播放时间，继续循环播放
-                        // 已经播放完一次波形，继续累加时间
-                        bChannelWaitingNext = true
-                    }
+                    // 检查是否需要切换波形
+                    // 情况1：波形时长大于等于最小播放时间，且已经播放完毕
+                    // 情况2：波形时长小于最小播放时间，但已经达到最小播放时间
+                    val shouldSwitch =
+                        (bDuration >= bMinPlayTime && bChannelPlayElapsedTime >= bDuration) ||
+                                (bDuration < bMinPlayTime && bChannelPlayElapsedTime >= bMinPlayTime)
 
-                    if (bChannelWaitingNext) {
-                        if (bChannelPlayElapsedTime >= bDuration) {
-                            // 切换到下一个波形
-                            val newBChannelPlayIndex = viewModel.getNextPlayIndex(
-                                bChannelPlayMode,
-                                bChannelPlayIndex,
-                                bChannelWaves.size
-                            )
+                    if (shouldSwitch) {
+                        // 切换到下一个波形
+                        val newBChannelPlayIndex = viewModel.getNextPlayIndex(
+                            bChannelPlayMode,
+                            bChannelPlayIndex,
+                            bChannelWaves.size
+                        )
+                        // 重新生成通道数据
+                        isChannelBGenerating = true
 
-                            // 更新viewModel的状态
-                            viewModel.updatePlayState(
-                                channel = "B",
-                                playIndex = newBChannelPlayIndex,
-                                playElapsedTime = 0.0,
-                                waitingNext = false
-                            )
-
-                            // 重新生成通道数据
-                            isGenerating = true
-                            viewModel.generateChannelPlayData(context)
-                            isGenerating = false
-                        }
+                        // 更新viewModel的状态
+                        viewModel.updatePlayState(
+                            channel = "B",
+                            playIndex = newBChannelPlayIndex,
+                            playElapsedTime = 0.0
+                        )
+                        viewModel.generateChannelPlayData(context)
+                        isChannelBGenerating = false
                     }
                 }
             }
@@ -813,6 +870,7 @@ class WaveViewModel : ViewModel() {
 
     // 更新播放模式
     fun updatePlayMode(channel: String, mode: String, context: Context) {
+        // 保存状态到state
         _state.update {
             when (channel) {
                 "A" -> it.copy(aChannelPlayMode = mode)
@@ -827,6 +885,7 @@ class WaveViewModel : ViewModel() {
 
     // 更新播放时间
     fun updatePlayTime(channel: String, time: String, context: Context) {
+        // 保存状态到state
         _state.update {
             when (channel) {
                 "A" -> it.copy(aChannelPlayTime = time)
@@ -848,30 +907,28 @@ class WaveViewModel : ViewModel() {
             "B" -> currentState.bChannelSelectedWaves
             else -> emptyList()
         }
-        
+
         // 计算被删除的波形
         val deletedWaves = currentWaves.filter { !waves.contains(it) }
-        
+
         // 清除被删除波形的缓存
         deletedWaves.forEach { wave ->
             waveCache.remove(wave.path)
             ctrlItemCache.remove(wave.path)
         }
-        
+
         _state.update {
             when (channel) {
                 "A" -> it.copy(
                     aChannelSelectedWaves = waves,
                     aChannelPlayIndex = 0,
-                    aChannelPlayElapsedTime = 0.0,
-                    aChannelWaitingNext = false
+                    aChannelPlayElapsedTime = 0.0
                 )
 
                 "B" -> it.copy(
                     bChannelSelectedWaves = waves,
                     bChannelPlayIndex = 0,
-                    bChannelPlayElapsedTime = 0.0,
-                    bChannelWaitingNext = false
+                    bChannelPlayElapsedTime = 0.0
                 )
 
                 else -> it
@@ -884,7 +941,7 @@ class WaveViewModel : ViewModel() {
 
     // 解析播放时间字符串为秒数
     private fun parsePlayTime(playTime: String): Int {
-        return playTime.replace("秒", "").toIntOrNull() ?: 10
+        return playTime.replace("秒", "").replace("s", "").toIntOrNull() ?: 10
     }
 
     // 获取下一个播放索引
@@ -892,7 +949,7 @@ class WaveViewModel : ViewModel() {
         if (listSize <= 1) return 0
 
         when (playMode) {
-            "列表循环" -> {
+            "列表循环", "List Loop" -> {
                 var tempIdx = currentIndex + 1
                 if (tempIdx >= listSize) {
                     tempIdx = 0
@@ -900,11 +957,11 @@ class WaveViewModel : ViewModel() {
                 return tempIdx
             }
 
-            "单曲循环" -> {
+            "单曲循环", "Single Loop" -> {
                 return currentIndex
             }
 
-            "随机" -> {
+            "随机", "Random" -> {
                 val randomIndex = (Math.random() * listSize).toInt()
                 return if (randomIndex == currentIndex && listSize > 1) {
                     (currentIndex + 1) % listSize
@@ -923,25 +980,32 @@ class WaveViewModel : ViewModel() {
     fun updatePlayState(
         channel: String,
         playIndex: Int,
-        playElapsedTime: Double,
-        waitingNext: Boolean
+        playElapsedTime: Double
     ) {
         _state.update {
             when (channel) {
                 "A" -> it.copy(
                     aChannelPlayIndex = playIndex,
-                    aChannelPlayElapsedTime = playElapsedTime,
-                    aChannelWaitingNext = waitingNext
+                    aChannelPlayElapsedTime = playElapsedTime
                 )
 
                 "B" -> it.copy(
                     bChannelPlayIndex = playIndex,
-                    bChannelPlayElapsedTime = playElapsedTime,
-                    bChannelWaitingNext = waitingNext
+                    bChannelPlayElapsedTime = playElapsedTime
                 )
 
                 else -> it
             }
+        }
+    }
+
+    // 更新播放时间（用于WavePulseSource同步时间）
+    fun updateElapsedTime(aElapsedTime: Double, bElapsedTime: Double) {
+        _state.update {
+            it.copy(
+                aChannelPlayElapsedTime = aElapsedTime,
+                bChannelPlayElapsedTime = bElapsedTime
+            )
         }
     }
 }
@@ -968,9 +1032,6 @@ data class WaveState(
     // 播放时间（秒）
     val aChannelPlayElapsedTime: Double = 0.0,
     val bChannelPlayElapsedTime: Double = 0.0,
-    // 等待切换到下一个波形
-    val aChannelWaitingNext: Boolean = false,
-    val bChannelWaitingNext: Boolean = false
 )
 
 
@@ -997,11 +1058,14 @@ fun WavePanel(viewModel: WaveViewModel) {
         }
     }
 
+    val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .padding(4.dp),
+            .heightIn(min = 600.dp) // 添加最小高度，确保打开脉冲图表后列表仍然可见
+            .padding(4.dp)
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.Top
     ) {
         // 顶部选择本地文件夹功能
@@ -1014,7 +1078,7 @@ fun WavePanel(viewModel: WaveViewModel) {
             Button(onClick = {
                 folderPickerLauncher.launch(null)
             }) {
-                Text(text = "选择本地文件夹")
+                Text(text = "Select Local Folder")
             }
         }
 
@@ -1027,20 +1091,20 @@ fun WavePanel(viewModel: WaveViewModel) {
         ) {
             // 左侧区域 - 通道A
             WaveChannelPanel(
-                channelName = "通道A",
+                channel = "A",
                 viewModel = viewModel,
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
+                    .weight(1.2f)
+                    .padding(end = 2.dp)
             )
 
             // 右侧区域 - 通道B
             WaveChannelPanel(
-                channelName = "通道B",
+                channel = "B",
                 viewModel = viewModel,
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
+                    .weight(1.2f)
+                    .padding(start = 2.dp)
             )
         }
     }
@@ -1053,10 +1117,10 @@ fun WavePanel(viewModel: WaveViewModel) {
 }
 
 @Composable
-fun WaveChannelPanel(channelName: String, viewModel: WaveViewModel, modifier: Modifier = Modifier) {
+fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
-    val channel = if (channelName == "通道A") "A" else "B"
+    val channelName = if (channel == "A") stringResource(R.string.channel_a) else stringResource(R.string.channel_b)
     val isPlaying = if (channel == "A") state.aChannelPlaying else state.bChannelPlaying
     val playMode = if (channel == "A") state.aChannelPlayMode else state.bChannelPlayMode
     val playTime = if (channel == "A") state.aChannelPlayTime else state.bChannelPlayTime
@@ -1082,7 +1146,7 @@ fun WaveChannelPanel(channelName: String, viewModel: WaveViewModel, modifier: Mo
                 onClick = { viewModel.toggleChannelPlay(context, channel) },
                 modifier = Modifier.width(80.dp)
             ) {
-                Text(text = if (isPlaying) "停止" else "开始")
+                Text(text = if (isPlaying) "Stop" else "Start")
             }
         }
 
@@ -1097,7 +1161,7 @@ fun WaveChannelPanel(channelName: String, viewModel: WaveViewModel, modifier: Mo
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(painter = painterResource(R.drawable.plus), contentDescription = null)
-                    Text(text = "选择波形")
+                    Text(text = "Select Wave")
                 }
             }
         }
@@ -1169,15 +1233,17 @@ fun WaveChannelPanel(channelName: String, viewModel: WaveViewModel, modifier: Mo
         }
 
         // 已选择的波形列表
+        val scrollState = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .border(1.dp, MaterialTheme.colorScheme.outline, shape = MaterialTheme.shapes.small)
                 .padding(8.dp)
+                .verticalScroll(scrollState)
         ) {
             if (selectedWaves.isEmpty()) {
-                Text(text = "暂无选择的波形", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "No waves selected", style = MaterialTheme.typography.bodyMedium)
             } else {
                 selectedWaves.forEachIndexed { index, wave ->
                     val isPlaying = if (channel == "A") {
@@ -1287,7 +1353,7 @@ fun WaveSelectionDialog(viewModel: WaveViewModel) {
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissWaveSelectionDialog() },
-            title = { Text(text = "选择波形") },
+            title = { Text(text = "Select Wave") },
             text = {
                 val scrollState = rememberScrollState()
                 Column(
@@ -1354,21 +1420,22 @@ fun DeleteConfirmDialog(viewModel: WaveViewModel) {
     if (showDialog && waveToDelete != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteConfirmDialog() },
-            title = { Text(text = "确认删除") },
-            text = { Text(text = "通道${channelForDelete}正在播放，是否停止播放并删除波形\"${waveToDelete!!.name}\"？") },
+            title = { Text(text = "Confirm Delete") },
+            text = { Text(text = "Channel ${channelForDelete} is playing, do you want to stop playing and delete the wave ${waveToDelete!!.name}?") },
             confirmButton = {
                 Button(onClick = { viewModel.confirmDeleteWave(context) }) {
-                    Text(text = "确定")
+                    Text(text = "OK")
                 }
             },
             dismissButton = {
                 Button(onClick = { viewModel.dismissDeleteConfirmDialog() }) {
-                    Text(text = "取消")
+                    Text(text = "Cancel")
                 }
             }
         )
     }
 }
+
 data class V2Model(
     var x: Int = 0,
     var y: Int = 0,
@@ -1502,6 +1569,7 @@ class WaveStage {
         return times
     }
 }
+
 class CtrlItem {
     var id: String? = null
 
@@ -1645,9 +1713,6 @@ class CtrlItem {
     fun getTotalTimeStr(): String {
         return WaveUtil.msToViewTimeStr(getTotalTime())
     }
-
-
-
 
 
     /**
