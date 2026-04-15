@@ -1,9 +1,5 @@
 package com.example.howl
 
-import androidx.compose.remote.creation.pow
-import java.io.File
-import kotlin.math.pow
-
 object WaveUtil {
     // 常量定义
     val HZ_SLIDER = listOf(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,

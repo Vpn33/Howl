@@ -44,14 +44,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.Date
 
@@ -67,6 +68,9 @@ class WaveViewModel : ViewModel() {
     // 状态
     private val _state = MutableStateFlow(WaveState())
     val state: StateFlow<WaveState> = _state.asStateFlow()
+    
+    // 标记是否已经加载过保存的状态
+    private var hasLoadedSavedState = false
 
     // 对话框状态
     private val _showWaveSelectionDialog = MutableStateFlow(false)
@@ -92,14 +96,18 @@ class WaveViewModel : ViewModel() {
 
     // 从SharedPreferences加载保存的状态
     fun loadSavedState(context: Context) {
+        // 确保只加载一次保存的状态
+        if (hasLoadedSavedState) {
+            return
+        }
+        
         val prefs = context.getSharedPreferences("WavePrefs", Context.MODE_PRIVATE)
-        val gson = Gson()
+        val json = Json
 
         // 加载A通道已选择的波形
         val aChannelWavesJson = prefs.getString("aChannelSelectedWaves", null)
         val aChannelWaves: List<WaveInfo> = if (aChannelWavesJson != null) {
-            val type = object : TypeToken<List<WaveInfo>>() {}.type
-            gson.fromJson<List<WaveInfo>>(aChannelWavesJson, type)
+            json.decodeFromString(aChannelWavesJson)
         } else {
             emptyList()
         }
@@ -107,8 +115,7 @@ class WaveViewModel : ViewModel() {
         // 加载B通道已选择的波形
         val bChannelWavesJson = prefs.getString("bChannelSelectedWaves", null)
         val bChannelWaves: List<WaveInfo> = if (bChannelWavesJson != null) {
-            val type = object : TypeToken<List<WaveInfo>>() {}.type
-            gson.fromJson<List<WaveInfo>>(bChannelWavesJson, type)
+            json.decodeFromString(bChannelWavesJson)
         } else {
             emptyList()
         }
@@ -224,22 +231,25 @@ class WaveViewModel : ViewModel() {
             aChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
             bChannelPlayElapsedTime = 0.0 // 重启后重置播放时间
         )
+        
+        // 标记已经加载过保存的状态
+        hasLoadedSavedState = true
     }
 
     // 保存状态到SharedPreferences
     private fun saveState(context: Context) {
         val prefs = context.getSharedPreferences("WavePrefs", Context.MODE_PRIVATE)
         val editor = prefs.edit()
-        val gson = Gson()
+        val json = Json
 
         val currentState = _state.value
 
         // 保存A通道已选择的波形
-        val aChannelWavesJson = gson.toJson(currentState.aChannelSelectedWaves)
+        val aChannelWavesJson = json.encodeToString(currentState.aChannelSelectedWaves)
         editor.putString("aChannelSelectedWaves", aChannelWavesJson)
 
         // 保存B通道已选择的波形
-        val bChannelWavesJson = gson.toJson(currentState.bChannelSelectedWaves)
+        val bChannelWavesJson = json.encodeToString(currentState.bChannelSelectedWaves)
         editor.putString("bChannelSelectedWaves", bChannelWavesJson)
 
         // 保存播放模式和播放时间
@@ -1038,9 +1048,20 @@ class WaveViewModel : ViewModel() {
             )
         }
     }
+    
+    // 更新播放状态为停止
+    fun stopAllChannels() {
+        _state.update {
+            it.copy(
+                aChannelPlaying = false,
+                bChannelPlaying = false
+            )
+        }
+    }
 }
 
 // 波形信息数据类
+@Serializable
 data class WaveInfo(
     val name: String,
     val path: String
@@ -1069,11 +1090,22 @@ data class WaveState(
 fun WavePanel(viewModel: WaveViewModel) {
     val context = LocalContext.current
 
-    // 初始化时从assets目录加载内置波形
+    // 初始化时从assets目录加载内置波形并加载保存的状态
     LaunchedEffect(Unit) {
         viewModel.loadBuiltInWavesFromAssets(context)
-        // 加载保存的状态
+        // 加载保存的状态（只在首次加载时执行）
         viewModel.loadSavedState(context)
+    }
+    
+    // 监听Player状态变化，当切换到其他PulseSource时，更新WaveViewModel的播放状态
+    val playerState by Player.playerState.collectAsStateWithLifecycle()
+    LaunchedEffect(playerState.activePulseSource) {
+        // 检查当前活跃的PulseSource是否为WavePulseSource
+        val isWavePulseSource = playerState.activePulseSource is WaveViewModel.WavePulseSource
+        if (!isWavePulseSource) {
+            // 如果不是WavePulseSource，更新WaveViewModel的播放状态为false
+            viewModel.stopAllChannels()
+        }
     }
 
     // 使用Activity Result API处理文件夹选择结果
