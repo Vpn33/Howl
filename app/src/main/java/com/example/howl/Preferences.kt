@@ -186,7 +186,7 @@ object Prefs {
     val powerRampSpeedB = register("power_ramp_speed_b", 2.0f, FloatAdapter)
     val powerRampSpeedRandomMinB = register("power_ramp_speed_random_min_b", 1.0f, FloatAdapter)
     val powerRampSpeedRandomMaxB = register("power_ramp_speed_random_max_b", 10.0f, FloatAdapter)
-    
+
     // 变化速度间隔模式
     val powerRampSpeedIntervalModeA = register("power_ramp_speed_interval_mode_a", "INITIAL", StringAdapter)
     val powerRampSpeedIntervalModeB = register("power_ramp_speed_interval_mode_b", "INITIAL", StringAdapter)

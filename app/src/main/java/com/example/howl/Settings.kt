@@ -1,13 +1,20 @@
 package com.example.howl
 
+import android.content.Context
+import android.content.Intent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,24 +22,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.howl.ui.theme.HowlTheme
-import kotlin.math.roundToInt
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.ui.res.stringResource
-import java.util.Locale
-import android.content.Context
-import android.content.Intent
-import android.content.res.Configuration
-import android.content.res.Resources
-import androidx.compose.foundation.layout.widthIn
 import kotlinx.coroutines.runBlocking
+import java.util.Locale
+import kotlin.math.roundToInt
 
 fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
     return this.first.toFloat()..this.last.toFloat()
@@ -49,7 +47,7 @@ class SettingsViewModel() : ViewModel() {
             RemoteControlServer.stop()
         }
     }
-    
+
     fun setLanguage(language: String, context: Context) {
         // 保存语言设置到Prefs
         Prefs.language.value = language
@@ -57,7 +55,7 @@ class SettingsViewModel() : ViewModel() {
         runBlocking {
             Prefs.save(pref = Prefs.language)
         }
-        
+
         // 重启应用以应用语言设置
         val packageManager = context.packageManager
         val intent = packageManager.getLaunchIntentForPackage(context.packageName)
@@ -260,7 +258,7 @@ fun OutputSettingsPanel(
         }
         val frequencySliderRange = 10..1000
         SliderWithLabel(
-            label = "Minimum allowed frequency",
+            label = stringResource(R.string.settings_minimum_frequency),
             value = outputAudioMinFrequency.toFloat(),
             onValueChange = { viewModel.setAudioOutputMinFrequency(it.roundToInt()) },
             onValueChangeFinished = { Prefs.outputAudioMinFrequency.save() },
@@ -269,7 +267,7 @@ fun OutputSettingsPanel(
             valueDisplay = { it.roundToInt().toString() }
         )
         SliderWithLabel(
-            label = "Maximum allowed frequency (Hz)",
+            label = stringResource(R.string.settings_maximum_frequency),
             value = outputAudioMaxFrequency.toFloat(),
             onValueChange = { viewModel.setAudioOutputMaxFrequency(it.roundToInt()) },
             onValueChangeFinished = { Prefs.outputAudioMaxFrequency.save() },
@@ -467,7 +465,7 @@ fun PowerSettingsPanel(
             Prefs.powerSyncEnabled.save()
         }
     )
-    
+
     SwitchWithLabel(
         label = "电源强度自动爬坡",
         checked = powerRampEnabled,
@@ -476,7 +474,7 @@ fun PowerSettingsPanel(
             Prefs.powerRampEnabled.save()
         }
     )
-    
+
     if (powerRampEnabled) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -502,7 +500,7 @@ fun PowerSettingsPanel(
                 }
             )
         }
-        
+
         when (powerRampChannelMode) {
             "AB_SYNC" -> {
                 Text(text = "A&B通道强度：从 ${powerRampIntensityARangeStart} 逐渐变化到 +${powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -528,7 +526,7 @@ fun PowerSettingsPanel(
                     )
                     Text(text = "${powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
-                
+
                 // 变化速度类型
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -552,7 +550,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 变化速度间隔
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -576,7 +574,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 变化速度
                 if (powerRampSpeedModeA == "FIXED") {
                     val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
@@ -619,7 +617,7 @@ fun PowerSettingsPanel(
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -643,7 +641,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 坡顶持续时间
                 if (powerRampPeakTimeModeA == "FIXED") {
                     SliderWithLabel(
@@ -680,7 +678,7 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 循环方式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -752,7 +750,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // A通道变化速度间隔
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -776,7 +774,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // A通道变化速度间隔
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -800,7 +798,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // A通道变化速度
                 if (powerRampSpeedModeA == "FIXED") {
                     val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
@@ -843,7 +841,7 @@ fun PowerSettingsPanel(
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // A通道坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -867,7 +865,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // A通道坡顶持续时间
                 if (powerRampPeakTimeModeA == "FIXED") {
                     SliderWithLabel(
@@ -904,7 +902,7 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // A通道循环方式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -928,7 +926,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 Text(text = "B通道：强度从 ${powerRampIntensityBRangeStart} 逐渐变化到 ${powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -975,7 +973,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // B通道变化速度间隔
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -999,7 +997,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // B通道变化速度
                 if (powerRampSpeedModeB == "FIXED") {
                     val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
@@ -1042,7 +1040,7 @@ fun PowerSettingsPanel(
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // B通道坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1066,7 +1064,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // B通道坡顶持续时间
                 if (powerRampPeakTimeModeB == "FIXED") {
                     SliderWithLabel(
@@ -1103,7 +1101,7 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // B通道循环方式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1175,7 +1173,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 变化速度
                 if (powerRampSpeedModeA == "FIXED") {
                     val changeCountA = Prefs.powerRampIntensityARangeEnd.value - Prefs.powerRampIntensityARangeStart.value
@@ -1218,7 +1216,7 @@ fun PowerSettingsPanel(
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1242,7 +1240,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 坡顶持续时间
                 if (powerRampPeakTimeModeA == "FIXED") {
                     SliderWithLabel(
@@ -1279,7 +1277,7 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 循环方式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1351,7 +1349,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 变化速度
                 if (powerRampSpeedModeB == "FIXED") {
                     val changeCountB = Prefs.powerRampIntensityBRangeEnd.value - Prefs.powerRampIntensityBRangeStart.value
@@ -1391,7 +1389,7 @@ fun PowerSettingsPanel(
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1415,7 +1413,7 @@ fun PowerSettingsPanel(
                         }
                     )
                 }
-                
+
                 // 坡顶持续时间
                 if (powerRampPeakTimeModeB == "FIXED") {
                     SliderWithLabel(
@@ -1452,7 +1450,7 @@ fun PowerSettingsPanel(
                         Text(text = "${powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
-                
+
                 // 循环方式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1491,12 +1489,11 @@ fun SettingsPanel(
     val remoteAccess by Prefs.remoteAccess.collectAsStateWithLifecycle()
     val remoteAPIKey by Prefs.remoteAPIKey.collectAsStateWithLifecycle()
 
-    val scrollState = rememberScrollState()
     Column(
         modifier = modifier
             .padding(16.dp)
             .fillMaxWidth()
-            .verticalScroll(scrollState),
+            .verticalScroll(rememberScrollState()),
     ) {
         OutputSettingsPanel(viewModel, modifier)
         PowerSettingsPanel(viewModel, modifier)
@@ -1506,10 +1503,10 @@ fun SettingsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = stringResource(R.string.remote_access_options), style = MaterialTheme.typography.headlineSmall)
+            Text(text = "Remote access options", style = MaterialTheme.typography.headlineSmall)
         }
         SwitchWithLabel(
-            label = stringResource(R.string.settings_allow_remote_access),
+            label = "Allow remote access",
             checked = remoteAccess,
             onCheckedChange = {
                 viewModel.setRemoteAccess(it)

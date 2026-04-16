@@ -68,7 +68,7 @@ class WaveViewModel : ViewModel() {
     // 状态
     private val _state = MutableStateFlow(WaveState())
     val state: StateFlow<WaveState> = _state.asStateFlow()
-    
+
     // 标记是否已经加载过保存的状态
     private var hasLoadedSavedState = false
 
@@ -100,7 +100,7 @@ class WaveViewModel : ViewModel() {
         if (hasLoadedSavedState) {
             return
         }
-        
+
         val prefs = context.getSharedPreferences("WavePrefs", Context.MODE_PRIVATE)
         val json = Json
 
@@ -125,9 +125,10 @@ class WaveViewModel : ViewModel() {
         val bChannelPlayMode = prefs.getString("bChannelPlayMode", "列表循环") ?: "列表循环"
         val aChannelPlayTime = prefs.getString("aChannelPlayTime", "10秒") ?: "10秒"
         val bChannelPlayTime = prefs.getString("bChannelPlayTime", "10秒") ?: "10秒"
-        
+
         // 根据语言设置转换为对应的语言
-        val language = Prefs.language.value
+//        val language = Prefs.language.value
+        val language = "zh"
         val convertedAChannelPlayMode = when (language) {
             "en" -> {
                 when (aChannelPlayMode) {
@@ -137,6 +138,7 @@ class WaveViewModel : ViewModel() {
                     else -> aChannelPlayMode
                 }
             }
+
             "zh" -> {
                 when (aChannelPlayMode) {
                     "List Loop" -> "列表循环"
@@ -145,9 +147,10 @@ class WaveViewModel : ViewModel() {
                     else -> aChannelPlayMode
                 }
             }
+
             else -> aChannelPlayMode
         }
-        
+
         val convertedBChannelPlayMode = when (language) {
             "en" -> {
                 when (bChannelPlayMode) {
@@ -157,6 +160,7 @@ class WaveViewModel : ViewModel() {
                     else -> bChannelPlayMode
                 }
             }
+
             "zh" -> {
                 when (bChannelPlayMode) {
                     "List Loop" -> "列表循环"
@@ -165,9 +169,10 @@ class WaveViewModel : ViewModel() {
                     else -> bChannelPlayMode
                 }
             }
+
             else -> bChannelPlayMode
         }
-        
+
         val convertedAChannelPlayTime = when (language) {
             "en" -> {
                 when (aChannelPlayTime) {
@@ -179,6 +184,7 @@ class WaveViewModel : ViewModel() {
                     else -> aChannelPlayTime
                 }
             }
+
             "zh" -> {
                 when (aChannelPlayTime) {
                     "5s" -> "5秒"
@@ -189,9 +195,10 @@ class WaveViewModel : ViewModel() {
                     else -> aChannelPlayTime
                 }
             }
+
             else -> aChannelPlayTime
         }
-        
+
         val convertedBChannelPlayTime = when (language) {
             "en" -> {
                 when (bChannelPlayTime) {
@@ -203,6 +210,7 @@ class WaveViewModel : ViewModel() {
                     else -> bChannelPlayTime
                 }
             }
+
             "zh" -> {
                 when (bChannelPlayTime) {
                     "5s" -> "5秒"
@@ -213,6 +221,7 @@ class WaveViewModel : ViewModel() {
                     else -> bChannelPlayTime
                 }
             }
+
             else -> bChannelPlayTime
         }
 
@@ -231,7 +240,7 @@ class WaveViewModel : ViewModel() {
             aChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
             bChannelPlayElapsedTime = 0.0 // 重启后重置播放时间
         )
-        
+
         // 标记已经加载过保存的状态
         hasLoadedSavedState = true
     }
@@ -770,7 +779,8 @@ class WaveViewModel : ViewModel() {
         private var aChannelPlayElapsedTime: Double,
         private var bChannelPlayElapsedTime: Double
     ) : PulseSource {
-        override val displayName: String = "波形播放"
+        private val _displayName = MutableStateFlow("波形播放")
+        override val displayName = _displayName.asStateFlow()
         override val duration: Double? = null
         override val isFinite: Boolean = false
         override val shouldLoop: Boolean = true
@@ -1048,7 +1058,7 @@ class WaveViewModel : ViewModel() {
             )
         }
     }
-    
+
     // 更新播放状态为停止
     fun stopAllChannels() {
         _state.update {
@@ -1096,7 +1106,7 @@ fun WavePanel(viewModel: WaveViewModel) {
         // 加载保存的状态（只在首次加载时执行）
         viewModel.loadSavedState(context)
     }
-    
+
     // 监听Player状态变化，当切换到其他PulseSource时，更新WaveViewModel的播放状态
     val playerState by Player.playerState.collectAsStateWithLifecycle()
     LaunchedEffect(playerState.activePulseSource) {
@@ -1124,7 +1134,6 @@ fun WavePanel(viewModel: WaveViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
             .heightIn(min = 600.dp) // 添加最小高度，确保打开脉冲图表后列表仍然可见
             .padding(4.dp)
             .verticalScroll(scrollState),
@@ -1140,7 +1149,7 @@ fun WavePanel(viewModel: WaveViewModel) {
             Button(onClick = {
                 folderPickerLauncher.launch(null)
             }) {
-                Text(text = stringResource(R.string.select_local_folder))
+                Text(text = "选择本地文件夹")
             }
         }
 
@@ -1182,27 +1191,21 @@ fun WavePanel(viewModel: WaveViewModel) {
 fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
-    val channelName = if (channel == "A") stringResource(R.string.channel_a) else stringResource(R.string.channel_b)
+    val channelName = if (channel == "A") "A通道" else "B通道"
     val isPlaying = if (channel == "A") state.aChannelPlaying else state.bChannelPlaying
     val playMode = if (channel == "A") state.aChannelPlayMode else state.bChannelPlayMode
     val playTime = if (channel == "A") state.aChannelPlayTime else state.bChannelPlayTime
-    val selectedWaves = 
+    val selectedWaves =
         if (channel == "A") state.aChannelSelectedWaves else state.bChannelSelectedWaves
-    
+
     // 生成播放模式选项
     val playModeOptions = listOf(
-        stringResource(R.string.play_mode_list_loop),
-        stringResource(R.string.play_mode_single_loop),
-        stringResource(R.string.play_mode_random)
+        "列表循环", "单曲循环", "随机"
     )
-    
+
     // 生成播放时间选项
     val playTimeOptions = listOf(
-        stringResource(R.string.play_time_5s),
-        stringResource(R.string.play_time_10s),
-        stringResource(R.string.play_time_30s),
-        stringResource(R.string.play_time_60s),
-        stringResource(R.string.play_time_120s)
+        "5秒", "10秒", "30秒", "60秒", "120秒"
     )
 
     Column(
@@ -1224,7 +1227,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                 onClick = { viewModel.toggleChannelPlay(context, channel) },
                 modifier = Modifier.width(80.dp)
             ) {
-                Text(text = if (isPlaying) stringResource(R.string.stop) else stringResource(R.string.start))
+                Text(text = if (isPlaying) "停止" else "开始")
             }
         }
 
@@ -1239,7 +1242,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(painter = painterResource(R.drawable.plus), contentDescription = null)
-                    Text(text = stringResource(R.string.select_wave))
+                    Text(text = "选择波形")
                 }
             }
         }

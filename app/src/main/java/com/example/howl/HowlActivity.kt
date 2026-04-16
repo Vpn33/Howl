@@ -1,6 +1,7 @@
 package com.example.howl
 
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,6 +27,7 @@ import com.example.howl.ui.theme.HowlTheme
 class HowlActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         
         // 应用语言设置
         val language = Prefs.language.value
@@ -34,9 +36,15 @@ class HowlActivity : ComponentActivity() {
         val resources = resources
         val configuration = resources.configuration
         configuration.setLocale(locale)
-        resources.updateConfiguration(configuration, resources.displayMetrics)
         
-        enableEdgeToEdge()
+//        // 对于Android 7.0及以上版本，使用createConfigurationContext
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//            createConfigurationContext(configuration)
+//        } else {
+            // 对于旧版本，使用updateConfiguration
+            resources.updateConfiguration(configuration, resources.displayMetrics)
+//        }
+        
         setContent {
             HowlTheme {
                 HowlAppScreen()
@@ -99,8 +107,7 @@ fun HowlAppScreen(
                 modifier = Modifier.navigationBarsPadding()
             )
         }
-    ) {
-        innerPadding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -113,8 +120,7 @@ fun HowlAppScreen(
                 settingsViewModel = settingsViewModel,
                 generatorViewModel = generatorViewModel,
                 activityHostViewModel = activityHostViewModel,
-                waveViewModel = waveViewModel,
-                modifier = Modifier.weight(1f)
+                waveViewModel = waveViewModel
             )
         }
     }

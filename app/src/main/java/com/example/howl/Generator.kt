@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -366,11 +367,8 @@ fun GeneratorPanel(
     var showChannelASettings by remember { mutableStateOf(false) }
     var showChannelBSettings by remember { mutableStateOf(false) }
 
-    val scrollState = rememberScrollState()
     Column(
-        modifier = modifier
-            .padding(16.dp)
-            .verticalScroll(scrollState),
+        modifier = modifier.padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -477,9 +475,10 @@ fun GeneratorPanel(
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.heightIn(max = 600.dp)
                 ) {
-                    GeneratorParametersInfo(
+                    GeneratorParametersSettings(
                         viewModel = viewModel,
                         channel = 0,
                         generatorChannelInfo = generatorState.channelAInfo,
@@ -495,9 +494,10 @@ fun GeneratorPanel(
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier.heightIn(max = 600.dp)
                 ) {
-                    GeneratorParametersInfo(
+                    GeneratorParametersSettings(
                         viewModel = viewModel,
                         channel = 1,
                         generatorChannelInfo = generatorState.channelBInfo,
@@ -510,7 +510,7 @@ fun GeneratorPanel(
 }
 
 @Composable
-fun GeneratorParametersInfo(
+fun GeneratorParametersSettings(
     viewModel: GeneratorViewModel,
     channel: Int,
     generatorChannelInfo: GeneratorChannelInfo,

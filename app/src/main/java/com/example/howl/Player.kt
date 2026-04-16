@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -1112,7 +1113,8 @@ fun CombinedPanel(
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.heightIn(max = 600.dp)
             ) {
                 AdvancedControlsPanel(
                     viewModel = viewModel,
@@ -1128,7 +1130,8 @@ fun CombinedPanel(
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.heightIn(max = 600.dp)
             ) {
                 SpecialEffectsPanel(
                     viewModel = viewModel,

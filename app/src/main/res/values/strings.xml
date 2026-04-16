@@ -93,6 +93,43 @@
     <string name="activity_amplitude">Amplitude</string>
     <string name="activity_pulse">Pulse</string>
     <string name="activity_random">Random</string>
+    <string name="activity_manual_control">Manual control</string>
+    <string name="activity_lick_start_point">Lick start point</string>
+    <string name="activity_lick_end_point">Lick end point</string>
+    <string name="activity_lick_type">Lick type</string>
+    <string name="activity_amp_type">Amp type</string>
+    <string name="activity_average_speed">Average speed</string>
+    <string name="activity_target_speed">Target speed</string>
+    <string name="activity_target_feel_exponent">Target feel exponent</string>
+    <string name="activity_hold_probability">Hold probability</string>
+    <string name="activity_pulse_duty_cycle">Pulse duty cycle</string>
+    <string name="activity_pulse_time">Pulse time</string>
+    <string name="activity_target_position">Target position</string>
+    <string name="activity_frequency">Frequency</string>
+    <string name="activity_cycle_time">Cycle time</string>
+    <string name="activity_target_stroke_speed">Target stroke speed</string>
+    <string name="activity_bonus_a">Bonus A</string>
+    <string name="activity_bonus_b">Bonus B</string>
+    <string name="activity_bonus_pattern_probability">Bonus pattern probability</string>
+    <string name="activity_amplitude_jitter">Amplitude jitter</string>
+    <string name="activity_timing_jitter">Timing jitter</string>
+    
+    <!-- Lick type options -->
+    <string name="lick_type_unidirectional">Unidirectional</string>
+    <string name="lick_type_bidirectional">Bidirectional</string>
+    
+    <!-- Amp type options -->
+    <string name="amp_type_consistent">Consistent</string>
+    <string name="amp_type_lick">Lick</string>
+    <string name="amp_type_dip">Dip</string>
+    <string name="amp_type_ramp">Ramp</string>
+    <string name="amp_type_flicks">Flicks</string>
+    
+    <!-- Simplex preset options -->
+    <string name="simplex_preset_standard">Standard</string>
+    <string name="simplex_preset_pro">Pro</string>
+    <string name="simplex_preset_turbo">Turbo</string>
+    <string name="simplex_preset">Preset</string>
     
     <!-- Player related -->
     <string name="amplitude_exponent">Amplitude exponent</string>
@@ -137,6 +174,8 @@
     <string name="activity_relentless">Relentless</string>
     <string name="activity_random_shapes">Random shapes</string>
     <string name="activity_overflowing">Overflowing</string>
+    <string name="activity_succubus">Succubus</string>
+    <string name="activity_random_change_probability">Random activity change probability</string>
     <string name="channel_a">Channel A</string>
     <string name="channel_b">Channel B</string>
     <string name="channel_a_settings">Channel A Settings</string>

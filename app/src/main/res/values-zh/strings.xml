@@ -95,6 +95,43 @@
     <string name="activity_amplitude">振幅</string>
     <string name="activity_pulse">脉冲</string>
     <string name="activity_random">随机</string>
+    <string name="activity_manual_control">手动控制</string>
+    <string name="activity_lick_start_point">舔舐起始点</string>
+    <string name="activity_lick_end_point">舔舐结束点</string>
+    <string name="activity_lick_type">舔舐类型</string>
+    <string name="activity_amp_type">振幅类型</string>
+    <string name="activity_average_speed">平均速度</string>
+    <string name="activity_target_speed">目标速度</string>
+    <string name="activity_target_feel_exponent">目标感觉指数</string>
+    <string name="activity_hold_probability">保持概率</string>
+    <string name="activity_pulse_duty_cycle">脉冲占空比</string>
+    <string name="activity_pulse_time">脉冲时间</string>
+    <string name="activity_target_position">目标位置</string>
+    <string name="activity_frequency">频率</string>
+    <string name="activity_cycle_time">周期时间</string>
+    <string name="activity_target_stroke_speed">目标冲程速度</string>
+    <string name="activity_bonus_a">奖励A</string>
+    <string name="activity_bonus_b">奖励B</string>
+    <string name="activity_bonus_pattern_probability">奖励模式概率</string>
+    <string name="activity_amplitude_jitter">振幅抖动</string>
+    <string name="activity_timing_jitter">时间抖动</string>
+    
+    <!-- 舔舐类型选项 -->
+    <string name="lick_type_unidirectional">单向</string>
+    <string name="lick_type_bidirectional">双向</string>
+    
+    <!-- 振幅类型选项 -->
+    <string name="amp_type_consistent">一致</string>
+    <string name="amp_type_lick">舔舐</string>
+    <string name="amp_type_dip">下降</string>
+    <string name="amp_type_ramp">斜坡</string>
+    <string name="amp_type_flicks">轻弹</string>
+    
+    <!-- Simplex预设选项 -->
+    <string name="simplex_preset_standard">标准</string>
+    <string name="simplex_preset_pro">专业</string>
+    <string name="simplex_preset_turbo">疯狂</string>
+    <string name="simplex_preset">预设</string>
     
     <!-- 播放器相关 -->
     <string name="amplitude_exponent">振幅指数</string>
@@ -139,6 +176,8 @@
     <string name="activity_relentless">持续</string>
     <string name="activity_random_shapes">随机形状</string>
     <string name="activity_overflowing">溢出</string>
+    <string name="activity_succubus">魅魔</string>
+    <string name="activity_random_change_probability">随机活动变更概率</string>
     <string name="channel_a">通道A</string>
     <string name="channel_b">通道B</string>
     <string name="channel_a_settings">通道A设置</string>

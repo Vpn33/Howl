@@ -1,40 +1,18 @@
 package com.example.howl
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,12 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.platform.LocalContext
-import android.content.Intent
-import android.app.Activity
-import androidx.compose.foundation.rememberScrollState
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import com.example.howl.ui.theme.HowlTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,32 +30,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class TabLayoutViewModel : ViewModel() {
-
+    private val fixedTabs = listOf("Player", "Generator", "Activity", "Wave", "Settings")
+    private val debugTab = "Debug"
 
     private val _tabIndex = MutableStateFlow(0)
     val tabIndex: StateFlow<Int> = _tabIndex.asStateFlow()
 
     val visibleTabs: StateFlow<List<String>> = Prefs.miscShowDebugLog.flow
         .map { showDebugLog ->
-            val tabs = mutableListOf(
-                "Player",
-                "Generator",
-                "Activity",
-                "Wave",
-                "Settings"
-            )
             if (showDebugLog) {
-                tabs.add("Debug")
+                fixedTabs + debugTab
+            } else {
+                fixedTabs
             }
-            tabs
         }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf(
-            "Player",
-            "Generator",
-            "Activity",
-            "Wave",
-            "Settings"
-        ))
+        .stateIn(viewModelScope, SharingStarted.Eagerly, fixedTabs)
 
     fun setTabIndex(index: Int) {
         _tabIndex.update { index }
@@ -110,7 +71,7 @@ fun TabLayout(
         }
     }
 
-    Column(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         ScrollableTabRow(
             selectedTabIndex = tabIndex,
             edgePadding = 0.dp,
@@ -143,7 +104,7 @@ fun TabLayout(
             }
         }
         HorizontalDivider(thickness = 1.dp, modifier = Modifier.fillMaxWidth())
-        
+
         visibleTabs.getOrNull(tabIndex)?.let { currentTab ->
             when (currentTab) {
                 "Player" -> CombinedPanel(viewModel = playerViewModel)

@@ -1,5 +1,6 @@
 package com.example.howl
 
+import androidx.compose.ui.res.stringResource
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -147,7 +148,8 @@ data class ErrorBody(
 
 object RemoteControlServer {
     const val SERVER_PORT = 4695
-    private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
+    private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? =
+        null
 
     fun initialise() {
         if (Prefs.remoteAPIKey.value == "changeme") {
@@ -192,27 +194,9 @@ object RemoteControlServer {
 
     fun start(port: Int = SERVER_PORT) {
         if (server != null) return
-        HLog.d("RemoteControlServer","Starting remote control server")
+        HLog.d("RemoteControlServer", "Starting remote control server")
 
-        server = embeddedServer(CIO, port = port) {
-            install(CORS) {
-                // Allow requests from any host.
-                // For production, you might want to restrict this to specific domains.
-                anyHost()
-
-                // Allow the Authorization header so browsers can send your API Key
-                allowHeader(HttpHeaders.Authorization)
-
-                // Allow Content-Type header for JSON bodies
-                allowHeader(HttpHeaders.ContentType)
-
-                // Required for Bearer Auth to work in browsers
-                allowCredentials = true
-
-                // Allow the HTTP methods used by your API
-                allowMethod(HttpMethod.Post)
-                allowMethod(HttpMethod.Options)
-            }
+        server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) {
                 json()
             }
@@ -280,7 +264,7 @@ object RemoteControlServer {
                             pulseSource.loadFromString(funscript, title)
                             withContext(Dispatchers.Main) {
                                 Player.switchPulseSource(pulseSource)
-                                if(play)
+                                if (play)
                                     Player.startPlayer()
                             }
                             val status = buildStatusResponse()
@@ -325,7 +309,7 @@ object RemoteControlServer {
 
                             withContext(Dispatchers.Main) {
                                 Player.switchPulseSource(pulseSource)
-                                if(play)
+                                if (play)
                                     Player.startPlayer()
                             }
 
@@ -425,7 +409,8 @@ object RemoteControlServer {
                             "Received command set_auto_increase(value=$value)"
                         )
 
-                        val newAutoIncreaseState = value ?: !MainOptions.state.value.autoIncreasePower
+                        val newAutoIncreaseState =
+                            value ?: !MainOptions.state.value.autoIncreasePower
                         MainOptions.setAutoIncreasePower(newAutoIncreaseState)
                         val status = buildStatusResponse()
                         call.respond(HttpStatusCode.OK, status)
@@ -449,6 +434,7 @@ object RemoteControlServer {
                                 )
                                 return@post
                             }
+
                             max !in 0.0..1.0 -> {
                                 call.respond(
                                     HttpStatusCode.BadRequest,
@@ -456,6 +442,7 @@ object RemoteControlServer {
                                 )
                                 return@post
                             }
+
                             max <= min -> {
                                 call.respond(
                                     HttpStatusCode.BadRequest,
@@ -463,6 +450,7 @@ object RemoteControlServer {
                                 )
                                 return@post
                             }
+
                             (max - min) < 0.01 -> {
                                 call.respond(
                                     HttpStatusCode.BadRequest,
@@ -483,7 +471,7 @@ object RemoteControlServer {
                         val activities = ActivityType.entries.map { type ->
                             ActivityInfo(
                                 name = type.name,
-                                display_name = type.displayName
+                                display_name = ActivityType.getDisplayName(type)
                             )
                         }.sortedBy { it.display_name.lowercase() }
                         call.respond(HttpStatusCode.OK, AvailableActivitiesResponse(activities))
@@ -492,7 +480,10 @@ object RemoteControlServer {
                         val body = call.receive<LoadActivityRequest>()
                         val name = body.name
                         val play = body.play
-                        HLog.d("RemoteControlServer", "Received command load_activity(name='$name', play=$play)")
+                        HLog.d(
+                            "RemoteControlServer",
+                            "Received command load_activity(name='$name', play=$play)"
+                        )
 
                         try {
                             val activityType = ActivityType.valueOf(name)

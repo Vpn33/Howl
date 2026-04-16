@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -65,6 +67,34 @@ object MainOptions {
     private var autoIncrementPowerCounterA: Long = 0L
     private var autoIncrementPowerCounterB: Long = 0L
 
+    // 爬坡计时器
+    private var powerRampCounterA: Long = 0L
+    private var powerRampCounterB: Long = 0L
+
+    // 开启爬坡时的通道强度
+    private var powerRampRecordA: Int = -1
+    private var powerRampRecordB: Int = -1
+
+    // 爬坡强度最大值
+    private var powerRampMaxA: Int = -1
+    private var powerRampMaxB: Int = -1
+
+    // 爬坡计时器
+    private var powerRampPeakCounterA: Long = 0L
+    private var powerRampPeakCounterB: Long = 0L
+
+    // 坡顶计时器
+    private var powerRampCurrentPeakTimeA: Long = 0L
+    private var powerRampCurrentPeakTimeB: Long = 0L
+
+    // 爬坡方向 (1: 增加, -1: 减少)
+    private var powerRampDirectionA: Int = 1
+    private var powerRampDirectionB: Int = 1
+
+    // 开启爬坡时是否随机时间
+    private var powerRampIntervalTimeA: Float = -1f
+    private var powerRampIntervalTimeB: Float = -1f
+
     fun setChannelPower(channel: Int, power: Int) {
         when (channel) {
             0 -> {
@@ -82,6 +112,10 @@ object MainOptions {
     }
 
     fun incrementChannelPower(channel: Int, step: Int = 0) {
+        incrementChannelPower(channel, step, true)
+    }
+
+    fun incrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         if (channel == -1) {
             // Apply to both channels
             incrementChannelPower(0, step)
@@ -92,9 +126,18 @@ object MainOptions {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current + stepSize)
+        if (Prefs.powerSyncEnabled.value) {
+            if (sync) {
+                incrementChannelPower(if (channel == 0) 1 else 0, 1, false)
+            }
+        }
     }
 
     fun decrementChannelPower(channel: Int, step: Int = 0) {
+        decrementChannelPower(channel, step, true)
+    }
+
+    fun decrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         if (channel == -1) {
             // Apply to both channels
             decrementChannelPower(0, step)
@@ -105,6 +148,11 @@ object MainOptions {
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
         setChannelPower(channel, current - stepSize)
+        if (Prefs.powerSyncEnabled.value) {
+            if (sync) {
+                decrementChannelPower(if (channel == 0) 1 else 0, 1, false)
+            }
+        }
     }
 
     fun getChannelPower(channel: Int): Int {
@@ -131,24 +179,249 @@ object MainOptions {
         val options = state.value
 
         if (options.autoIncreasePower && !options.globalMute) {
-            // Using milliseconds internally avoids an annoying issue where the channel updates
-            // can desynchronise from each other over time due to floating point errors
-            val elapsedMs = (elapsed * 1000).toLong()
-            if (options.channelAPower > 0)
-                autoIncrementPowerCounterA += elapsedMs
-            if (options.channelBPower > 0)
-                autoIncrementPowerCounterB += elapsedMs
+            // Check if power ramp is enabled
+            val powerRampEnabled = Prefs.powerRampEnabled.value
+            val powerRampChannelMode = Prefs.powerRampChannelMode.value
 
-            val autoIncrementDelayA = (Prefs.powerAutoIncrementDelayA.value * 1000).toLong()
-            val autoIncrementDelayB = (Prefs.powerAutoIncrementDelayB.value * 1000).toLong()
-            //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
-            if (autoIncrementPowerCounterA >= autoIncrementDelayA) {
-                autoIncrementPowerCounterA = 0L
-                incrementChannelPower(0, 1)
-            }
-            if (autoIncrementPowerCounterB >= autoIncrementDelayB) {
-                autoIncrementPowerCounterB = 0L
-                incrementChannelPower(1, 1)
+            if (powerRampEnabled) {
+
+                // 获取当前电源强度
+                var powerRampCurrentA = getChannelPower(0)
+                var powerRampCurrentB = getChannelPower(1)
+                // 是否有开始爬坡时的强度记录
+                if (powerRampRecordA < 0 && powerRampMaxA < 0) {
+                    // 保存开始爬坡时的强度记录
+                    powerRampRecordA = powerRampCurrentA
+                    // 计算最小强度
+                    val minA = Prefs.powerRampIntensityARangeStart.value
+                    powerRampCurrentA += minA
+                    // 不能小于1
+                    if (powerRampCurrentA < 1) {
+                        powerRampCurrentA = 1
+                        powerRampRecordA = 1
+                    }
+                    // 计算爬坡最大强度
+                    powerRampMaxA = powerRampCurrentA + Prefs.powerRampIntensityARangeEnd.value
+                    if (powerRampMaxA > Prefs.powerLimitA.value) {
+                        powerRampMaxA = Prefs.powerLimitA.value
+                    }
+                    // 根据坡顶时间模式计算持续时间
+                    val peakTimeMode = Prefs.powerRampPeakTimeModeA.value
+                    // 固定时间
+                    if (peakTimeMode == "FIXED") {
+                        powerRampCurrentPeakTimeA =
+                            (Prefs.powerRampPeakTimeFixedA.value * 1000).toLong()
+                    } else {
+                        // 随机时间
+                        val minTime = Prefs.powerRampPeakTimeRandomMinA.value
+                        val maxTime = Prefs.powerRampPeakTimeRandomMaxA.value
+                        val randomTime =
+                            (minTime + Math.random() * (maxTime - minTime)).toLong()
+                        powerRampCurrentPeakTimeA = randomTime * 1000
+                    }
+
+                    // 爬坡触发时间 随机
+                    if (Prefs.powerRampSpeedModeA.value == "RANDOM") {
+                        val minSpeed = Prefs.powerRampSpeedRandomMinA.value
+                        val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
+                        powerRampIntervalTimeA =
+                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                    } else {
+                        // 爬坡触发时间 固定
+                        powerRampIntervalTimeA = Prefs.powerRampSpeedA.value
+                    }
+
+                    var message = "Starting power auto ramp";
+                    if (powerRampChannelMode == "AB_SYNC") {
+                        message += " channel_A&B:[${powerRampCurrentA}~${powerRampMaxA}]"
+                    } else {
+                        if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "A_ONLY") {
+                            message += " channel_A:[${powerRampCurrentA}~${powerRampMaxA}]"
+                        }
+                        if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "B_ONLY") {
+                            message += " channel_B:[${powerRampCurrentB}~${powerRampMaxB}]"
+                        }
+                    }
+
+                    HLog.d("Power Ramp", message)
+                }
+                if (powerRampRecordB < 0 && powerRampMaxB < 0) {
+                    // 保存开始爬坡时的强度记录
+                    powerRampRecordB = powerRampCurrentB
+                    // 计算最小强度
+                    val minB = Prefs.powerRampIntensityBRangeStart.value
+                    powerRampCurrentB += minB
+                    // 不能小于1
+                    if (powerRampCurrentB < 1) {
+                        powerRampCurrentB = 1
+                        powerRampRecordA = 1
+                    }
+                    // 计算爬坡最大强度
+                    powerRampMaxB = powerRampCurrentB + Prefs.powerRampIntensityBRangeEnd.value
+                    if (powerRampMaxB > Prefs.powerLimitB.value) {
+                        powerRampMaxB = Prefs.powerLimitB.value
+                    }
+                    // 根据坡顶时间模式计算持续时间
+                    val peakTimeMode = Prefs.powerRampPeakTimeModeB.value
+                    // 固定时间
+                    if (peakTimeMode == "FIXED") {
+                        powerRampCurrentPeakTimeB =
+                            (Prefs.powerRampPeakTimeFixedB.value * 1000).toLong()
+                    } else {
+                        // 随机时间
+                        val minTime = Prefs.powerRampPeakTimeRandomMinB.value
+                        val maxTime = Prefs.powerRampPeakTimeRandomMaxB.value
+                        val randomTime =
+                            (minTime + Math.random() * (maxTime - minTime)).toLong()
+                        powerRampCurrentPeakTimeB = randomTime * 1000
+                    }
+                    // 爬坡触发时间 随机
+                    if (Prefs.powerRampSpeedModeB.value == "RANDOM") {
+                        val minSpeed = Prefs.powerRampSpeedRandomMinB.value
+                        val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
+                        powerRampIntervalTimeB =
+                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                    } else {
+                        // 爬坡触发时间 固定
+                        powerRampIntervalTimeB = Prefs.powerRampSpeedB.value
+                    }
+                }
+
+                // Power ramp logic
+                val elapsedMs = (elapsed * 1000).toLong()
+
+                if (options.channelAPower > 0) powerRampPeakCounterA += elapsedMs
+                if (options.channelBPower > 0) powerRampPeakCounterB += elapsedMs
+
+                // 获取爬坡触发时间
+                var currentSpeedA = powerRampIntervalTimeA
+
+                // 如果是A通道每次坡度变化 且是随机 就重新生成一个时间
+                if (Prefs.powerRampSpeedIntervalModeA.value == "EVERY" && Prefs.powerRampSpeedModeA.value == "RANDOM") {
+                    val minSpeed = Prefs.powerRampSpeedRandomMinA.value
+                    val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
+                    currentSpeedA = (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                }
+                var autoIncrementDelayA = (currentSpeedA * 1000).toLong()
+                // 如果到达坡顶 就需要增加坡顶的持续时间
+                if (powerRampCurrentA > 0 && powerRampCurrentA == powerRampMaxA) {
+                    autoIncrementDelayA += powerRampCurrentPeakTimeA
+                }
+
+                // 获取爬坡触发时间
+                var currentSpeedB = powerRampIntervalTimeB
+                // 如果是B通道每次坡度变化 且是随机 就重新生成一个时间
+                if (Prefs.powerRampSpeedIntervalModeB.value == "EVERY" && Prefs.powerRampSpeedModeB.value == "RANDOM") {
+                    val minSpeed = Prefs.powerRampSpeedRandomMinB.value
+                    val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
+                    currentSpeedB = (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                }
+                var autoIncrementDelayB = (currentSpeedB * 1000).toLong()
+                if (powerRampCurrentB > 0 && powerRampCurrentB == powerRampMaxB) {
+                    autoIncrementDelayB += powerRampCurrentPeakTimeB
+                }
+                //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
+                if (powerRampChannelMode == "AB_SYNC") {
+                    if (powerRampPeakCounterA >= autoIncrementDelayA) {
+                        val tempPower = powerRampCurrentA + powerRampDirectionA
+                        if (tempPower <= powerRampMaxA && tempPower >= powerRampRecordA) {
+                            setChannelPower(0, tempPower)
+                            setChannelPower(1, tempPower)
+                        } else {
+                            val cycleMode = Prefs.powerRampCycleModeA.value
+                            if (cycleMode == "LOOP") {
+                                // 循环模式：重置强度重新开始爬坡
+                                setChannelPower(0, powerRampRecordA)
+                                setChannelPower(1, powerRampRecordA)
+                                powerRampRecordA = -1
+                                powerRampMaxA = -1
+                                powerRampPeakCounterA = 0L
+                                powerRampDirectionA = 1
+
+                                powerRampRecordB = -1
+                                powerRampMaxB = -1
+                                powerRampPeakCounterB = 0L
+                                powerRampDirectionB = 1
+                            } else {
+                                // 往复模式：反向爬坡
+                                powerRampDirectionA = -powerRampDirectionA
+                                powerRampDirectionB = -powerRampDirectionB
+                            }
+                        }
+                        // 重置爬坡计时器
+                        powerRampPeakCounterA = 0L
+                        powerRampPeakCounterB = 0L
+                    }
+                } else {
+                    if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "A_ONLY") {
+                        if (powerRampPeakCounterA >= autoIncrementDelayA) {
+                            val tempPower = powerRampCurrentA + powerRampDirectionA
+                            if (tempPower <= powerRampMaxA && tempPower >= powerRampRecordA) {
+                                setChannelPower(0, tempPower)
+                                powerRampCurrentA = tempPower
+                            } else {
+                                val cycleMode = Prefs.powerRampCycleModeA.value
+                                if (cycleMode == "LOOP") {
+                                    // 循环模式：重置强度重新开始爬坡
+                                    setChannelPower(0, powerRampRecordA)
+                                    powerRampRecordA = -1
+                                    powerRampMaxA = -1
+                                    powerRampPeakCounterA = 0L
+                                    powerRampDirectionA = 1
+                                } else {
+                                    // 往复模式：反向爬坡
+                                    powerRampDirectionA = -powerRampDirectionA
+                                }
+                            }
+                            // 重置爬坡计时器
+                            powerRampPeakCounterA = 0L
+                        }
+                    }
+                    if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "B_ONLY") {
+                        if (powerRampPeakCounterB >= autoIncrementDelayB) {
+                            val tempPower = powerRampCurrentB + powerRampDirectionB
+                            if (tempPower <= powerRampMaxB && tempPower >= powerRampRecordB) {
+                                setChannelPower(1, tempPower)
+                                powerRampCurrentB = tempPower
+                            } else {
+                                val cycleMode = Prefs.powerRampCycleModeB.value
+                                if (cycleMode == "LOOP") {
+                                    // 循环模式：重置强度重新开始爬坡
+                                    setChannelPower(1, powerRampRecordB)
+                                    powerRampRecordB = -1
+                                    powerRampMaxB = -1
+                                    powerRampPeakCounterB = 0L
+                                    powerRampDirectionB = 1
+                                } else {
+                                    // 往复模式：反向爬坡
+                                    powerRampDirectionB = -powerRampDirectionB
+                                }
+                            }
+                            // 重置爬坡计时器
+                            powerRampPeakCounterB = 0L
+                        }
+                    }
+                }
+            } else {
+                // Using milliseconds internally avoids an annoying issue where the channel updates
+                // can desynchronise from each other over time due to floating point errors
+                val elapsedMs = (elapsed * 1000).toLong()
+                if (options.channelAPower > 0)
+                    autoIncrementPowerCounterA += elapsedMs
+                if (options.channelBPower > 0)
+                    autoIncrementPowerCounterB += elapsedMs
+
+                val autoIncrementDelayA = (Prefs.powerAutoIncrementDelayA.value * 1000).toLong()
+                val autoIncrementDelayB = (Prefs.powerAutoIncrementDelayB.value * 1000).toLong()
+                //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
+                if (autoIncrementPowerCounterA >= autoIncrementDelayA) {
+                    autoIncrementPowerCounterA = 0L
+                    incrementChannelPower(0, 1)
+                }
+                if (autoIncrementPowerCounterB >= autoIncrementDelayB) {
+                    autoIncrementPowerCounterB = 0L
+                    incrementChannelPower(1, 1)
+                }
             }
         }
     }
@@ -166,7 +439,26 @@ object MainOptions {
     fun setAutoIncreasePower(autoIncrease: Boolean) {
         autoIncrementPowerCounterA = 0L
         autoIncrementPowerCounterB = 0L
-        _state.update { it.copy(autoIncreasePower = autoIncrease)}
+
+        // Reset power ramp variables
+        powerRampCounterA = 0L
+        powerRampCounterB = 0L
+        powerRampRecordA = -1
+        powerRampRecordB = -1
+        powerRampMaxA = -1
+        powerRampMaxB = -1
+        powerRampPeakCounterA = 0L
+        powerRampPeakCounterB = 0L
+        powerRampCurrentPeakTimeA = 0L
+        powerRampCurrentPeakTimeB = 0L
+        // 重置爬坡增量 避免关闭重开后 爬坡反向的问题
+        powerRampDirectionA = 1
+        powerRampDirectionB = 1
+        powerRampIntervalTimeA = -1f
+        powerRampIntervalTimeB = -1f
+
+
+        _state.update { it.copy(autoIncreasePower = autoIncrease) }
     }
 
     fun setSwapChannels(swap: Boolean) {
@@ -258,7 +550,8 @@ fun MainOptionsPanel(
     Column(
         modifier = modifier
             .padding(horizontal = 16.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center
     ) {
         Row(
