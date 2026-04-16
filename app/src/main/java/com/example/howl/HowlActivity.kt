@@ -95,6 +95,7 @@ fun HowlAppScreen(
                 connectionStatus,
                 batteryPercent,
                 { onConnectClick() },
+                disconnectFunction = { BluetoothHandler.disconnect() },
                 modifier = Modifier.navigationBarsPadding()
             )
         }

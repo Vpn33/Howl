@@ -5,14 +5,10 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.util.Log
-import kotlinx.serialization.KSerializer
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.buildClassSerialDescriptor
-import kotlinx.serialization.encoding.CompositeDecoder
-import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import java.util.TreeMap
 import kotlin.math.abs
@@ -20,47 +16,15 @@ import kotlin.math.pow
 
 class BadFileException (message: String) : Exception(message)
 
-enum class FrequencyAlgorithmType {
-    POSITION,
-    VARIED,
-    BLEND,
-    FIXED
+enum class FrequencyAlgorithmType(val displayName: String) {
+    POSITION("Position"),
+    VARIED("Varied"),
+    BLEND("Blend"),
+    FIXED("Fixed")
 }
 
-@Serializable(with = Action.Companion::class)
-data class Action(val at: Double, val pos: Double) {
-    @kotlinx.serialization.Serializer(forClass = Action::class)
-    companion object : KSerializer<Action> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Action") {
-            element("at", Double.serializer().descriptor)
-            element("pos", Double.serializer().descriptor)
-        }
-
-        override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: Action) {
-            val structureEncoder = encoder.beginStructure(descriptor)
-            // 舍弃小数部分，只保留整数
-            structureEncoder.encodeDoubleElement(descriptor, 0, value.at.toInt().toDouble())
-            structureEncoder.encodeDoubleElement(descriptor, 1, value.pos)
-            structureEncoder.endStructure(descriptor)
-        }
-        
-        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Action {
-            val structureDecoder = decoder.beginStructure(descriptor)
-            var at = 0.0
-            var pos = 0.0
-            while (true) {
-                when (val index = structureDecoder.decodeElementIndex(descriptor)) {
-                    0 -> at = structureDecoder.decodeDoubleElement(descriptor, 0)
-                    1 -> pos = structureDecoder.decodeDoubleElement(descriptor, 1)
-                    kotlinx.serialization.encoding.CompositeDecoder.DECODE_DONE -> break
-                    else -> error("Unexpected index: $index")
-                }
-            }
-            structureDecoder.endStructure(descriptor)
-            return Action(at, pos)
-        }
-    }
-}
+@Serializable
+data class Action(val at: Double, val pos: Double)
 
 @Serializable
 data class Funscript(
@@ -81,10 +45,11 @@ fun Uri.getName(context: Context): String {
 data class PositionVelocity(val position: Double, val velocity: Double)
 
 class FunscriptPulseSource : PulseSource {
-    override var displayName: String = "Funscript"
+    private val _displayName = MutableStateFlow("Funscript")
+    override val displayName = _displayName.asStateFlow()
     override var duration: Double? = null
     override val isFinite: Boolean = true
-    override val shouldLoop: Boolean = false
+    override var shouldLoop: Boolean = false
     override var readyToPlay: Boolean = false
     override var isRemote: Boolean = false
 
@@ -288,13 +253,17 @@ class FunscriptPulseSource : PulseSource {
             }
         }
 
-        displayName = uri.getName(context)
+        _displayName.value = uri.getName(context)
         duration = timePositionData.lastKey()
         readyToPlay = true
         return duration
     }
 
-    fun loadFromString(funscript: String, title: String): Double? {
+    fun loadFromString(
+        funscript: String,
+        title: String,
+        loop: Boolean = false
+    ): Double? {
         readyToPlay = false
         timePositionData.clear()
 
@@ -304,10 +273,11 @@ class FunscriptPulseSource : PulseSource {
             throw BadFileException("Funscript decoding failed")
         }
 
-        displayName = title
+        _displayName.value = title
         duration = timePositionData.lastKey()
         isRemote = true
         readyToPlay = true
+        shouldLoop = loop
         return duration
     }
 }
