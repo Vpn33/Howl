@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +29,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,11 +42,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.howl.ui.theme.HowlTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1097,7 +1100,10 @@ data class WaveState(
 
 
 @Composable
-fun WavePanel(viewModel: WaveViewModel) {
+fun WavePanel(
+    viewModel: WaveViewModel,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
 
     // 初始化时从assets目录加载内置波形并加载保存的状态
@@ -1134,49 +1140,63 @@ fun WavePanel(viewModel: WaveViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 600.dp) // 添加最小高度，确保打开脉冲图表后列表仍然可见
             .padding(4.dp)
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.Top
     ) {
-        // 顶部选择本地文件夹功能
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 2.dp),
-            horizontalArrangement = Arrangement.Center
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp
         ) {
-            Button(onClick = {
-                folderPickerLauncher.launch(null)
-            }) {
-                Text(text = "选择本地文件夹")
+            // 顶部选择本地文件夹功能
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(onClick = {
+                    folderPickerLauncher.launch(null)
+                }) {
+                    Text(text = "选择本地文件夹")
+                }
             }
         }
 
-        // 通道面板
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // 左侧区域 - 通道A
-            WaveChannelPanel(
-                channel = "A",
-                viewModel = viewModel,
-                modifier = Modifier
-                    .weight(1.2f)
-                    .padding(end = 2.dp)
-            )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
 
-            // 右侧区域 - 通道B
-            WaveChannelPanel(
-                channel = "B",
-                viewModel = viewModel,
+            ) {
+            // 通道面板
+            Row(
                 modifier = Modifier
-                    .weight(1.2f)
-                    .padding(start = 2.dp)
-            )
+                    .fillMaxWidth()
+                    .height(500.dp), // 减少固定高度
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 左侧区域 - 通道A
+                WaveChannelPanel(
+                    channel = "A",
+                    viewModel = viewModel,
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .padding(end = 2.dp)
+                )
+
+                // 右侧区域 - 通道B
+                WaveChannelPanel(
+                    channel = "B",
+                    viewModel = viewModel,
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .padding(start = 2.dp)
+                )
+            }
         }
     }
 
@@ -1185,6 +1205,18 @@ fun WavePanel(viewModel: WaveViewModel) {
 
     // 删除确认对话框
     DeleteConfirmDialog(viewModel = viewModel)
+}
+
+@Preview
+@Composable
+fun WaveViewPreview() {
+    HowlTheme {
+        val viewModel: WaveViewModel = viewModel()
+        WavePanel(
+            viewModel = viewModel,
+            modifier = Modifier.fillMaxHeight()
+        )
+    }
 }
 
 @Composable
@@ -1214,7 +1246,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
             .border(1.dp, MaterialTheme.colorScheme.outline, shape = MaterialTheme.shapes.small)
             .padding(8.dp) // 减少内部留白
             .fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(1.dp)
     ) {
         // 第一行：通道名称和开始/停止按钮
         Row(
@@ -1313,100 +1345,111 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
             }
         }
 
-        // 已选择的波形列表
-        val scrollState = rememberScrollState()
-        Column(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .border(1.dp, MaterialTheme.colorScheme.outline, shape = MaterialTheme.shapes.small)
-                .padding(8.dp)
-                .verticalScroll(scrollState)
+                .fillMaxHeight(), // 减少最小高度
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
-            if (selectedWaves.isEmpty()) {
-                Text(text = "No waves selected", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                selectedWaves.forEachIndexed { index, wave ->
-                    val isPlaying = if (channel == "A") {
-                        state.aChannelPlaying && index == state.aChannelPlayIndex
-                    } else {
-                        state.bChannelPlaying && index == state.bChannelPlayIndex
-                    }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (isPlaying) {
-                                    Modifier.background(
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = MaterialTheme.shapes.small
-                                    )
+            // 已选择的波形列表
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                if (selectedWaves.isEmpty()) {
+                    Text(text = "No waves selected", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    selectedWaves.forEachIndexed { index, wave ->
+                        val isPlaying = if (channel == "A") {
+                            state.aChannelPlaying && index == state.aChannelPlayIndex
+                        } else {
+                            state.bChannelPlaying && index == state.bChannelPlayIndex
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isPlaying) {
+                                        Modifier.background(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = MaterialTheme.shapes.small
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .combinedClickable(
+                                    onClick = { },
+                                    onDoubleClick = {
+                                        // 双击切换到该波形并播放
+                                        viewModel.switchToWave(context, channel, index)
+                                    }
+                                )
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = wave.name,
+                                color = if (isPlaying) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
-                                    Modifier
+                                    MaterialTheme.colorScheme.onSurface
                                 }
                             )
-                            .combinedClickable(
-                                onClick = { },
-                                onDoubleClick = {
-                                    // 双击切换到该波形并播放
-                                    viewModel.switchToWave(context, channel, index)
-                                }
-                            )
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = wave.name,
-                            color = if (isPlaying) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                        )
-                        Icon(
-                            painter = painterResource(R.drawable.bin),
-                            contentDescription = null,
-                            tint = if (isPlaying) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                            modifier = Modifier.clickable {
-                                // 从已选择列表中删除波形
-                                val channelIsPlaying = if (channel == "A") {
-                                    state.aChannelPlaying
+                            Icon(
+                                painter = painterResource(R.drawable.bin),
+                                contentDescription = null,
+                                tint = if (isPlaying) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
-                                    state.bChannelPlaying
-                                }
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.clickable {
+                                    // 从已选择列表中删除波形
+                                    val channelIsPlaying = if (channel == "A") {
+                                        state.aChannelPlaying
+                                    } else {
+                                        state.bChannelPlaying
+                                    }
 
-                                if (channelIsPlaying) {
-                                    // 通道正在播放，显示确认对话框
-                                    viewModel.showDeleteConfirmDialog(channel, wave)
-                                } else {
-                                    // 通道未播放，直接删除
-                                    val updatedWaves = selectedWaves.filter { it != wave }
-                                    when (channel) {
-                                        "A" -> viewModel.updateSelectedWaves(
-                                            "A",
-                                            updatedWaves,
-                                            context
-                                        )
+                                    if (channelIsPlaying) {
+                                        // 通道正在播放，显示确认对话框
+                                        viewModel.showDeleteConfirmDialog(channel, wave)
+                                    } else {
+                                        // 通道未播放，直接删除
+                                        val updatedWaves = selectedWaves.filter { it != wave }
+                                        when (channel) {
+                                            "A" -> viewModel.updateSelectedWaves(
+                                                "A",
+                                                updatedWaves,
+                                                context
+                                            )
 
-                                        "B" -> viewModel.updateSelectedWaves(
-                                            "B",
-                                            updatedWaves,
-                                            context
-                                        )
+                                            "B" -> viewModel.updateSelectedWaves(
+                                                "B",
+                                                updatedWaves,
+                                                context
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
+
         }
+
     }
 }
 
