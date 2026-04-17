@@ -810,16 +810,21 @@ class WaveViewModel : ViewModel() {
 
             // 从ViewModel同步最新的播放时间
             syncTimeToViewModel()
+            // 检查是否需要切换A通道波形
+            val currentState = viewModel.state.value
 
             // 更新播放时间
-            aChannelPlayElapsedTime += deltaTime
-            bChannelPlayElapsedTime += deltaTime
+            if (currentState.aChannelPlaying) {
+                aChannelPlayElapsedTime += deltaTime
+            }
+            if (currentState.bChannelPlaying) {
+                bChannelPlayElapsedTime += deltaTime
+            }
 
             // 将更新后的时间同步回ViewModel
             viewModel.updateElapsedTime(aChannelPlayElapsedTime, bChannelPlayElapsedTime)
 
-            // 检查是否需要切换A通道波形
-            if (aChannelWaves.isNotEmpty() && !isChannelAGenerating) {
+            if (aChannelWaves.isNotEmpty() && currentState.aChannelPlaying && !isChannelAGenerating) {
                 val currentAWave = aChannelWaves[aChannelPlayIndex]
                 val aCtrlItem = viewModel.getCtrlItem(context, currentAWave)
                 if (aCtrlItem != null) {
@@ -1799,20 +1804,42 @@ class CtrlItem {
         for (stage in stList) {
             // 启用了小节就计算V2Model
             if (stage.enabled) {
-
                 val stageList1 = WaveUtil.stageV2Exchange(stage)
                 v2ModelList.addAll(stageList1)
             }
         }
         if (restTime > 0) {
-            // 除10 计算休息时长需要循环几次 每次100毫秒
-            val restTemp = restTime / 10
+            // 计算休息时长需要循环几次 每次100毫秒，有余数时向上进1
+            val restTemp = kotlin.math.ceil(restTime.toDouble() / 10).toInt()
             for (i in 0 until restTemp) {
                 val v2Model = V2Model(5, 95, 0)
                 v2ModelList.add(v2Model)
             }
         }
-        return WaveUtil.v2ToV3(v2ModelList)
+
+        // 默认的播放速率是100ms ，即每个meta是100ms  rate=2时 播放速率是50ms 即每个meta是50ms rate=4时 播放速率是25ms 即每个meta是25ms
+        // 由于最终输出脉冲的间隔是25ms，所以需要根据rate来复制V2Model以保持总时长一致
+        val result = mutableListOf<V2Model>()
+        for (v2 in v2ModelList) {
+            when (rate) {
+                1 -> {
+                    // 每个V2Model拷贝 共4份（100ms -> 4*25ms）
+                    repeat(4) { result.add(v2) }
+                }
+
+                2 -> {
+                    // 每个V2Model拷贝 共2份（50ms -> 2*25ms）
+                    repeat(2) { result.add(v2) }
+                }
+
+                else -> {
+                    // 不变（25ms -> 1*25ms）
+                    result.add(v2)
+                }
+            }
+        }
+
+        return WaveUtil.v2ToV3(result)
     }
 
     /**
