@@ -530,6 +530,21 @@ class WaveViewModel : ViewModel() {
         generateChannelPlayData(context)
     }
 
+    // 处理蓝牙连接状态变化
+    fun onConnectionStatusChanged(status: ConnectionStatus) {
+        if (status == ConnectionStatus.Disconnected) {
+            // 断开连接时重置A、B通道的播放状态
+            _state.update {
+                it.copy(
+                    aChannelPlaying = false,
+                    bChannelPlaying = false
+                )
+            }
+            // 停止播放
+            Player.stopPlayer()
+        }
+    }
+
     // 切换到指定索引的波形并播放
     fun switchToWave(context: Context, channel: String, waveIndex: Int) {
         val currentState = _state.value
@@ -1127,6 +1142,13 @@ fun WavePanel(
             // 如果不是WavePulseSource，更新WaveViewModel的播放状态为false
             viewModel.stopAllChannels()
         }
+    }
+
+    // 监听蓝牙连接状态变化
+    val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
+    LaunchedEffect(connectionStatus) {
+        // 当连接状态变为断开时，重置WaveViewModel的播放状态
+        viewModel.onConnectionStatusChanged(connectionStatus)
     }
 
     // 使用Activity Result API处理文件夹选择结果
