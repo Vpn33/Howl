@@ -113,14 +113,15 @@ fun SwitchWithLabel(
 fun NiceSmootherControl(
     smoother: NiceSmoother,
     targetRange: ClosedFloatingPointRange<Float>,
-    rateRange: ClosedFloatingPointRange<Float>,
     modifier: Modifier = Modifier,
+    rateRange: ClosedFloatingPointRange<Float> = 0.1f..1.0f,
     targetLabel: String = "Target",
     rateLabel: String = "Rate",
     targetSteps: Int = 0,
     rateSteps: Int = 0,
     targetValueDisplay: (Double) -> String = { "%.2f".format(it) },
     rateValueDisplay: (Double) -> String = { "%.2f".format(it) },
+    adjustableRate: Boolean = true,
     enabled: Boolean = true
 ) {
     val target by smoother.targetFlow.collectAsState()
@@ -144,7 +145,7 @@ fun NiceSmootherControl(
             ) {
                 Text(
                     text = targetValueDisplay(target),
-                    modifier = Modifier.widthIn(min = 40.dp)
+                    modifier = Modifier.widthIn(min = 45.dp)
                 )
                 Slider(
                     value = target.toFloat(),
@@ -159,30 +160,32 @@ fun NiceSmootherControl(
             }
         }
 
-        Column {
-            Text(
-                text = rateLabel,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        if (adjustableRate) {
+            Column {
                 Text(
-                    text = rateValueDisplay(rate),
-                    modifier = Modifier.widthIn(min = 40.dp)
+                    text = rateLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
-                Slider(
-                    value = rate.toFloat(),
-                    onValueChange = { newRate ->
-                        smoother.rate = newRate.toDouble()
-                    },
-                    valueRange = rateRange,
-                    steps = rateSteps,
-                    modifier = Modifier.width(80.dp),
-                    enabled = enabled
-                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = rateValueDisplay(rate),
+                        modifier = Modifier.widthIn(min = 45.dp)
+                    )
+                    Slider(
+                        value = rate.toFloat(),
+                        onValueChange = { newRate ->
+                            smoother.rate = newRate.toDouble()
+                        },
+                        valueRange = rateRange,
+                        steps = rateSteps,
+                        modifier = Modifier.width(80.dp),
+                        enabled = enabled
+                    )
+                }
             }
         }
     }
@@ -202,7 +205,8 @@ fun <T> OptionPicker(
     modifier: Modifier = Modifier,
     getIcon: (T) -> Int? = { null },
     textColor: (T) -> Color = { Color.Unspecified },
-    size: OptionPickerSize = OptionPickerSize.Standard // New optional parameter
+    size: OptionPickerSize = OptionPickerSize.Standard,
+    enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
     val sortedOptions = options
@@ -225,7 +229,8 @@ fun <T> OptionPicker(
     Box(modifier = modifier.wrapContentSize(Alignment.TopStart)) {
         OutlinedButton(
             onClick = { expanded = true },
-            contentPadding = contentPadding
+            contentPadding = contentPadding,
+            enabled = enabled
         ) {
             getIcon(currentValue)?.let { iconRes ->
                 Icon(
@@ -238,7 +243,7 @@ fun <T> OptionPicker(
 
             Text(
                 text = getText(currentValue),
-                color = textColor(currentValue),
+                color = if (enabled) textColor(currentValue) else Color.Unspecified,
                 style = textStyle
             )
         }

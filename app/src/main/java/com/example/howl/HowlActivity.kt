@@ -16,9 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,6 +67,7 @@ fun HowlAppScreen(
 ) {
     val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
     val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
+    val playerState by playerViewModel.playerState.collectAsStateWithLifecycle()
 
     // Permission launcher
     val context = LocalContext.current
@@ -95,6 +98,12 @@ fun HowlAppScreen(
             HLog.d("Howl", "Requested Bluetooth permissions.")
             bluetoothPermissionLauncher.launch(missingPermissions.toTypedArray())
         }
+    }
+
+    // Keep the screen on whenever the player is playing
+    val view = LocalView.current
+    LaunchedEffect(playerState.isPlaying) {
+        view.keepScreenOn = playerState.isPlaying
     }
 
     Scaffold(

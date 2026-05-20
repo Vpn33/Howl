@@ -86,6 +86,9 @@ enum class ActivityType(val displayNameResId: Int, val iconResId: Int) {
     },
     SUCCUBUS(R.string.activity_succubus, R.drawable.succubus) {
         override fun create() = SuccubusActivity()
+    },
+    SINETIME(R.string.activity_succubus, R.drawable.wave){
+        override fun create() = SineTimeActivity()
     };
 
     abstract fun create(): Activity
@@ -97,13 +100,13 @@ enum class ActivityType(val displayNameResId: Int, val iconResId: Int) {
 
     companion object {
         private val displayNames = mutableMapOf<ActivityType, String>()
-        
+
         fun initDisplayNames(context: android.content.Context) {
             entries.forEach { type ->
                 displayNames[type] = context.getString(type.displayNameResId)
             }
         }
-        
+
         fun getDisplayName(type: ActivityType): String {
             return displayNames[type] ?: type.name
         }
@@ -173,7 +176,7 @@ object ActivityHost : PulseSource {
         _currentActivity.value = switchActivity(type)
     }
 
-    private fun randomActivityType(avoid: ActivityType? = null): ActivityType {
+    fun randomActivityType(avoid: ActivityType? = null): ActivityType {
         val excluded = Prefs.activityExcludedFromRandom.value
         val candidates = ActivityType.entries.filter {
             it !in excluded && it != avoid

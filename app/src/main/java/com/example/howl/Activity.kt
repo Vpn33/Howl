@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 abstract class Activity {
@@ -290,7 +292,7 @@ class LickActivity : Activity() {
                 )
                 val lickTypeTexts = LickType.entries.associateWith { stringResource(it.displayNameResId) }
                 val ampTypeTexts = AmpType.entries.associateWith { stringResource(it.displayNameResId) }
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -303,7 +305,8 @@ class LickActivity : Activity() {
                             _lickType.value = it
                         },
                         options = LickType.entries,
-                        getText = { lickTypeTexts[it] ?: it.name }
+                        getText = { lickTypeTexts[it] ?: it.name },
+                        enabled = manual
                     )
                 }
                 Row(
@@ -319,6 +322,7 @@ class LickActivity : Activity() {
                         },
                         options = AmpType.entries,
                         getText = { ampTypeTexts[it] ?: it.name }
+                        enabled = manual
                     )
                 }
                 NiceSmootherControl(
@@ -1253,44 +1257,53 @@ class Calibration2Activity : Activity() {
 
 class BJActivity : Activity() {
     val waveManager: WaveManager = WaveManager()
-    val primaryDurationRange = 20.0..60.0
-    val secondaryDurationRange = 6.0..20.0
-    val deepthroatFrequencyConverter = FrequencyConverter(
-        points = listOf(
-            FrequencyConverterPoint(0.0, 1.0),
-            FrequencyConverterPoint(0.7, 0.0),
-            FrequencyConverterPoint(1.0, 0.3),
-        ),
-        interpolationType = FrequencyInterpolationType.SMOOTHSTEP
-    )
-    val suckFrequencyConverterA = FrequencyConverter(
-        points = listOf(
-            FrequencyConverterPoint(0.0, 0.7),
-            FrequencyConverterPoint(1.0, 0.3),
-        ),
-        interpolationType = FrequencyInterpolationType.SMOOTHSTEP
-    )
-    val suckFrequencyConverterB = FrequencyConverter(
-        points = listOf(
-            FrequencyConverterPoint(0.0, 0.9),
-            FrequencyConverterPoint(1.0, 0.3),
-        ),
-        interpolationType = FrequencyInterpolationType.SMOOTHSTEP
-    )
+
     val lickFrequencyRange = 0.8..1.0
-    val BJSpeedChangeSecsRange = 1.0..20.0
     val BJSpeedRange = 0.2..1.2
     val BJSpeedChangeRateRange = 0.03..0.2
     val fullLickSpeedRange = 0.3..1.0
     val tipLickSpeedRange = 0.5..3.0
 
-    enum class BJStage {
-        FullLick,
-        TipLick,
-        Suck,
-        Deepthroat,
+    enum class BJStage(val displayName: String) {
+        FullLick("Full licks"),
+        TipLick("Tip licks"),
+        Suck("Suck"),
+        Deepthroat("Deepthroat"),
     }
-    var currentStage = BJStage.entries.random()
+
+    val deepthroatFrequencyConverter = CyclicalWave(
+        WaveShape(
+            name = "deepthroatFrequencyConverter",
+            points = listOf(
+                WavePoint(0.0, 1.0),
+                WavePoint(0.7, 0.0),
+                WavePoint(1.0 - SMALL_AMOUNT, 0.3),
+            ),
+            interpolationType = InterpolationType.HERMITE
+        )
+    )
+
+    private val _manual = MutableStateFlow(false)
+    val manual: StateFlow<Boolean> = _manual.asStateFlow()
+
+    private val _currentStage = MutableStateFlow(BJStage.entries.random())
+    val currentStage: StateFlow<BJStage> = _currentStage.asStateFlow()
+
+    val primaryStageTimer = Timer(
+        durationProvider = { randomInRange(20.0..60.0) },
+        repeating = false,
+        onTrigger = { waveManager.stopAtEndOfCycle { nextStage() } }
+    )
+    val secondaryStageTimer = Timer(
+        durationProvider = { randomInRange(6.0..20.0) },
+        repeating = false,
+        onTrigger = { waveManager.stopAtEndOfCycle { nextStage() } }
+    )
+    val speedChangeTimer = Timer(
+        durationProvider = { randomInRange(1.0..20.0) },
+        repeating = true,
+        onTrigger = { speedChange() }
+    )
 
     override fun initialise() {
         val positionWave = CyclicalWave(
@@ -1303,7 +1316,6 @@ class BJActivity : Activity() {
                 interpolationType = InterpolationType.HERMITE
             )
         )
-        waveManager.addWave(positionWave)
         val bidirectional = CyclicalWave(
             WaveShape(
                 name = "bidirectional",
@@ -1324,75 +1336,81 @@ class BJActivity : Activity() {
                 interpolationType = InterpolationType.HERMITE
             )
         )
+        waveManager.addWave(positionWave)
         waveManager.addWave(bidirectional)
         waveManager.addWave(unidirectional)
-        nextStage()
+        manager.register(waveManager)
+        manager.register(speedChangeTimer)
+        manager.register(primaryStageTimer)
+        manager.register(secondaryStageTimer)
+        speedChangeTimer.start()
+        setStage(_currentStage.value)
     }
 
     fun speedChange() {
+        if (_currentStage.value == BJStage.FullLick || _currentStage.value == BJStage.TipLick)
+            return
         val newSpeed = randomInRange(BJSpeedRange)
         val changeRate = randomInRange(BJSpeedChangeRateRange)
         waveManager.setTargetSpeed(newSpeed, changeRate)
-        val nextSpeedChangeSecs = randomInRange(BJSpeedChangeSecsRange)
-        timerManager.addTimer("speedChange", nextSpeedChangeSecs) {
-            speedChange()
+    }
+
+    fun setStage(stage: BJStage, manual: Boolean = false) {
+        _currentStage.value = stage
+        waveManager.restart()
+        when(_currentStage.value) {
+            BJStage.FullLick -> {
+                waveManager.setSpeedJitter(0.4)
+                waveManager.setAmplitudeJitter(0.15)
+                if(!manual)
+                    waveManager.setSpeed(randomInRange(fullLickSpeedRange))
+            }
+            BJStage.TipLick -> {
+                waveManager.setSpeedJitter(0.4)
+                waveManager.setAmplitudeJitter(0.15)
+                if(!manual)
+                    waveManager.setSpeed(randomInRange(tipLickSpeedRange))
+            }
+            BJStage.Suck -> {
+                waveManager.setSpeedJitter(0.2)
+                waveManager.setAmplitudeJitter(0.1)
+                if(!manual)
+                    waveManager.setSpeed(randomInRange(BJSpeedRange))
+            }
+            BJStage.Deepthroat -> {
+                waveManager.setSpeedJitter(0.2)
+                waveManager.setAmplitudeJitter(0.1)
+                if(!manual)
+                    waveManager.setSpeed(randomInRange(BJSpeedRange))
+            }
+        }
+
+        if (!manual) {
+            waveManager.baseSpeed.rate = randomInRange(BJSpeedChangeRateRange)
+
+            when(_currentStage.value) {
+                BJStage.Deepthroat, BJStage.Suck -> primaryStageTimer.reset()
+                BJStage.FullLick, BJStage.TipLick -> secondaryStageTimer.reset()
+            }
         }
     }
 
     fun nextStage() {
-        var stageDuration = 1.0
-
-        val previousStage = currentStage
-        while(previousStage == currentStage)
-            currentStage = BJStage.entries.random()
-
-        stageDuration = when(currentStage) {
-            BJStage.FullLick -> randomInRange(secondaryDurationRange)
-            BJStage.TipLick -> randomInRange(secondaryDurationRange)
-            BJStage.Suck -> randomInRange(primaryDurationRange)
-            BJStage.Deepthroat -> randomInRange(primaryDurationRange)
-        }
-
-        waveManager.restart()
-        when(currentStage) {
-            BJStage.FullLick -> {
-                waveManager.setSpeedJitter(0.4)
-                waveManager.setAmplitudeJitter(0.3)
-                waveManager.setAmplitudeJitterEaseIn(0.0)
-                waveManager.setSpeed(randomInRange(fullLickSpeedRange))
-                timerManager.cancelTimer("speedChange")
-            }
-            BJStage.TipLick -> {
-                waveManager.setSpeedJitter(0.4)
-                waveManager.setAmplitudeJitter(0.3)
-                waveManager.setAmplitudeJitterEaseIn(0.0)
-                waveManager.setSpeed(randomInRange(tipLickSpeedRange))
-                timerManager.cancelTimer("speedChange")
-            }
-            BJStage.Suck -> {
-                waveManager.setSpeedJitter(0.2)
-                waveManager.setAmplitudeJitter(0.2)
-                waveManager.setAmplitudeJitterEaseIn(0.0)
-                waveManager.setSpeed(randomInRange(BJSpeedRange))
-                speedChange()
-            }
-            BJStage.Deepthroat -> {
-                waveManager.setSpeedJitter(0.2)
-                waveManager.setAmplitudeJitter(0.2)
-                waveManager.setAmplitudeJitterEaseIn(0.0)
-                waveManager.setSpeed(randomInRange(BJSpeedRange))
-                speedChange()
-            }
-        }
-
-        timerManager.addTimer("nextStage", stageDuration) {
-            waveManager.stopAtEndOfCycle { nextStage() }
-        }
+        val nextStage = BJStage.entries.filter { it != currentStage.value }.random()
+        setStage(nextStage, manual = false)
     }
 
-    override fun runSimulation(deltaSimulationTime: Double) {
-        super.runSimulation(deltaSimulationTime)
-        waveManager.update(deltaSimulationTime)
+    private fun setManual(manual: Boolean) {
+        _manual.value = manual
+        if(manual) {
+            speedChangeTimer.pause()
+            primaryStageTimer.cancel()
+            secondaryStageTimer.cancel()
+        }
+        else {
+            speedChangeTimer.resume()
+            nextStage()
+        }
     }
 
     override fun getPulse(): Pulse {
@@ -1401,7 +1419,7 @@ class BJActivity : Activity() {
         var freqA = 0.0
         var freqB = 0.0
 
-        when(currentStage) {
+        when(_currentStage.value) {
             BJStage.FullLick -> {
                 val (position, velocity) = waveManager.getPositionAndVelocity("unidirectional")
                 val scaledVelocity = scaleVelocity(velocity, 0.1)
@@ -1430,8 +1448,8 @@ class BJActivity : Activity() {
                 ampA = amplitudes.first
                 ampB = amplitudes.second
 
-                freqA = suckFrequencyConverterA.getFrequency(position)
-                freqB = suckFrequencyConverterB.getFrequency(position)
+                freqA = lerp(0.7, 0.3, smoothstep(position))
+                freqB = lerp(0.9, 0.3, smoothstep(position))
             }
             BJStage.Deepthroat -> {
                 val position = waveManager.getPosition("position")
@@ -1441,7 +1459,7 @@ class BJActivity : Activity() {
                 ampB = amplitudes.second
 
                 freqA = position
-                freqB = deepthroatFrequencyConverter.getFrequency(position)
+                freqB = deepthroatFrequencyConverter.getPosition(position)
             }
         }
 
@@ -1451,6 +1469,66 @@ class BJActivity : Activity() {
             ampA = ampA.toFloat(),
             ampB = ampB.toFloat()
         )
+    }
+
+    override val temporarySettings: @Composable () -> Unit = {
+        val currentStage by currentStage.collectAsStateWithLifecycle()
+        val manual by manual.collectAsStateWithLifecycle()
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                //horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                )
+                {
+                    Text(
+                        text = "Manual control",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Switch(
+                        checked = manual,
+                        onCheckedChange = { enable ->
+                            setManual(enable)
+                        }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Stage", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = currentStage,
+                        onValueChange = {
+                            setStage(it, manual = true)
+                        },
+                        options = BJStage.entries,
+                        getText = { it.displayName },
+                        enabled = manual
+                    )
+                }
+                NiceSmootherControl(
+                    smoother = waveManager.baseSpeed,
+                    targetLabel = "Target speed",
+                    targetRange = 0.1f..3.0f,
+                    rateRange = 0.03f..0.3f,
+                    enabled = manual
+                )
+            }
+        }
     }
 }
 
@@ -1683,7 +1761,7 @@ class SimplexActivity : Activity() {
 
     override val permanentSettings: @Composable () -> Unit = {
         val preset by Prefs.activitySimplexPreset.collectAsStateWithLifecycle()
-        
+
         // 转换枚举值为字符串
         val presetTexts = SimplexPreset.entries.associateWith { stringResource(it.displayNameResId) }
 
@@ -2060,5 +2138,173 @@ class SuccubusActivity : Activity() {
             ampA = ampA.toFloat(),
             ampB = ampB.toFloat()
         )
+    }
+}
+
+class SineTimeActivity : Activity() {
+    private val _sineSpeed = MutableStateFlow(0.2)
+    val sineSpeed: StateFlow<Double> = _sineSpeed.asStateFlow()
+
+    private val _freqChange = MutableStateFlow(0.0)
+    val freqChange: StateFlow<Double> = _freqChange.asStateFlow()
+
+    private val _manual = MutableStateFlow(false)
+    val manual: StateFlow<Boolean> = _manual.asStateFlow()
+
+    val sineMag = NiceSmoother(0.2, 0.0..1.0)
+    val offset = NiceSmoother(0.0, -PI..PI)
+
+    var sinePhase = 0.0
+    val sineMagRange = 0.1..0.3
+    val sineSpeedRange = 0.4..0.88
+    val freqRange = 0.5..0.75
+    val freqShiftRange = -0.25..0.25
+    val ampRange = 0.8..1.0
+    val fadeTime = 0.5
+
+    var freqA = randomInRange(freqRange)
+    var freqB = randomInRange(freqRange)
+    var amp = randomInRange(ampRange)
+
+    val patternTimer = Timer(
+        durationProvider = { randomInRange(8.0..15.0) },
+        repeating = false,
+        onTrigger = { breakTimer.reset() }
+    )
+    val breakTimer = Timer(
+        durationProvider = { randomInRange(0.8..5.0, 2.5) },
+        repeating = false,
+        onTrigger = { nextIteration() }
+    )
+
+    override fun initialise() {
+        manager.register(patternTimer)
+        manager.register(breakTimer)
+        manager.register(offset)
+        manager.register(sineMag)
+        nextIteration()
+    }
+
+    fun nextIteration() {
+        if (!manual.value) {
+            sineMag.setImmediately(randomInRange(sineMagRange))
+            _sineSpeed.value = randomInRange(sineSpeedRange)
+            _freqChange.value = randomInRange(freqShiftRange)
+            offset.setImmediately(randomInRange(-PI..PI))
+        }
+        freqA = randomInRange(freqRange)
+        freqB = randomInRange(freqRange)
+        amp = randomInRange(ampRange)
+        patternTimer.reset()
+    }
+
+    private fun setManual(manual: Boolean) {
+        _manual.value = manual
+    }
+
+    override fun runSimulation(deltaSimulationTime: Double) {
+        super.runSimulation(deltaSimulationTime)
+
+        sinePhase += 2.0 * Math.PI * _sineSpeed.value * deltaSimulationTime
+        sinePhase %= 2.0 * Math.PI
+    }
+
+    override fun getPulse(): Pulse {
+        if (breakTimer.isRunning) {
+            return Pulse()
+        }
+        val fadeIn = (patternTimer.elapsedTime / fadeTime).coerceIn(0.0, 1.0)
+        val fadeOut = (patternTimer.remainingTime / fadeTime).coerceIn(0.0, 1.0)
+        val fadeMultiplier = minOf(fadeIn, fadeOut)
+        val baseAmp = 1.0 - sineMag.value
+        val amp = sqrt(1.0 - (sineMagRange.endInclusive - sineMag.value).coerceAtLeast(0.0))
+        val phaseA = sin(sinePhase)
+        val phaseB = sin(sinePhase + offset.value)
+        val ampModA = sineMag.value * phaseA
+        val ampModB = sineMag.value * phaseB
+        val ampA = ((baseAmp + ampModA) * fadeMultiplier * amp).coerceIn(0.0..1.0)
+        val ampB = ((baseAmp + ampModB) * fadeMultiplier * amp).coerceIn(0.0..1.0)
+        val frequencyA = (freqA + _freqChange.value * phaseA).coerceIn(0.0..1.0)
+        val frequencyB = (freqB + _freqChange.value * phaseB).coerceIn(0.0..1.0)
+
+        return Pulse(
+            freqA = frequencyA.toFloat(),
+            freqB = frequencyB.toFloat(),
+            ampA = ampA.toFloat(),
+            ampB = ampB.toFloat()
+        )
+    }
+
+    override val temporarySettings: @Composable () -> Unit = {
+        val manual by manual.collectAsStateWithLifecycle()
+        val sineSpeed by sineSpeed.collectAsStateWithLifecycle()
+        val freqChange by freqChange.collectAsStateWithLifecycle()
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                )
+                {
+                    Text(
+                        text = "Manual control",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Switch(
+                        checked = manual,
+                        onCheckedChange = { enable ->
+                            setManual(enable)
+                        }
+                    )
+                }
+                NiceSmootherControl(
+                    smoother = sineMag,
+                    targetLabel = "Sine magnitude",
+                    targetRange = 0.0f..0.4f,
+                    targetSteps = 39,
+                    adjustableRate = false,
+                    enabled = manual
+                )
+                SliderWithLabel(
+                    label = "Sine speed",
+                    value = sineSpeed.toFloat(),
+                    onValueChange = { _sineSpeed.value = it.toDouble() },
+                    onValueChangeFinished = { },
+                    valueRange = 0.2f..1.0f,
+                    steps = 79,
+                    enabled = manual,
+                    valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+                )
+                NiceSmootherControl(
+                    smoother = offset,
+                    targetLabel = "Sine offset",
+                    targetRange = (-PI..PI).toFloatRange,
+                    targetSteps = 39,
+                    adjustableRate = false,
+                    enabled = manual
+                )
+                SliderWithLabel(
+                    label = "Frequency change",
+                    value = freqChange.toFloat(),
+                    onValueChange = { _freqChange.value = it.toDouble() },
+                    onValueChangeFinished = { },
+                    valueRange = freqShiftRange.toFloatRange,
+                    steps = 49,
+                    enabled = manual,
+                    valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+                )
+            }
+        }
     }
 }
