@@ -1454,10 +1454,16 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                                 .fillMaxWidth()
                                 .then(
                                     if (isPlaying) {
-                                        Modifier.background(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = MaterialTheme.shapes.small
-                                        )
+                                        Modifier
+                                            .background(
+                                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                                shape = MaterialTheme.shapes.small
+                                            )
+                                            .border(
+                                                width = 2.dp,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                shape = MaterialTheme.shapes.small
+                                            )
                                     } else {
                                         Modifier
                                     }
