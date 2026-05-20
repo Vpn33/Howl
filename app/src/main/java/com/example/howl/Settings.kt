@@ -1,10 +1,10 @@
 package com.example.howl
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.layout.Arrangement
-import android.Manifest
 import android.os.Build
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -33,9 +33,6 @@ import com.example.howl.ui.theme.HowlTheme
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.roundToInt
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.OutlinedTextField
-import java.util.Locale
 
 fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
     return this.first.toFloat()..this.last.toFloat()
@@ -121,14 +118,18 @@ fun OutputSettingsPanel(
     val outputAudioWaveletFade by Prefs.outputAudioWaveletFade.collectAsStateWithLifecycle()
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
         Text(text = stringResource(R.string.settings_version, howlVersion), style = MaterialTheme.typography.labelLarge)
     }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
@@ -150,7 +151,9 @@ fun OutputSettingsPanel(
 
     if(outputType == OutputType.AUDIO_WAVELET) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -239,7 +242,9 @@ fun OutputSettingsPanel(
 
     if(outputType == OutputType.AUDIO_CONTINUOUS) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -291,7 +296,9 @@ fun OutputSettingsPanel(
 
     if(outputType == OutputType.COYOTE3) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -402,7 +409,9 @@ fun PowerSettingsPanel(
     val powerRampCycleModeB by Prefs.powerRampCycleModeB.collectAsStateWithLifecycle()
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
@@ -1765,14 +1774,16 @@ fun CalibrationSettingsPanel(
     val frequencyBalanceB by Prefs.calibrationFrequencyBalanceB.collectAsStateWithLifecycle()
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Text(text = "Calibration options", style = MaterialTheme.typography.headlineSmall)
+        Text(text = stringResource(R.string.calibration_options), style = MaterialTheme.typography.headlineSmall)
     }
     SliderWithLabel(
-        label = "Power balance",
+        label = stringResource(R.string.cpt_power_balance),
         value = powerBalance,
         onValueChange = { Prefs.calibrationPowerBalance.value = it },
         onValueChangeFinished = { Prefs.calibrationPowerBalance.save() },
@@ -1781,7 +1792,7 @@ fun CalibrationSettingsPanel(
         valueDisplay = { String.format(Locale.US, "%03.2f", it) }
     )
     SliderWithLabel(
-        label = "Frequency balance A",
+        label = stringResource(R.string.cpt_frequency_balance_a),
         value = frequencyBalanceA,
         onValueChange = { Prefs.calibrationFrequencyBalanceA.value = it },
         onValueChangeFinished = { Prefs.calibrationFrequencyBalanceA.save() },
@@ -1790,7 +1801,7 @@ fun CalibrationSettingsPanel(
         valueDisplay = { String.format(Locale.US, "%03.2f", it) }
     )
     SliderWithLabel(
-        label = "Frequency balance B",
+        label = stringResource(R.string.cpt_frequency_balance_b),
         value = frequencyBalanceB,
         onValueChange = { Prefs.calibrationFrequencyBalanceB.value = it },
         onValueChangeFinished = { Prefs.calibrationFrequencyBalanceB.save() },
@@ -1799,7 +1810,7 @@ fun CalibrationSettingsPanel(
         valueDisplay = { String.format(Locale.US, "%03.2f", it) }
     )
     SliderWithLabel(
-        label = "Positional effect curve",
+        label = stringResource(R.string.cpt_positional_effect_curve),
         value = positionalEffectCurve,
         onValueChange = { Prefs.calibrationPositionalEffectCurve.value = it },
         onValueChangeFinished = { Prefs.calibrationPositionalEffectCurve.save() },
@@ -1837,7 +1848,9 @@ fun SettingsPanel(
         CalibrationSettingsPanel(viewModel, modifier)
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -1871,11 +1884,15 @@ fun SettingsPanel(
             },
             label = { Text("Remote access key") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -1900,7 +1917,9 @@ fun SettingsPanel(
 
         // Language settings
         Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {

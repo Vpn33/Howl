@@ -1,7 +1,7 @@
 <resources>
     <!-- App name -->
     <string name="app_name">Howl</string>
-    
+
     <!-- Settings page -->
     <string name="settings_version">Howl version %1$s</string>
     <string name="settings_output_options">Output options</string>
@@ -11,7 +11,7 @@
     <string name="settings_coyote_parameters">Coyote parameters</string>
     <string name="settings_power_options">Power options</string>
     <string name="settings_misc_options">Misc options</string>
-    
+
     <!-- Audio wavelet settings -->
     <string name="settings_carrier_wave_shape">Carrier wave shape</string>
     <string name="settings_carrier_wave_frequency">Carrier wave frequency (Hz)</string>
@@ -19,18 +19,18 @@
     <string name="settings_wavelet_fade">Wavelet fade in/out proportion</string>
     <string name="settings_carrier_phase">Carrier phase on each channel</string>
     <string name="settings_estimated_duty_cycle">Estimated duty cycle at 100Hz: %1$d%%</string>
-    
+
     <!-- Audio continuous settings -->
     <string name="settings_wave_shape">Wave shape</string>
     <string name="settings_minimum_frequency">Minimum allowed frequency (Hz)</string>
     <string name="settings_maximum_frequency">Maximum allowed frequency (Hz)</string>
-    
+
     <!-- Coyote parameters -->
     <string name="settings_channel_a_frequency_balance">Channel A Frequency Balance</string>
     <string name="settings_channel_b_frequency_balance">Channel B Frequency Balance</string>
     <string name="settings_channel_a_intensity_balance">Channel A Intensity Balance</string>
     <string name="settings_channel_b_intensity_balance">Channel B Intensity Balance</string>
-    
+
     <!-- Power settings -->
     <string name="settings_channel_a_power_limit">Channel A Power Limit</string>
     <string name="settings_channel_b_power_limit">Channel B Power Limit</string>
@@ -38,7 +38,7 @@
     <string name="settings_power_step_size_b">Power control step size B</string>
     <string name="settings_power_auto_increase_delay_a">Power auto increase delay A (seconds)</string>
     <string name="settings_power_auto_increase_delay_b">Power auto increase delay B (seconds)</string>
-    
+
     <!-- Misc options -->
     <string name="remote_access_options">Remote access options</string>
     <string name="settings_allow_remote_access">Allow remote access (not secured)</string>
@@ -46,18 +46,18 @@
     <string name="settings_show_power_meter">Show animated power meters [*]</string>
     <string name="settings_show_debug_log">Show debug log tab</string>
     <string name="settings_resource_note">Options marked with [*] increase resource usage. Disable to improve performance on low-end devices and reduce energy use.</string>
-    
+
     <!-- Language settings -->
     <string name="select_local_folder">Select Local Folder</string>
     <string name="select_wave">Select Wave</string>
     <string name="stop">Stop</string>
     <string name="start">Start</string>
-    
+
     <!-- Play mode options -->
     <string name="play_mode_list_loop">List Loop</string>
     <string name="play_mode_single_loop">Single Loop</string>
     <string name="play_mode_random">Random</string>
-    
+
     <!-- Play time options -->
     <string name="play_time_5s">5s</string>
     <string name="play_time_10s">10s</string>
@@ -74,19 +74,19 @@
     <string name="output_type">Output type</string>
     <string name="audio_wavelet">Audio (wavelet)</string>
     <string name="carrier_wave_shape">Carrier wave shape</string>
-    
+
     <!-- Tab labels -->
     <string name="tab_player">Player</string>
     <string name="tab_generator">Generator</string>
     <string name="tab_activity">Activity</string>
     <string name="tab_settings">Settings</string>
     <string name="tab_debug">Debug</string>
-    
+
     <!-- Button texts -->
     <string name="button_pause">Pause</string>
     <string name="button_play">Play</string>
     <string name="button_randomise">Randomise</string>
-    
+
     <!-- Activity related -->
     <string name="activity_change_probability">Random activity change probability</string>
     <string name="activity_vibration">Vibration</string>
@@ -113,27 +113,27 @@
     <string name="activity_bonus_pattern_probability">Bonus pattern probability</string>
     <string name="activity_amplitude_jitter">Amplitude jitter</string>
     <string name="activity_timing_jitter">Timing jitter</string>
-    
+
     <!-- Lick type options -->
     <string name="lick_type_unidirectional">Unidirectional</string>
     <string name="lick_type_bidirectional">Bidirectional</string>
-    
+
     <!-- Amp type options -->
     <string name="amp_type_consistent">Consistent</string>
     <string name="amp_type_lick">Lick</string>
     <string name="amp_type_dip">Dip</string>
     <string name="amp_type_ramp">Ramp</string>
     <string name="amp_type_flicks">Flicks</string>
-    
+
     <!-- Simplex preset options -->
     <string name="simplex_preset_standard">Standard</string>
     <string name="simplex_preset_pro">Pro</string>
     <string name="simplex_preset_turbo">Turbo</string>
     <string name="simplex_preset">Preset</string>
-    
+
     <!-- Player related -->
     <string name="amplitude_exponent">Amplitude exponent</string>
-    
+
     <!-- Generator related -->
     <string name="generator_speed_change_probability">Speed change probability</string>
     <string name="generator_amplitude_change_probability">Amplitude change probability</string>
@@ -149,12 +149,12 @@
     <string name="generator_category_power">Power</string>
     <string name="generator_category_freq_shape">Freq shape</string>
     <string name="generator_category_freq">Freq</string>
-    
+
     <!-- Debug related -->
     <string name="debug_copy_log">Copy Log</string>
     <string name="debug_clear_log">Clear Log</string>
     <string name="debug_logs_copied">Logs copied to clipboard</string>
-    
+
     <!-- Additional activity names -->
     <string name="activity_infinite_licks">Infinite licks</string>
     <string name="activity_penetration">Penetration</string>
@@ -163,8 +163,9 @@
     <string name="activity_chaos">Chaos</string>
     <string name="activity_luxury_hj">Luxury HJ</string>
     <string name="activity_opposites">Opposites</string>
-    <string name="activity_calibration_1">Calibration 1</string>
-    <string name="activity_calibration_2">Calibration 2</string>
+    <string name="activity_calibrate_power">Calibrate power</string>
+    <string name="activity_calibrate_freq">Calibrate freq</string>
+    <string name="activity_calibrate_position">Calibrate position</string>
     <string name="activity_bj_megamix">BJ megamix</string>
     <string name="activity_fast_slow">Fast/slow</string>
     <string name="activity_additive">Additive</string>
@@ -188,7 +189,19 @@
     <string name="generator_freq_shape">Freq shape</string>
     <string name="generator_start_frequency">Start frequency</string>
     <string name="generator_end_frequency">End frequency</string>
-    
+    <string name="activity_power_calibration">Power calibration</string>
+    <string name="activity_power_calibration_tips">Use the main power controls to set both channels to the same numbered power level (e.g. both 20). Then use the slider below to adjust the balance until the sensation you feel on both channels is equal.\n</string>
+    <string name="activity_power_calibration_power_balance">Power balance</string>
+    <string name="activity_frequency_calibration">Frequency calibration</string>
+    <string name="activity_frequency_tips_adjust">Adjust the sliders to change the frequency balance on each channel. For example you can make the lowest and highest frequencies feel equally powerful.</string>
+    <string name="activity_frequency_tips_there">There\'s an element of personal preference to this adjustment - you might enjoy a different setting that is not perfectly balanced.</string>
+    <string name="activity_frequency_tips_this">This calibration is frequency range dependent. Using a different main frequency range to what you calibrated with will cause the balance to shift.</string>
+    <string name="activity_positional_calibration">Positional calibration</string>
+    <string name="activity_positional_tips">Important: Both channels must have equal feeling power levels (do the power calibration first).</string>
+    <string name="activity_positional_desc">Howl uses positional effects whenever you play funscript files, and in several activities. Adjust the slider so that you feel the slow strokes evenly at all times. If the middle of the stroke feels weaker than the top and bottom, reduce the slider. If the middle feels stronger than the top and bottom, increase the slider.</string>
+    <string name="activity_manual_settings">Manual settings</string>
+    <string name="activity_manual_touchpad_center_rate">Touchpad center rate</string>
+    <string name="activity_manual_smoothing">Smoothing</string>
 
     <string name="wave_shape_sawtooth">Sawtooth</string>
     <string name="wave_shape_triangle">Triangle</string>
@@ -208,7 +221,7 @@
     <string name="wave_shape_double_time">Double time</string>
     <string name="wave_shape_triple_trouble">Triple trouble</string>
     <string name="wave_shape_steps">Steps</string>
-    
+
     <!-- Wave shape display names -->
     <string name="wave_shape_sine">Sine</string>
 
@@ -242,7 +255,7 @@
     <string name="frequency_algorithm_position">Position</string>
     <string name="frequency_algorithm_varied">Varied</string>
     <string name="frequency_algorithm_fixed">Fixed</string>
-    
+
     <!-- Special Effects -->
     <string name="special_effects">Special effects</string>
     <string name="apply_special_effects">Apply special effects</string>
@@ -253,12 +266,12 @@
     <string name="amplitude_feel_channel_a">Amplitude feel (channel A)</string>
     <string name="amplitude_feel_channel_b">Amplitude feel (channel B)</string>
     <string name="frequency_feel_adjustment">Frequency feel adjustment</string>
-    
+
     <!-- Developer Options -->
     <string name="developer_options">Developer options</string>
     <string name="frequency_exponent">Frequency exponent</string>
     <string name="frequency_gain">Frequency gain</string>
-    
+
     <!-- Special Effects -->
     <string name="frequency_adjustments">Frequency adjustments</string>
     <string name="frequency_feel_channel_a">Frequency feel (channel A)</string>
@@ -270,7 +283,7 @@
     <string name="random_amplitude_noise_speed">Random amplitude noise (speed)</string>
     <string name="random_frequency_noise_amount">Random frequency noise (amount)</string>
     <string name="random_frequency_noise_speed">Random frequency noise (speed)</string>
-    
+
     <!-- Accessibility -->
     <string name="content_description_open_file">Open file</string>
     <string name="content_description_special_effects">Special effects</string>
@@ -278,12 +291,12 @@
     <string name="channel_a_frequency_adjust">Channel A frequency adjust</string>
     <string name="channel_b_frequency_adjust">Channel B frequency adjust</string>
     <string name="amplitude_gain">Amplitude gain</string>
-    
+
     <!-- Main Options -->
     <string name="auto_increase_power">Auto increase power</string>
     <string name="pulse_chart">Pulse chart</string>
     <string name="swap_channels">Swap channels</string>
-    
+
     <!-- Output Audio -->
     <string name="error_timed_out_waiting_for_audio_track_to_stop">Timed out waiting for AudioTrack to stop</string>
     <string name="error_failed_to_initialise_audio_track">Failed to initialise audio track, state: %1$d</string>
@@ -294,7 +307,7 @@
     <string name="activity_output">Activity output</string>
     <string name="activity">Activity</string>
     <string name="available_for_random_select">Available for random select</string>
-    
+
     <!-- BJActivity stages -->
     <string name="bj_stage">Stage</string>
     <string name="bj_target_speed">Target speed</string>
@@ -302,11 +315,18 @@
     <string name="bj_stage_tip_lick">Tip licks</string>
     <string name="bj_stage_suck">Suck</string>
     <string name="bj_stage_deepthroat">Deepthroat</string>
-    
+
     <!-- SineTimeActivity settings -->
     <string name="sine_time_manual_control">Manual control</string>
     <string name="sine_time_sine_magnitude">Sine magnitude</string>
     <string name="sine_time_sine_speed">Sine speed</string>
     <string name="sine_time_sine_offset">Sine offset</string>
     <string name="sine_time_frequency_change">Frequency change</string>
+
+    <!-- Calibration options settings -->
+    <string name="calibration_options">Calibration options</string>
+    <string name="cpt_power_balance">Power balance</string>
+    <string name="cpt_frequency_balance_a">Frequency balance A</string>
+    <string name="cpt_frequency_balance_b">Frequency balance B</string>
+    <string name="cpt_positional_effect_curve">Positional effect curve</string>
 </resources>

@@ -1,6 +1,5 @@
 package com.example.howl
 
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,27 +36,64 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-enum class ActivityType(val displayName: String, val iconResId: Int) {
-    LICKS("Infinite licks", R.drawable.grin_tongue) { override fun create() = LickActivity() },
-    PENETRATION("Penetration", R.drawable.rocket) { override fun create() = PenetrationActivity() },
-    VIBRATOR("Sliding vibrator", R.drawable.vibration) { override fun create() = VibroActivity() },
-    MILKMASTER("Milkmaster 3000", R.drawable.cow) { override fun create() = MilkerActivity() },
-    CHAOS("Chaos", R.drawable.chaos) { override fun create() = ChaosActivity() },
-    HJ("Luxury HJ", R.drawable.hand) { override fun create() = LuxuryHJActivity() },
-    OPPOSITES("Opposites", R.drawable.yin_yang) { override fun create() = OppositesActivity() },
-    CALIBRATION1("Calibration 1", R.drawable.swapvert) { override fun create() =
-        Calibration1Activity() },
-    CALIBRATION2("Calibration 2", R.drawable.calibration) { override fun create() =
-        Calibration2Activity() },
-    BJ("BJ Megamix", R.drawable.lips) { override fun create() = BJActivity() },
-    FASTSLOW("Fast/slow", R.drawable.speed) { override fun create() =
-        FastSlowActivity() },
-    SIMPLEX("Simplex", R.drawable.wave_triangle) { override fun create() = SimplexActivity() },
-    RELENTLESS("Relentless", R.drawable.hammer) { override fun create() = RelentlessActivity() },
-    OVERFLOWING("Overflowing", R.drawable.water_drop) { override fun create() =
-        OverflowingActivity() },
-    SUCCUBUS("Succubus", R.drawable.succubus) { override fun create() = SuccubusActivity() },
-    SINETIME("Sine time", R.drawable.wave) { override fun create() = SineTimeActivity() };
+enum class ActivityType(val displayNameResId: Int, val iconResId: Int) {
+    LICKS(R.string.activity_infinite_licks, R.drawable.grin_tongue) {
+        override fun create() = LickActivity()
+    },
+    PENETRATION(R.string.activity_penetration, R.drawable.rocket) {
+        override fun create() = PenetrationActivity()
+    },
+    VIBRATOR(R.string.activity_sliding_vibrator, R.drawable.vibration) {
+        override fun create() = VibroActivity()
+    },
+    MILKMASTER(R.string.activity_milkmaster, R.drawable.cow) {
+        override fun create() = MilkerActivity()
+    },
+    CHAOS(R.string.activity_chaos, R.drawable.chaos) {
+        override fun create() = ChaosActivity()
+    },
+    HJ(R.string.activity_luxury_hj, R.drawable.hand) {
+        override fun create() = LuxuryHJActivity()
+    },
+    OPPOSITES(R.string.activity_opposites, R.drawable.yin_yang) {
+        override fun create() = OppositesActivity()
+    },
+    CALIBRATE_POWER(R.string.activity_calibrate_power, R.drawable.plug) {
+        override fun create() =
+            PowerCalibrationActivity()
+    },
+    CALIBRATE_FREQ(R.string.activity_calibrate_freq, R.drawable.calibration) {
+        override fun create() =
+            FrequencyCalibrationActivity()
+    },
+    CALIBRATE_POSITION(R.string.activity_calibrate_position, R.drawable.swapvert) {
+        override fun create() =
+            PositionalCalibrationActivity()
+    },
+    BJMEGAMIX(R.string.activity_bj_megamix, R.drawable.lips) {
+        override fun create() =
+            BJActivity()
+    },
+    FASTSLOW(R.string.activity_fast_slow, R.drawable.speed) {
+        override fun create() =
+            FastSlowActivity()
+    },
+    SIMPLEX(R.string.activity_simplex, R.drawable.wave_triangle) {
+        override fun create() = SimplexActivity()
+    },
+    RELENTLESS(R.string.activity_relentless, R.drawable.hammer) {
+        override fun create() = RelentlessActivity()
+    },
+    OVERFLOWING(R.string.activity_overflowing, R.drawable.water_drop) {
+        override fun create() =
+            OverflowingActivity()
+    },
+    SUCCUBUS(R.string.activity_succubus, R.drawable.succubus) {
+        override fun create() = SuccubusActivity()
+    },
+    SINETIME(R.string.activity_succubus, R.drawable.wave) {
+        override fun create() = SineTimeActivity()
+    };
 
     abstract fun create(): Activity
 
@@ -65,6 +101,8 @@ enum class ActivityType(val displayName: String, val iconResId: Int) {
     fun getDisplayName(): String {
         return stringResource(displayNameResId)
     }
+
+    fun isCalibration() = name.startsWith("CALIBRATION")
 
     companion object {
         private val displayNames = mutableMapOf<ActivityType, String>()
@@ -134,7 +172,7 @@ object ActivityHost : PulseSource {
     }
 
     private fun switchActivity(type: ActivityType): ActivityState {
-        _displayName.value = "Activity (${type.displayName})"
+        _displayName.value = "Activity"
         lastSimulationTime = -1.0
         lastUpdateTime = -1.0
 
@@ -147,7 +185,7 @@ object ActivityHost : PulseSource {
     }
 
     fun randomActivityType(avoid: ActivityType? = null): ActivityType {
-        val excluded = Prefs.activityExcludedFromRandom.value
+        val excluded = Prefs.activityExcludedFromRandom.value.toSet()
         val candidates = ActivityType.entries.filter {
             it !in excluded && it != avoid
         }
@@ -205,7 +243,7 @@ fun ActivityHostPanel(
     val playerState by Player.playerState.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == ActivityHost
     val excludedColor = MaterialTheme.colorScheme.error
-    val isCalibration = currentType.displayName.contains("Calibrate")
+    val isCalibration = currentType.isCalibration()
 
     Column(
         modifier = modifier
@@ -237,7 +275,7 @@ fun ActivityHostPanel(
                         currentValue = currentType,
                         onValueChange = { viewModel.setCurrentActivity(it) },
                         options = ActivityType.entries,
-                        getText = { context.getString(it.displayNameResId) },
+                        getText = { stringResource(it.displayNameResId) },
                         getIcon = { it.iconResId },
                         textColor = {
                             if (it in excludedActivities) excludedColor else Color.Unspecified
@@ -306,7 +344,7 @@ fun ActivityHostPanel(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 //horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if(!isCalibration) {
+                if (!isCalibration) {
                     // Title
                     Text(
                         text = "${stringResource(currentType.displayNameResId)} settings",
@@ -320,7 +358,7 @@ fun ActivityHostPanel(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Available for random select")
+                        Text(stringResource(R.string.available_for_random_select))
                         Switch(
                             checked = !isExcluded,
                             onCheckedChange = { viewModel.toggleExclusion(currentType) }

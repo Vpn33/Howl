@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 data class MainOptionsState(
     val channelAPower: Int = 0,
@@ -246,8 +247,7 @@ object MainOptions {
                         // 随机时间
                         val minTime = Prefs.powerRampPeakTimeRandomMinA.value
                         val maxTime = Prefs.powerRampPeakTimeRandomMaxA.value
-                        val randomTime =
-                            (minTime + Math.random() * (maxTime - minTime)).toLong()
+                        val randomTime = (minTime .. maxTime).random().toLong()
                         powerRampCurrentPeakTimeA = randomTime * 1000
                     }
 
@@ -255,8 +255,7 @@ object MainOptions {
                     if (Prefs.powerRampSpeedModeA.value == "RANDOM") {
                         val minSpeed = Prefs.powerRampSpeedRandomMinA.value
                         val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
-                        powerRampIntervalTimeA =
-                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                        powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                     } else {
                         // 爬坡触发时间 固定
                         powerRampIntervalTimeA = Prefs.powerRampSpeedA.value
@@ -285,8 +284,7 @@ object MainOptions {
                             // 随机时间
                             val minTime = Prefs.powerRampPeakTimeRandomMinA.value
                             val maxTime = Prefs.powerRampPeakTimeRandomMaxA.value
-                            val randomTime =
-                                (minTime + Math.random() * (maxTime - minTime)).toLong()
+                            val randomTime = (minTime .. maxTime).random().toLong()
                             powerRampCurrentPeakTimeB = randomTime * 1000
                         }
 
@@ -294,8 +292,7 @@ object MainOptions {
                         if (Prefs.powerRampSpeedModeA.value == "RANDOM") {
                             val minSpeed = Prefs.powerRampSpeedRandomMinA.value
                             val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
-                            powerRampIntervalTimeA =
-                                (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                            powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                         } else {
                             // 爬坡触发时间 固定
                             powerRampIntervalTimeA = Prefs.powerRampSpeedA.value
@@ -337,8 +334,7 @@ object MainOptions {
                     if (Prefs.powerRampSpeedModeB.value == "RANDOM") {
                         val minSpeed = Prefs.powerRampSpeedRandomMinB.value
                         val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
-                        powerRampIntervalTimeB =
-                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                        powerRampIntervalTimeB = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                     } else {
                         // 爬坡触发时间 固定
                         powerRampIntervalTimeB = Prefs.powerRampSpeedB.value
@@ -371,8 +367,7 @@ object MainOptions {
                     if (Prefs.powerRampSpeedIntervalModeA.value == "EVERY" && Prefs.powerRampSpeedModeA.value == "RANDOM") {
                         val minSpeed = Prefs.powerRampSpeedRandomMinA.value
                         val maxSpeed = Prefs.powerRampSpeedRandomMaxA.value
-                        powerRampIntervalTimeA =
-                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                        powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                         HLog.d("Power Ramp", "EVERY RANDOM SpeedA:${powerRampIntervalTimeA}")
                     }
                 }
@@ -382,8 +377,7 @@ object MainOptions {
                     if (Prefs.powerRampSpeedIntervalModeB.value == "EVERY" && Prefs.powerRampSpeedModeB.value == "RANDOM") {
                         val minSpeed = Prefs.powerRampSpeedRandomMinB.value
                         val maxSpeed = Prefs.powerRampSpeedRandomMaxB.value
-                        powerRampIntervalTimeB =
-                            (minSpeed + Math.random() * (maxSpeed - minSpeed)).toFloat()
+                        powerRampIntervalTimeB = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                         HLog.d("Power Ramp", "SpeedB:${powerRampIntervalTimeB}")
                     }
                 }
@@ -430,7 +424,7 @@ object MainOptions {
                         } else {
                             if (cycleMode == "LOOP" || repeatComplete) {
                                 // 如果有坡底随机时间的话 要重置成变化前的记录值
-                                if (powerRampNadirRecordA != 0 || powerRampNadirRecordB != 0) {
+                                if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
                                     setChannelPower(0, powerRampRecordA - powerRampNadirRecordA)
                                     setChannelPower(1, powerRampRecordB - powerRampNadirRecordB)
                                 } else {
@@ -441,9 +435,10 @@ object MainOptions {
                                 if (Prefs.powerRampNadirChangeModeA.value == "RANDOM") {
                                     val minNadir = Prefs.powerRampNadirIntensityARangeStart.value
                                     val maxNadir = Prefs.powerRampNadirIntensityARangeEnd.value
-                                    val randomNadir = Math.random() * (maxNadir - minNadir)
-                                    powerRampNadirRecordA = randomNadir.toInt()
-                                    powerRampNadirRecordB = randomNadir.toInt()
+
+                                    val randomNadir = (minNadir..maxNadir).random()
+                                    powerRampNadirRecordA = randomNadir
+                                    powerRampNadirRecordB = randomNadir
                                 }
                                 powerRampTallyA++
                                 powerRampTallyB++
@@ -505,8 +500,7 @@ object MainOptions {
                                     if (Prefs.powerRampNadirChangeModeA.value == "RANDOM") {
                                         val minNadir = Prefs.powerRampNadirIntensityARangeStart.value
                                         val maxNadir = Prefs.powerRampNadirIntensityARangeEnd.value
-                                        val randomNadir = Math.random() * (maxNadir - minNadir)
-                                        powerRampNadirRecordA = randomNadir.toInt()
+                                        powerRampNadirRecordA = (minNadir..maxNadir).random()
                                     }
                                     powerRampTallyA++
                                     HLog.d(
@@ -560,8 +554,7 @@ object MainOptions {
                                     if (Prefs.powerRampNadirChangeModeB.value == "RANDOM") {
                                         val minNadir = Prefs.powerRampNadirIntensityBRangeStart.value
                                         val maxNadir = Prefs.powerRampNadirIntensityBRangeEnd.value
-                                        val randomNadir = Math.random() * (maxNadir - minNadir)
-                                        powerRampNadirRecordB = randomNadir.toInt()
+                                        powerRampNadirRecordB = (minNadir..maxNadir).random()
                                     }
                                     HLog.d(
                                         "Power Ramp",

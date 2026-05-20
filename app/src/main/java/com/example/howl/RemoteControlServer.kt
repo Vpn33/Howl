@@ -1,5 +1,6 @@
 package com.example.howl
 
+import androidx.compose.runtime.Composable
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -408,7 +409,7 @@ class RequestHandler {
     private suspend fun handleAvailableActivities(): HandlerResult {
         HLog.i("RequestHandler", "Handling command available_activities")
         val activities = ActivityType.entries.map { type ->
-            ActivityInfo(name = type.name, display_name = type.displayName)
+            ActivityInfo(name = type.name, display_name = ActivityType.getDisplayName(type))
         }.sortedBy { it.display_name.lowercase() }
 
         return HandlerResult(HttpStatusCode.OK, AvailableActivitiesResponse(activities))

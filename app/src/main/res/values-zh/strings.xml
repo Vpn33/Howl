@@ -165,8 +165,9 @@
     <string name="activity_chaos">混乱</string>
     <string name="activity_luxury_hj">奢华手活</string>
     <string name="activity_opposites">相反</string>
-    <string name="activity_calibration_1">校准 1</string>
-    <string name="activity_calibration_2">校准 2</string>
+    <string name="activity_calibrate_power">校准 电源强度</string>
+    <string name="activity_calibrate_freq">校准 波形频率</string>
+    <string name="activity_calibrate_position">校准 位置</string>
     <string name="activity_bj_megamix">口交混音</string>
     <string name="activity_fast_slow">快/慢</string>
     <string name="activity_additive">叠加</string>
@@ -190,7 +191,20 @@
     <string name="generator_freq_shape">频率波形</string>
     <string name="generator_start_frequency">起始频率</string>
     <string name="generator_end_frequency">结束频率</string>
-    
+    <string name="activity_power_calibration">电源强度校准</string>
+    <string name="activity_power_calibration_tips">使用主功率控制装置，将两个通道设定为相同的功率档位（例如均设为 20）。随后，使用下方的滑块调节平衡，直至两个通道的体感强度一致。\n</string>
+    <string name="activity_power_calibration_power_balance">电源强度平衡</string>
+    <string name="activity_frequency_calibration">频率校准</string>
+    <string name="activity_frequency_tips_adjust">调整滑块以改变各通道的频率平衡。例如，您可以让最低频和最高频感觉同样强劲有力。</string>
+    <string name="activity_frequency_tips_there">这项调整带有个人偏好的成分——你可能会喜欢某种并非完全平衡的设置。</string>
+    <string name="activity_frequency_tips_this">此校准取决于频率范围。若使用与校准时不同的主频率范围，会导致平衡发生偏移。</string>
+    <string name="activity_positional_calibration">位置校准</string>
+    <string name="activity_positional_tips">重要提示：两个通道的功率电平必须相等（请先进行功率校准）。</string>
+    <string name="activity_positional_desc">在播放 Funscript 文件或进行某些特定活动时，Howl 会运用位置反馈效果。请调节滑块，确保在整个往复运动过程中，缓慢的抽插感始终均匀一致。如果感觉行程中段的力度弱于两端，请调低滑块数值；如果感觉中段力度强于两端，则请调高滑块数值。</string>
+    <string name="activity_manual_settings">手动模式设置</string>
+    <string name="activity_manual_touchpad_center_rate">触摸回弹中心速率</string>
+    <string name="activity_manual_smoothing">平滑值</string>
+
     <!-- Player settings -->
     <string name="player_settings">播放器设置</string>
     <string name="playback_speed">播放速度</string>
@@ -310,4 +324,11 @@
     <string name="sine_time_sine_speed">正弦速度</string>
     <string name="sine_time_sine_offset">正弦偏移</string>
     <string name="sine_time_frequency_change">频率变化</string>
+
+    <!-- Calibration options settings -->
+    <string name="calibration_options">校准选项</string>
+    <string name="cpt_power_balance">电源强度平衡</string>
+    <string name="cpt_frequency_balance_a">A通道频率平衡</string>
+    <string name="cpt_frequency_balance_b">B通道频率平衡</string>
+    <string name="cpt_positional_effect_curve">位置效应曲线</string>
 </resources>

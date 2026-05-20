@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -245,10 +246,10 @@ fun ManualSettingsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Manual settings", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.activity_manual_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Touchpad center rate",
+            label = stringResource(R.string.activity_manual_touchpad_center_rate),
             value = centerRate,
             onValueChange = { Prefs.manualTouchpadCenterRate.value = it },
             onValueChangeFinished = { Prefs.manualTouchpadCenterRate.save() },
@@ -258,7 +259,7 @@ fun ManualSettingsPanel(
         )
 
         SliderWithLabel(
-            label = "Smoothing",
+            label = stringResource(R.string.activity_manual_smoothing),
             value = smoothTime,
             onValueChange = { Prefs.manualSmoothdampTime.value = it },
             onValueChangeFinished = { Prefs.manualSmoothdampTime.save() },

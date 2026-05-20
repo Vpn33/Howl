@@ -1,5 +1,6 @@
 package com.example.howl
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,7 +74,7 @@ fun TabLayout(
         }
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
         ScrollableTabRow(
             selectedTabIndex = tabIndex,
             edgePadding = 0.dp,
@@ -108,18 +109,20 @@ fun TabLayout(
         }
         HorizontalDivider(thickness = 1.dp, modifier = Modifier.fillMaxWidth())
 
-        visibleTabs.getOrNull(tabIndex)?.let { currentTab ->
-            when (currentTab) {
-                "Player" -> CombinedPanel(viewModel = playerViewModel)
-                "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
-                "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
-                "Manual" -> ManualPanel(viewModel = manualViewModel)
-                "Wave" -> WavePanel(viewModel = waveViewModel)
-                "Settings" -> SettingsPanel(
-                    viewModel = settingsViewModel,
-                    onRequestPermissions = onRequestPermissions
-                )
-                "Debug" -> LogViewer()
+        Box(modifier = Modifier.weight(1f)) {
+            visibleTabs.getOrNull(tabIndex)?.let { currentTab ->
+                when (currentTab) {
+                    "Player" -> CombinedPanel(viewModel = playerViewModel)
+                    "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
+                    "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
+                    "Manual" -> ManualPanel(viewModel = manualViewModel)
+                    "Wave" -> WavePanel(viewModel = waveViewModel)
+                    "Settings" -> SettingsPanel(
+                        viewModel = settingsViewModel,
+                        onRequestPermissions = onRequestPermissions
+                    )
+                    "Debug" -> LogViewer()
+                }
             }
         }
     }

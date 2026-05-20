@@ -422,61 +422,6 @@ fun Uri.getName(context: Context): String {
     }
 }
 
-class TimerManager {
-    private val timers = mutableMapOf<String, Timer>()
-
-    fun addTimer(key: String, duration: Double, callback: () -> Unit) {
-        if (duration <= 0) {
-            callback()
-            return
-        }
-        timers[key] = Timer(duration, duration, callback)
-    }
-
-    fun cancelTimer(key: String) {
-        timers.remove(key)
-    }
-
-    fun hasTimer(key: String): Boolean = timers.containsKey(key)
-
-    fun getRemainingTime(key: String): Double? {
-        return timers[key]?.remainingTime
-    }
-
-    fun getElapsedTime(key: String): Double? {
-        val timer = timers[key] ?: return null
-        return timer.initialDuration - timer.remainingTime
-    }
-
-    fun getProportionElapsed(key: String): Double? {
-        val timer = timers[key] ?: return null
-        return (timer.initialDuration - timer.remainingTime) / timer.initialDuration
-    }
-
-    fun update(delta: Double) {
-        require(delta >= 0.0) { "Time delta may not be negative"}
-        // Create a snapshot of keys to avoid concurrent modification
-        val keysSnapshot = timers.keys.toList()
-
-        keysSnapshot.forEach { key ->
-            timers[key]?.let { timer ->
-                timer.remainingTime -= delta
-                if (timer.remainingTime <= 0) {
-                    // Remove before callback to prevent interference
-                    timers.remove(key)
-                    timer.callback()
-                }
-            }
-        }
-    }
-
-    private data class Timer(
-        val initialDuration: Double,
-        var remainingTime: Double,
-        val callback: () -> Unit
-    )
-}
-
 class CircularBuffer<T>(var capacity: Int): Iterable<T> {
     private var buffer: Array<T?> = arrayOfNulls(capacity)
 
@@ -569,4 +514,59 @@ class CircularBuffer<T>(var capacity: Int): Iterable<T> {
             }
         }
     }
+}
+
+class TimerManager {
+    private val timers = mutableMapOf<String, Timer>()
+
+    fun addTimer(key: String, duration: Double, callback: () -> Unit) {
+        if (duration <= 0) {
+            callback()
+            return
+        }
+        timers[key] = Timer(duration, duration, callback)
+    }
+
+    fun cancelTimer(key: String) {
+        timers.remove(key)
+    }
+
+    fun hasTimer(key: String): Boolean = timers.containsKey(key)
+
+    fun getRemainingTime(key: String): Double? {
+        return timers[key]?.remainingTime
+    }
+
+    fun getElapsedTime(key: String): Double? {
+        val timer = timers[key] ?: return null
+        return timer.initialDuration - timer.remainingTime
+    }
+
+    fun getProportionElapsed(key: String): Double? {
+        val timer = timers[key] ?: return null
+        return (timer.initialDuration - timer.remainingTime) / timer.initialDuration
+    }
+
+    fun update(delta: Double) {
+        require(delta >= 0.0) { "Time delta may not be negative"}
+        // Create a snapshot of keys to avoid concurrent modification
+        val keysSnapshot = timers.keys.toList()
+
+        keysSnapshot.forEach { key ->
+            timers[key]?.let { timer ->
+                timer.remainingTime -= delta
+                if (timer.remainingTime <= 0) {
+                    // Remove before callback to prevent interference
+                    timers.remove(key)
+                    timer.callback()
+                }
+            }
+        }
+    }
+
+    private data class Timer(
+        val initialDuration: Double,
+        var remainingTime: Double,
+        val callback: () -> Unit
+    )
 }

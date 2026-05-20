@@ -145,7 +145,6 @@ fun HowlAppScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
         ) {
             MainOptionsPanel(viewModel = mainOptionsViewModel)
             TabLayout(

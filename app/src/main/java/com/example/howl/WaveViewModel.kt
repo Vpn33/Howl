@@ -706,7 +706,8 @@ class WaveViewModel : ViewModel() {
                     aChannelPlayIndex = currentState.aChannelPlayIndex,
                     bChannelPlayIndex = currentState.bChannelPlayIndex,
                     aChannelPlayElapsedTime = currentState.aChannelPlayElapsedTime,
-                    bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime
+                    bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime,
+                    MutableStateFlow("郊狼波形")
                 )
                 Player.switchPulseSource(wavePulseSource)
                 Player.startPlayer()
@@ -844,7 +845,8 @@ class WaveViewModel : ViewModel() {
         private var aChannelPlayIndex: Int,
         private var bChannelPlayIndex: Int,
         private var aChannelPlayElapsedTime: Double,
-        private var bChannelPlayElapsedTime: Double
+        private var bChannelPlayElapsedTime: Double,
+        override val displayInfo: StateFlow<String>
     ) : PulseSource {
         private val _displayName = MutableStateFlow("波形播放")
         override val displayName = _displayName.asStateFlow()
@@ -1454,16 +1456,10 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                                 .fillMaxWidth()
                                 .then(
                                     if (isPlaying) {
-                                        Modifier
-                                            .background(
-                                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                                shape = MaterialTheme.shapes.small
-                                            )
-                                            .border(
-                                                width = 2.dp,
-                                                color = MaterialTheme.colorScheme.secondary,
-                                                shape = MaterialTheme.shapes.small
-                                            )
+                                        Modifier.background(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = MaterialTheme.shapes.small
+                                        )
                                     } else {
                                         Modifier
                                     }
