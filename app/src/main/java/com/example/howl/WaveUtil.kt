@@ -1,14 +1,19 @@
 package com.example.howl
 
+import java.io.OutputStream
+
 object WaveUtil {
     // 常量定义
-    val HZ_SLIDER = listOf(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    val HZ_SLIDER = listOf(
+        10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
         31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52,
         54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 85, 90, 95, 100, 110, 120,
         130, 140, 150, 160, 170, 180, 190, 200, 233, 266, 300, 333, 366, 400, 450, 500, 550,
-        600, 700, 800, 900, 1000)
+        600, 700, 800, 900, 1000
+    )
 
-    val STAGE_TIME_SLIDER = listOf(0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+    val STAGE_TIME_SLIDER = listOf(
+        0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
         1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
         2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
         3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000,
@@ -18,7 +23,8 @@ object WaveUtil {
         13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000,
         23300, 26600, 30000, 33300, 36600, 40000, 45000, 50000, 55000,
         60000, 70000, 80000, 90000, 100000, 120000, 140000, 160000,
-        180000, 200000, 250000, 300000)
+        180000, 200000, 250000, 300000
+    )
 
     const val WINDOW_TIME = 100
     const val WINDOW_TIME_DOUBLE = 100
@@ -47,12 +53,44 @@ object WaveUtil {
     // 生成V2波形
     fun genderV2Wave(info: CtrlItem): List<V2Model> {
         val v2ModelList = mutableListOf<V2Model>()
+        // v2只支持单通道 只从默认的stage里面获取
         val stageList = info.getStageList()
+
         for (stage in stageList) {
             // 启用了小节就计算V2Model
             if (stage.enabled) {
                 val stageList1 = stageV2Exchange(stage)
                 v2ModelList.addAll(stageList1)
+            }
+        }
+        if (info.restTime > 0) {
+            // 计算休息时长需要循环几次 每次100毫秒，有余数时向上进1
+            val restTemp = kotlin.math.ceil(info.restTime.toDouble() / 10).toInt()
+            for (i in 0 until restTemp) {
+                val v2Model = V2Model(5, 95, 0)
+                v2ModelList.add(v2Model)
+            }
+        }
+
+        // 默认的播放速率是100ms ，即每个meta是100ms  rate=2时 播放速率是50ms 即每个meta是50ms rate=4时 播放速率是25ms 即每个meta是25ms
+        // 由于最终输出脉冲的间隔是25ms，所以需要根据rate来复制V2Model以保持总时长一致
+        val result = mutableListOf<V2Model>()
+        for (v2 in v2ModelList) {
+            when (info.rate) {
+                1 -> {
+                    // 每个V2Model拷贝 共4份（100ms -> 4*25ms）
+                    repeat(4) { result.add(v2) }
+                }
+
+                2 -> {
+                    // 每个V2Model拷贝 共2份（50ms -> 2*25ms）
+                    repeat(2) { result.add(v2) }
+                }
+
+                else -> {
+                    // 不变（25ms -> 1*25ms）
+                    result.add(v2)
+                }
             }
         }
         return v2ModelList
@@ -90,7 +128,8 @@ object WaveUtil {
             hzMax = hzArray[0]
         } else {
             // 渐变类型 0:小 -> 大 1:大 -> 小
-            val hzGradient = stage.hzGradient.takeIf { it != 0 } ?: if (hzArray[0] - hzArray[1] >= 0) 1 else 0
+            val hzGradient =
+                stage.hzGradient.takeIf { it != 0 } ?: if (hzArray[0] - hzArray[1] >= 0) 1 else 0
             if (hzGradient == 0) {
                 hzMin = hzArray[1]
                 hzMax = hzArray[0]
@@ -107,7 +146,8 @@ object WaveUtil {
                 hzMin = (hzTemp[0] * 20) + 1000
 
                 // f638n和f640p 未破解出是什么参数
-                f638n = kotlin.math.round((stageLoopCnt * (f638n - 1)).toDouble() / f640p).toInt() + 1
+                f638n =
+                    kotlin.math.round((stageLoopCnt * (f638n - 1)).toDouble() / f640p).toInt() + 1
                 if (f638n < 1) {
                     f638n = 1
                 }
@@ -122,9 +162,11 @@ object WaveUtil {
                         hzMax += ((hzMin - hzMax) * (f638n - 1)) / (stageLoopCnt - 1)
                     }
                 } else if (hzType == 3) {
-                    hzMax = (hzMax + (((hzMin - hzMax) * ((metaCnt * grantNum) - 1)) / (metaCnt - 1))).toInt()
+                    hzMax =
+                        (hzMax + (((hzMin - hzMax) * ((metaCnt * grantNum) - 1)) / (metaCnt - 1))).toInt()
                 } else if (hzType == 2) {
-                    hzMax = (hzMax + ((((hzMin - hzMax) * 1) * ((f638n + (((metaCnt * grantNum) - 1) / (metaCnt - 1))) - 1)) / stageLoopCnt)).toInt()
+                    hzMax =
+                        (hzMax + ((((hzMin - hzMax) * 1) * ((f638n + (((metaCnt * grantNum) - 1) / (metaCnt - 1))) - 1)) / stageLoopCnt)).toInt()
                 }
                 val frequency = Math.pow(10.0, hzMax.toDouble() / 1000.0).toInt()
                 lastZ = m.y
@@ -156,7 +198,8 @@ object WaveUtil {
 
     // 字符串转V2波形列表
     fun parseListStrToV2(str: String): List<V2Model> {
-        val t = str.replace(Regex("\\s"), "").replace("\"[{", "[").replace("}]\"", "]").replace("\\\"", "\"")
+        val t = str.replace(Regex("\\s"), "").replace("\"[{", "[").replace("}]\"", "]")
+            .replace("\\\"", "\"")
         return try {
             // 这里简化处理，实际应该使用JSON解析
             emptyList()
@@ -198,14 +241,14 @@ object WaveUtil {
             val hz = v2.x + v2.y
             var v3Hz = 0
             if (hz in 10..100) {
-            v3Hz = hz
-        } else if (hz in 101..600) {
-            v3Hz = ((hz - 100) / 5.0 + 100).toInt()
-        } else if (hz in 601..1000) {
-            v3Hz = ((hz - 600) / 10.0 + 200).toInt()
-        } else {
-            v3Hz = 10
-        }
+                v3Hz = hz
+            } else if (hz in 101..600) {
+                v3Hz = ((hz - 100) / 5.0 + 100).toInt()
+            } else if (hz in 601..1000) {
+                v3Hz = ((hz - 600) / 10.0 + 200).toInt()
+            } else {
+                v3Hz = 10
+            }
 
             // V3波形强度 = V2 (Z * 5)
             // pluse波形文件的z已经是V3的值了，这里不用再*5了 直接使用就可以
@@ -323,7 +366,10 @@ object WaveUtil {
         // 正确的解析顺序：
         // 频率值1,频率值2,小节时长,频率类型,小节状态
         // 计算频率范围
-        val hzArray = listOf(msToHz(stageParams[0].toIntOrNull() ?: 0), msToHz(stageParams[1].toIntOrNull() ?: 0))
+        val hzArray = listOf(
+            msToHz(stageParams[0].toIntOrNull() ?: 0),
+            msToHz(stageParams[1].toIntOrNull() ?: 0)
+        )
         // 渐变类型 0:小 -> 大 1:大 -> 小
         val hzGradient = if (hzArray[0] - hzArray[1] >= 1) 1 else 0
         var hzMin: Int
@@ -376,5 +422,98 @@ object WaveUtil {
         }
 
         return stage
+    }
+
+    // 将pulse文件内容转换为HWL文件
+    fun convertPulseToHWL(pulseName: String, pulseContent: String, outputStream: OutputStream) {
+        // 解析pulse内容为CtrlItem
+        val ctrlItem = parsePulseToCtrlItem(pulseName, pulseContent)
+
+        var channelAList: List<V3Model>? = null
+        var channelBList: List<V3Model>? = null
+
+        if (ctrlItem.doubleChannel == true) {
+            // 生成V2波形
+            ctrlItem.setStageList(ctrlItem.stageA)
+            // 设置成A的小节列表
+            val v2AList = genderV2Wave(ctrlItem)
+            channelAList = v2ToV3(v2AList)
+            // 设置成B的小节列表
+            ctrlItem.setStageList(ctrlItem.stageB)
+            val v2BList = genderV2Wave(ctrlItem)
+            channelBList = v2ToV3(v2BList)
+        } else {
+            // 生成V2波形
+            val v2List = genderV2Wave(ctrlItem)
+
+            // 转换为V3波形
+            val v3List = v2ToV3(v2List)
+            channelAList = v3List
+            channelBList = v3List
+        }
+
+        var channelAIdx = 0
+        var channelBIdx = 0
+        var maxIdx = channelAList.size
+
+        if (channelAList.size < channelBList.size) {
+            maxIdx = channelBList.size
+        }
+
+        val finalPulses = mutableListOf<Pulse>()
+        
+        // 生成Pulse列表，处理A、B通道长度不一致的情况
+        for (i in 0 until maxIdx) {
+            // 循环获取A通道数据
+            val aV3 = if (channelAList.isNotEmpty()) {
+                channelAList[channelAIdx++ % channelAList.size]
+            } else {
+                V3Model(0, 0)
+            }
+
+            // 循环获取B通道数据
+            val bV3 = if (channelBList.isNotEmpty()) {
+                channelBList[channelBIdx++ % channelBList.size]
+            } else {
+                V3Model(0, 0)
+            }
+
+            // 频率归一化：10-240 -> 0.0-1.0
+            val freqA = (aV3.hz - 10.0f) / 230.0f
+            val freqB = (bV3.hz - 10.0f) / 230.0f
+            // 强度归一化：0-100 -> 0.0-1.0
+            val ampA = aV3.z.toFloat() / 100.0f
+            val ampB = bV3.z.toFloat() / 100.0f
+
+            // 创建Pulse对象
+            val pulse = Pulse(ampA = ampA, ampB = ampB, freqA = freqA, freqB = freqB)
+            finalPulses.add(pulse)
+        }
+
+        // 根据播放速率复制Pulse数据
+        val rate = ctrlItem.rate
+        val finalResult = mutableListOf<Pulse>()
+        
+        for (pulse in finalPulses) {
+            when (rate) {
+                1 -> {
+                    // 每个Pulse拷贝4份（100ms -> 4*25ms）
+                    repeat(4) { finalResult.add(pulse) }
+                }
+
+                2 -> {
+                    // 每个Pulse拷贝2份（50ms -> 2*25ms）
+                    repeat(2) { finalResult.add(pulse) }
+                }
+
+                else -> {
+                    // 不变（25ms -> 1*25ms）
+                    finalResult.add(pulse)
+                }
+            }
+        }
+
+        // 写入HWL文件
+        writeHWLFile(outputStream, finalResult)
     }
 }

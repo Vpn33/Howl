@@ -302,9 +302,54 @@ class WaveViewModel : ViewModel() {
 
                 println("加载的波形数量: ${waveInfos.size}")
                 _availableWaves.value = waveInfos
+
+                // 刷新已选择的波形列表，移除不存在的波形
+                refreshSelectedWaves()
             } catch (e: Exception) {
                 println("加载内置波形失败: ${e.message}")
                 e.printStackTrace()
+            }
+        }
+    }
+
+    // 刷新已选择的波形列表，移除不存在的波形
+    private fun refreshSelectedWaves() {
+        val availableWaves = _availableWaves.value
+        val currentState = _state.value
+
+        // 过滤A通道已选择的波形，只保留存在的波形
+        val filteredAChannelWaves = currentState.aChannelSelectedWaves.filter { selectedWave ->
+            availableWaves.any { availableWave ->
+                availableWave.path == selectedWave.path
+            }
+        }
+
+        // 过滤B通道已选择的波形，只保留存在的波形
+        val filteredBChannelWaves = currentState.bChannelSelectedWaves.filter { selectedWave ->
+            availableWaves.any { availableWave ->
+                availableWave.path == selectedWave.path
+            }
+        }
+
+        // 更新状态
+        _state.update {
+            it.copy(
+                aChannelSelectedWaves = filteredAChannelWaves,
+                bChannelSelectedWaves = filteredBChannelWaves
+            )
+        }
+
+        // 如果A通道的播放索引超出范围，重置为0
+        if (currentState.aChannelPlayIndex >= filteredAChannelWaves.size) {
+            _state.update {
+                it.copy(aChannelPlayIndex = 0)
+            }
+        }
+
+        // 如果B通道的播放索引超出范围，重置为0
+        if (currentState.bChannelPlayIndex >= filteredBChannelWaves.size) {
+            _state.update {
+                it.copy(bChannelPlayIndex = 0)
             }
         }
     }
@@ -321,6 +366,8 @@ class WaveViewModel : ViewModel() {
                 )
             } ?: emptyList()
             _availableWaves.value = mergeWaveInfos(_availableWaves.value, waveInfos)
+            // 刷新已选择的波形列表，移除不存在的波形
+            refreshSelectedWaves()
         }
     }
 
@@ -392,6 +439,8 @@ class WaveViewModel : ViewModel() {
 
                 println("加载的波形数量: ${waveInfos.size}")
                 _availableWaves.value = mergeWaveInfos(_availableWaves.value, waveInfos)
+                // 刷新已选择的波形列表，移除不存在的波形
+                refreshSelectedWaves()
             } catch (e: Exception) {
                 println("加载波形失败: ${e.message}")
                 e.printStackTrace()

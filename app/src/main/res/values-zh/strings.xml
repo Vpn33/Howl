@@ -177,6 +177,7 @@
     <string name="activity_random_shapes">随机形状</string>
     <string name="activity_overflowing">溢出</string>
     <string name="activity_succubus">魅魔</string>
+    <string name="activity_sine_time">正弦时间</string>
     <string name="activity_random_change_probability">随机活动变更概率</string>
     <string name="channel_a">通道A</string>
     <string name="channel_b">通道B</string>
@@ -290,4 +291,23 @@
     <string name="error_start_producer_thread_already_set">startProducerThread已调用但producerThread已设置</string>
     <string name="error_audio_track_stop_failed">AudioTrack停止失败: %1$s</string>
 
+    <!-- Activity host related -->
+    <string name="activity_output">活动输出</string>
+    <string name="activity">活动</string>
+    <string name="available_for_random_select">可用于随机选择</string>
+    
+    <!-- BJActivity stages -->
+    <string name="bj_stage">阶段</string>
+    <string name="bj_target_speed">目标速度</string>
+    <string name="bj_stage_full_lick">全舔</string>
+    <string name="bj_stage_tip_lick">尖端舔舐</string>
+    <string name="bj_stage_suck">吸吮</string>
+    <string name="bj_stage_deepthroat">深喉</string>
+    
+    <!-- SineTimeActivity settings -->
+    <string name="sine_time_manual_control">手动控制</string>
+    <string name="sine_time_sine_magnitude">正弦幅度</string>
+    <string name="sine_time_sine_speed">正弦速度</string>
+    <string name="sine_time_sine_offset">正弦偏移</string>
+    <string name="sine_time_frequency_change">频率变化</string>
 </resources>

@@ -201,7 +201,7 @@ fun <T> OptionPicker(
     currentValue: T,
     onValueChange: (T) -> Unit,
     options: List<T>,
-    getText: (T) -> String,
+    getText: @Composable (T) -> String,
     modifier: Modifier = Modifier,
     getIcon: (T) -> Int? = { null },
     textColor: (T) -> Color = { Color.Unspecified },

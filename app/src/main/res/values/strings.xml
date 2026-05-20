@@ -175,6 +175,7 @@
     <string name="activity_random_shapes">Random shapes</string>
     <string name="activity_overflowing">Overflowing</string>
     <string name="activity_succubus">Succubus</string>
+    <string name="activity_sine_time">Sine Time</string>
     <string name="activity_random_change_probability">Random activity change probability</string>
     <string name="channel_a">Channel A</string>
     <string name="channel_b">Channel B</string>
@@ -288,4 +289,24 @@
     <string name="error_failed_to_initialise_audio_track">Failed to initialise audio track, state: %1$d</string>
     <string name="error_start_producer_thread_already_set">startProducerThread called but producerThread already set</string>
     <string name="error_audio_track_stop_failed">AudioTrack stop failed: %1$s</string>
+
+    <!-- Activity host related -->
+    <string name="activity_output">Activity output</string>
+    <string name="activity">Activity</string>
+    <string name="available_for_random_select">Available for random select</string>
+    
+    <!-- BJActivity stages -->
+    <string name="bj_stage">Stage</string>
+    <string name="bj_target_speed">Target speed</string>
+    <string name="bj_stage_full_lick">Full licks</string>
+    <string name="bj_stage_tip_lick">Tip licks</string>
+    <string name="bj_stage_suck">Suck</string>
+    <string name="bj_stage_deepthroat">Deepthroat</string>
+    
+    <!-- SineTimeActivity settings -->
+    <string name="sine_time_manual_control">Manual control</string>
+    <string name="sine_time_sine_magnitude">Sine magnitude</string>
+    <string name="sine_time_sine_speed">Sine speed</string>
+    <string name="sine_time_sine_offset">Sine offset</string>
+    <string name="sine_time_frequency_change">Frequency change</string>
 </resources>

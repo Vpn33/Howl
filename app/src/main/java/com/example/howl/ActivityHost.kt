@@ -87,7 +87,7 @@ enum class ActivityType(val displayNameResId: Int, val iconResId: Int) {
     SUCCUBUS(R.string.activity_succubus, R.drawable.succubus) {
         override fun create() = SuccubusActivity()
     },
-    SINETIME(R.string.activity_succubus, R.drawable.wave){
+    SINETIME(R.string.activity_sine_time, R.drawable.wave){
         override fun create() = SineTimeActivity()
     };
 

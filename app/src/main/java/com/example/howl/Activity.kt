@@ -321,7 +321,7 @@ class LickActivity : Activity() {
                             _ampType.value = it
                         },
                         options = AmpType.entries,
-                        getText = { ampTypeTexts[it] ?: it.name }
+                        getText = { ampTypeTexts[it] ?: it.name },
                         enabled = manual
                     )
                 }
@@ -1264,11 +1264,11 @@ class BJActivity : Activity() {
     val fullLickSpeedRange = 0.3..1.0
     val tipLickSpeedRange = 0.5..3.0
 
-    enum class BJStage(val displayName: String) {
-        FullLick("Full licks"),
-        TipLick("Tip licks"),
-        Suck("Suck"),
-        Deepthroat("Deepthroat"),
+    enum class BJStage(val displayNameResId: Int) {
+        FullLick(R.string.bj_stage_full_lick),
+        TipLick(R.string.bj_stage_tip_lick),
+        Suck(R.string.bj_stage_suck),
+        Deepthroat(R.string.bj_stage_deepthroat),
     }
 
     val deepthroatFrequencyConverter = CyclicalWave(
@@ -1509,20 +1509,20 @@ class BJActivity : Activity() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Stage", style = MaterialTheme.typography.labelLarge)
+                    Text(text = stringResource(R.string.bj_stage), style = MaterialTheme.typography.labelLarge)
                     OptionPicker(
                         currentValue = currentStage,
                         onValueChange = {
                             setStage(it, manual = true)
                         },
                         options = BJStage.entries,
-                        getText = { it.displayName },
+                        getText = { stringResource(it.displayNameResId) },
                         enabled = manual
                     )
                 }
                 NiceSmootherControl(
                     smoother = waveManager.baseSpeed,
-                    targetLabel = "Target speed",
+                    targetLabel = stringResource(R.string.bj_target_speed),
                     targetRange = 0.1f..3.0f,
                     rateRange = 0.03f..0.3f,
                     enabled = manual
@@ -2258,7 +2258,7 @@ class SineTimeActivity : Activity() {
                 )
                 {
                     Text(
-                        text = "Manual control",
+                        text = stringResource(R.string.sine_time_manual_control),
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -2270,14 +2270,14 @@ class SineTimeActivity : Activity() {
                 }
                 NiceSmootherControl(
                     smoother = sineMag,
-                    targetLabel = "Sine magnitude",
+                    targetLabel = stringResource(R.string.sine_time_sine_magnitude),
                     targetRange = 0.0f..0.4f,
                     targetSteps = 39,
                     adjustableRate = false,
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = "Sine speed",
+                    label = stringResource(R.string.sine_time_sine_speed),
                     value = sineSpeed.toFloat(),
                     onValueChange = { _sineSpeed.value = it.toDouble() },
                     onValueChangeFinished = { },
@@ -2288,14 +2288,14 @@ class SineTimeActivity : Activity() {
                 )
                 NiceSmootherControl(
                     smoother = offset,
-                    targetLabel = "Sine offset",
+                    targetLabel = stringResource(R.string.sine_time_sine_offset),
                     targetRange = (-PI..PI).toFloatRange,
                     targetSteps = 39,
                     adjustableRate = false,
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = "Frequency change",
+                    label = stringResource(R.string.sine_time_frequency_change),
                     value = freqChange.toFloat(),
                     onValueChange = { _freqChange.value = it.toDouble() },
                     onValueChangeFinished = { },
