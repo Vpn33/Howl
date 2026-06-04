@@ -372,6 +372,12 @@ fun PowerSettingsPanel(
     val powerRampSpeedRandomMaxB by Prefs.powerRampSpeedRandomMaxB.collectAsStateWithLifecycle()
     val powerRampSpeedIntervalModeA by Prefs.powerRampSpeedIntervalModeA.collectAsStateWithLifecycle()
     val powerRampSpeedIntervalModeB by Prefs.powerRampSpeedIntervalModeB.collectAsStateWithLifecycle()
+    val powerRampNadirChangeModeA by Prefs.powerRampNadirChangeModeA.collectAsStateWithLifecycle()
+    val powerRampNadirChangeModeB by Prefs.powerRampNadirChangeModeB.collectAsStateWithLifecycle()
+    val powerRampNadirIntensityARangeStart by Prefs.powerRampNadirIntensityARangeStart.collectAsStateWithLifecycle()
+    val powerRampNadirIntensityARangeEnd by Prefs.powerRampNadirIntensityARangeEnd.collectAsStateWithLifecycle()
+    val powerRampNadirIntensityBRangeStart by Prefs.powerRampNadirIntensityBRangeStart.collectAsStateWithLifecycle()
+    val powerRampNadirIntensityBRangeEnd by Prefs.powerRampNadirIntensityBRangeEnd.collectAsStateWithLifecycle()
     val powerRampPeakTimeModeA by Prefs.powerRampPeakTimeModeA.collectAsStateWithLifecycle()
     val powerRampPeakTimeFixedA by Prefs.powerRampPeakTimeFixedA.collectAsStateWithLifecycle()
     val powerRampPeakTimeRandomMinA by Prefs.powerRampPeakTimeRandomMinA.collectAsStateWithLifecycle()
@@ -618,6 +624,59 @@ fun PowerSettingsPanel(
                     }
                 }
 
+                // 坡底变化模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡底变化模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampNadirChangeModeA,
+                        onValueChange = {
+                            Prefs.powerRampNadirChangeModeA.value = it
+                            Prefs.powerRampNadirChangeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+
+                // 坡底变化强度
+                if (powerRampNadirChangeModeA == "RANDOM") {
+                    Text(text = "坡底变化强度: ${powerRampNadirIntensityARangeStart} - ${powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampNadirIntensityARangeStart.toFloat()..powerRampNadirIntensityARangeEnd.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampNadirIntensityARangeStart.value = newRange.start.roundToInt()
+                                Prefs.powerRampNadirIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampNadirIntensityARangeStart.save()
+                                Prefs.powerRampNadirIntensityARangeEnd.save()
+                            },
+                            valueRange = -50.0f..50.0f,
+                            steps = 99
+                        )
+                        Text(text = "${powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    }
+                } else {
+                    Text(text = "坡底强度为开启时的电源强度值", style = MaterialTheme.typography.labelLarge)
+                }
+
                 // 坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -842,6 +901,57 @@ fun PowerSettingsPanel(
                     }
                 }
 
+                // A通道坡底变化模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "A通道坡底变化模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampNadirChangeModeA,
+                        onValueChange = {
+                            Prefs.powerRampNadirChangeModeA.value = it
+                            Prefs.powerRampNadirChangeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+
+                // 坡底变化强度
+                if (powerRampNadirChangeModeA == "RANDOM") {
+                    Text(text = "A通道坡底变化强度: ${powerRampNadirIntensityARangeStart} - ${powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampNadirIntensityARangeStart.toFloat()..powerRampNadirIntensityARangeEnd.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampNadirIntensityARangeStart.value = newRange.start.roundToInt()
+                                Prefs.powerRampNadirIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampNadirIntensityARangeStart.save()
+                                Prefs.powerRampNadirIntensityARangeEnd.save()
+                            },
+                            valueRange = -50.0f..50.0f,
+                            steps = 99
+                        )
+                        Text(text = "${powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+
                 // A通道坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1041,6 +1151,57 @@ fun PowerSettingsPanel(
                     }
                 }
 
+                // B通道坡底变化模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "B通道坡底变化模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampNadirChangeModeB,
+                        onValueChange = {
+                            Prefs.powerRampNadirChangeModeB.value = it
+                            Prefs.powerRampNadirChangeModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+
+                // B通道坡底变化强度
+                if (powerRampNadirChangeModeB == "RANDOM") {
+                    Text(text = "B通道坡底变化强度: ${powerRampNadirIntensityBRangeStart} - ${powerRampNadirIntensityBRangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampNadirIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampNadirIntensityBRangeStart.toFloat()..powerRampNadirIntensityBRangeEnd.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampNadirIntensityBRangeStart.value = newRange.start.roundToInt()
+                                Prefs.powerRampNadirIntensityBRangeEnd.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampNadirIntensityBRangeStart.save()
+                                Prefs.powerRampNadirIntensityBRangeEnd.save()
+                            },
+                            valueRange = -50.0f..50.0f,
+                            steps = 99
+                        )
+                        Text(text = "${powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+
                 // B通道坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1217,6 +1378,57 @@ fun PowerSettingsPanel(
                     }
                 }
 
+                // A通道坡底变化模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡底变化模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampNadirChangeModeA,
+                        onValueChange = {
+                            Prefs.powerRampNadirChangeModeA.value = it
+                            Prefs.powerRampNadirChangeModeA.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+
+                // 坡底变化强度
+                if (powerRampNadirChangeModeA == "RANDOM") {
+                    Text(text = "坡底变化强度: ${powerRampNadirIntensityARangeStart} - ${powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampNadirIntensityARangeStart.toFloat()..powerRampNadirIntensityARangeEnd.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampNadirIntensityARangeStart.value = newRange.start.roundToInt()
+                                Prefs.powerRampNadirIntensityARangeEnd.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampNadirIntensityARangeStart.save()
+                                Prefs.powerRampNadirIntensityARangeEnd.save()
+                            },
+                            valueRange = -50.0f..50.0f,
+                            steps = 99
+                        )
+                        Text(text = "${powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+
                 // 坡顶时间模式
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1387,6 +1599,57 @@ fun PowerSettingsPanel(
                             steps = 599
                         )
                         Text(text = "${String.format(Locale.US, "%.1f", powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
+                    }
+                }
+
+                // B通道坡底变化模式
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "坡底变化模式", style = MaterialTheme.typography.labelLarge)
+                    OptionPicker(
+                        currentValue = powerRampNadirChangeModeB,
+                        onValueChange = {
+                            Prefs.powerRampNadirChangeModeB.value = it
+                            Prefs.powerRampNadirChangeModeB.save()
+                        },
+                        options = listOf("FIXED", "RANDOM"),
+                        getText = {
+                            when (it) {
+                                "FIXED" -> "固定"
+                                "RANDOM" -> "随机"
+                                else -> it
+                            }
+                        }
+                    )
+                }
+
+                // B通道坡底变化强度
+                if (powerRampNadirChangeModeB == "RANDOM") {
+                    Text(text = "坡底变化强度: ${powerRampNadirIntensityBRangeStart} - ${powerRampNadirIntensityBRangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "${powerRampNadirIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRampNadirIntensityBRangeStart.toFloat()..powerRampNadirIntensityBRangeEnd.toFloat(),
+                            onValueChange = { newRange ->
+                                Prefs.powerRampNadirIntensityBRangeStart.value = newRange.start.roundToInt()
+                                Prefs.powerRampNadirIntensityBRangeEnd.value = newRange.endInclusive.roundToInt()
+                            },
+                            onValueChangeFinished = {
+                                Prefs.powerRampNadirIntensityBRangeStart.save()
+                                Prefs.powerRampNadirIntensityBRangeEnd.save()
+                            },
+                            valueRange = -50.0f..50.0f,
+                            steps = 99
+                        )
+                        Text(text = "${powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }
                 }
 

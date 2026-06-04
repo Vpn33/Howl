@@ -1494,7 +1494,7 @@ class BJActivity : Activity() {
                 )
                 {
                     Text(
-                        text = "Manual control",
+                        text = stringResource(R.string.activity_manual_control),
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(

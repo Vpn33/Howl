@@ -190,6 +190,13 @@ object Prefs {
     // 变化速度间隔模式
     val powerRampSpeedIntervalModeA = register("power_ramp_speed_interval_mode_a", "INITIAL", StringAdapter)
     val powerRampSpeedIntervalModeB = register("power_ramp_speed_interval_mode_b", "INITIAL", StringAdapter)
+    val powerRampNadirChangeModeA = register("power_ramp_nadir_change_mode_a", "FIXED", StringAdapter)
+    val powerRampNadirChangeModeB = register("power_ramp_nadir_change_mode_b", "FIXED", StringAdapter)
+    val powerRampNadirIntensityARangeStart = register("power_ramp_nadir_a_start", 0, IntAdapter)
+    val powerRampNadirIntensityARangeEnd = register("power_ramp_nadir_a_end", 5, IntAdapter)
+    val powerRampNadirIntensityBRangeStart = register("power_ramp_nadir_b_start", 0, IntAdapter)
+    val powerRampNadirIntensityBRangeEnd = register("power_ramp_nadir_b_end", 5, IntAdapter)
+
     val powerRampPeakTimeModeA = register("power_ramp_peak_time_mode_a", "RANDOM", StringAdapter)
     val powerRampPeakTimeFixedA = register("power_ramp_peak_time_fixed_a", 5, IntAdapter)
     val powerRampPeakTimeRandomMinA = register("power_ramp_peak_time_random_min_a", 2, IntAdapter)
