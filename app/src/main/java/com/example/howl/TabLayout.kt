@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class TabLayoutViewModel : ViewModel() {
-    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Settings")
+    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Wave", "Settings")
     private val debugTab = "Debug"
 
     private val _tabIndex = MutableStateFlow(0)
@@ -59,6 +59,7 @@ fun TabLayout(
     generatorViewModel: GeneratorViewModel,
     activityHostViewModel: ActivityHostViewModel,
     manualViewModel: ManualViewModel,
+    waveViewModel: WaveViewModel,
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -97,6 +98,7 @@ fun TabLayout(
                             "Generator" -> Icon(painterResource(R.drawable.wave), contentDescription = null)
                             "Activity" -> Icon(painterResource(R.drawable.rocket), contentDescription = null)
                             "Manual" -> Icon(painterResource(R.drawable.joystick), contentDescription = null)
+                            "Wave" -> Icon(painterResource(R.drawable.waveform), contentDescription = null)
                             "Settings" -> Icon(painterResource(R.drawable.settings), contentDescription = null)
                             "Debug" -> Icon(painterResource(R.drawable.debug), contentDescription = null)
                         }
@@ -112,6 +114,7 @@ fun TabLayout(
                 "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
                 "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
                 "Manual" -> ManualPanel(viewModel = manualViewModel)
+                "Wave" -> WavePanel(viewModel = waveViewModel)
                 "Settings" -> SettingsPanel(
                     viewModel = settingsViewModel,
                     onRequestPermissions = onRequestPermissions
@@ -132,6 +135,7 @@ fun TabLayoutPreview() {
         val generatorViewModel: GeneratorViewModel = viewModel()
         val activityHostViewModel: ActivityHostViewModel = viewModel()
         val manualViewModel: ManualViewModel = viewModel()
+        val waveViewModel: WaveViewModel = viewModel()
         TabLayout (
             tabLayoutViewModel = viewModel,
             playerViewModel = playerViewModel,
@@ -139,6 +143,7 @@ fun TabLayoutPreview() {
             generatorViewModel = generatorViewModel,
             activityHostViewModel = activityHostViewModel,
             manualViewModel = manualViewModel,
+            waveViewModel = waveViewModel,
             onRequestPermissions = { _, _ -> },
             modifier = Modifier.fillMaxHeight()
         )

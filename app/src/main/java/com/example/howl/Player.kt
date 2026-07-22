@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -493,10 +495,10 @@ fun AdvancedControlsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Player settings", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.player_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Playback speed",
+            label = stringResource(R.string.playback_speed),
             value = playerPlaybackSpeed,
             onValueChange = {
                 Prefs.playerPlaybackSpeed.value = it
@@ -508,7 +510,7 @@ fun AdvancedControlsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = "Remote latency (seconds)",
+            label = stringResource(R.string.remote_funscript_latency_seconds),
             value = playerRemoteLatency,
             onValueChange = { Prefs.playerRemoteLatency.value = it },
             onValueChangeFinished = { Prefs.playerRemoteLatency.save() },
@@ -517,7 +519,7 @@ fun AdvancedControlsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SwitchWithLabel(
-            label = "Show sync fine tune",
+            label = stringResource(R.string.show_sync_fine_tune),
             checked = playerShowSyncFineTune,
             onCheckedChange = {
                 Prefs.playerShowSyncFineTune.value = it
@@ -529,10 +531,10 @@ fun AdvancedControlsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Funscript settings", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.funscript_settings), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Scaling coefficient",
+            label = stringResource(R.string.scaling_coefficient),
             value = funscriptVolume,
             onValueChange = { Prefs.funscriptVolume.value = it },
             onValueChangeFinished = { Prefs.funscriptVolume.save() },
@@ -626,10 +628,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Special effects", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.special_effects), style = MaterialTheme.typography.headlineSmall)
         }
         SwitchWithLabel(
-            label = "Apply special effects",
+            label = stringResource(R.string.apply_special_effects),
             checked = sfxEnabled,
             onCheckedChange = {
                 Prefs.sfxEnabled.value = it
@@ -641,10 +643,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Amplitude adjustments", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.amplitude_adjustments), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Amplitude feel (channel A)",
+            label = stringResource(R.string.amplitude_feel_channel_a),
             value = sfxAmplitudeFeelA,
             onValueChange = { Prefs.sfxAmplitudeFeelA.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeFeelA.save() },
@@ -654,7 +656,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Amplitude feel (channel B)",
+            label = stringResource(R.string.amplitude_feel_channel_b),
             value = sfxAmplitudeFeelB,
             onValueChange = { Prefs.sfxAmplitudeFeelB.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeFeelB.save() },
@@ -664,7 +666,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Scale amplitude (channel A)",
+            label = stringResource(R.string.scale_amplitude_channel_a),
             value = sfxAmplitudeScaleA,
             onValueChange = { Prefs.sfxAmplitudeScaleA.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeScaleA.save() },
@@ -674,7 +676,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Scale amplitude (channel B)",
+            label = stringResource(R.string.scale_amplitude_channel_b),
             value = sfxAmplitudeScaleB,
             onValueChange = { Prefs.sfxAmplitudeScaleB.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeScaleB.save() },
@@ -688,10 +690,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Frequency adjustments", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.frequency_adjustments), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Frequency feel (channel A)",
+            label = stringResource(R.string.frequency_feel_channel_a),
             value = sfxFrequencyFeelA,
             onValueChange = { Prefs.sfxFrequencyFeelA.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyFeelA.save() },
@@ -701,7 +703,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency feel (channel B)",
+            label = stringResource(R.string.frequency_feel_channel_b),
             value = sfxFrequencyFeelB,
             onValueChange = { Prefs.sfxFrequencyFeelB.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyFeelB.save() },
@@ -711,7 +713,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SwitchWithLabel(
-            label = "Invert channel A frequencies",
+            label = stringResource(R.string.invert_channel_a_frequencies),
             checked = sfxFrequencyInvertA,
             onCheckedChange = {
                 Prefs.sfxFrequencyInvertA.value = it
@@ -720,7 +722,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SwitchWithLabel(
-            label = "Invert channel B frequencies",
+            label = stringResource(R.string.invert_channel_b_frequencies),
             checked = sfxFrequencyInvertB,
             onCheckedChange = {
                 Prefs.sfxFrequencyInvertB.value = it
@@ -729,7 +731,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel A)",
+            label = stringResource(R.string.frequency_adjust_channel_a),
             value = sfxFrequencyAdjustA,
             onValueChange = { Prefs.sfxFrequencyAdjustA.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyAdjustA.save() },
@@ -739,7 +741,7 @@ fun SpecialEffectsPanel(
             enabled = sfxEnabled
         )
         SliderWithLabel(
-            label = "Frequency adjust (channel B)",
+            label = stringResource(R.string.frequency_adjust_channel_b),
             value = sfxFrequencyAdjustB,
             onValueChange = { Prefs.sfxFrequencyAdjustB.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyAdjustB.save() },
@@ -755,10 +757,10 @@ fun SpecialEffectsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Random noise", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.random_noise), style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = "Random amplitude noise (amount)",
+            label = stringResource(R.string.random_amplitude_noise_amount),
             value = sfxAmplitudeNoiseAmount,
             onValueChange = { Prefs.sfxAmplitudeNoiseAmount.value = it },
             onValueChangeFinished = { Prefs.sfxAmplitudeNoiseAmount.save() },
@@ -769,7 +771,7 @@ fun SpecialEffectsPanel(
         )
         if (sfxAmplitudeNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random amplitude noise (speed)",
+                label = stringResource(R.string.random_amplitude_noise_speed),
                 value = sfxAmplitudeNoiseSpeed,
                 onValueChange = { Prefs.sfxAmplitudeNoiseSpeed.value = it },
                 onValueChangeFinished = { Prefs.sfxAmplitudeNoiseSpeed.save() },
@@ -780,7 +782,7 @@ fun SpecialEffectsPanel(
             )
         }
         SliderWithLabel(
-            label = "Random frequency noise (amount)",
+            label = stringResource(R.string.random_frequency_noise_amount),
             value = sfxFrequencyNoiseAmount,
             onValueChange = { Prefs.sfxFrequencyNoiseAmount.value = it },
             onValueChangeFinished = { Prefs.sfxFrequencyNoiseAmount.save() },
@@ -791,7 +793,7 @@ fun SpecialEffectsPanel(
         )
         if (sfxFrequencyNoiseAmount > 0f) {
             SliderWithLabel(
-                label = "Random frequency noise (speed)",
+                label = stringResource(R.string.random_frequency_noise_speed),
                 value = sfxFrequencyNoiseSpeed,
                 onValueChange = { Prefs.sfxFrequencyNoiseSpeed.value = it },
                 onValueChangeFinished = { Prefs.sfxFrequencyNoiseSpeed.save() },
@@ -986,8 +988,6 @@ fun PlayerPanel(
 
     val displayName by (activeSource?.displayName ?: remember { MutableStateFlow("Player") })
         .collectAsStateWithLifecycle()
-    val displayInfo by (activeSource?.displayInfo ?: remember { MutableStateFlow("") })
-        .collectAsStateWithLifecycle()
 
     val activeButtonColour = MaterialTheme.colorScheme.tertiary
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -1017,16 +1017,6 @@ fun PlayerPanel(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(top = 10.dp)
             )
-
-            if (displayInfo.isNotEmpty()) {
-                Text(
-                    text = displayInfo,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleSmall,
-                    //modifier = Modifier.padding(bottom = 4.dp)
-                )
-            }
 
             // Position display and seek bar
             PlayerPositionDisplay(
@@ -1103,12 +1093,12 @@ fun PlayerPanel(
             // Sync fine tune (if enabled)
             if (playerShowSyncFineTune) {
                 SliderWithLabel(
-                    label = "Sync fine tune (seconds)",
+                    label = stringResource(R.string.sync_fine_tune),
                     value = playerState.syncFineTune,
                     onValueChange = { Player.setSyncFineTune(it) },
                     onValueChangeFinished = { },
-                    valueRange = -0.5f..0.5f,
-                    steps = 99,
+                    valueRange = -2f..2f,
+                    steps = 400,
                     valueDisplay = { String.format(Locale.US, "%03.2f", it) }
                 )
             }
@@ -1149,7 +1139,8 @@ fun CombinedPanel(
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.heightIn(max = 600.dp)
             ) {
                 AdvancedControlsPanel(
                     viewModel = viewModel,
@@ -1165,7 +1156,8 @@ fun CombinedPanel(
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.heightIn(max = 600.dp)
             ) {
                 SpecialEffectsPanel(
                     viewModel = viewModel,

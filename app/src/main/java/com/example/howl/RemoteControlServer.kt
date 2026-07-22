@@ -462,7 +462,7 @@ object RemoteControlServer {
         if (server != null) return
         HLog.v("RemoteControlServer","Starting remote control server")
 
-        server = embeddedServer(CIO, port = port) {
+        server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(CORS) {
                 anyHost()
                 allowHeader(HttpHeaders.Authorization)
@@ -481,7 +481,7 @@ object RemoteControlServer {
                         if (tokenCredential.token == Prefs.remoteAPIKey.value) {
                             UserIdPrincipal("api_user")
                         } else {
-                            null
+                            null // authentication failed
                         }
                     }
                 }

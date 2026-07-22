@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -41,12 +45,10 @@ enum class ActivityType(val displayName: String, val iconResId: Int) {
     CHAOS("Chaos", R.drawable.chaos) { override fun create() = ChaosActivity() },
     HJ("Luxury HJ", R.drawable.hand) { override fun create() = LuxuryHJActivity() },
     OPPOSITES("Opposites", R.drawable.yin_yang) { override fun create() = OppositesActivity() },
-    CALIBRATE_POWER("Calibrate power", R.drawable.plug) { override fun create() =
-        PowerCalibrationActivity() },
-    CALIBRATE_FREQ("Calibrate frequency", R.drawable.calibration) { override fun create() =
-        FrequencyCalibrationActivity() },
-    CALIBRATE_POSITION("Calibrate position", R.drawable.swapvert) { override fun create() =
-        PositionalCalibrationActivity() },
+    CALIBRATION1("Calibration 1", R.drawable.swapvert) { override fun create() =
+        Calibration1Activity() },
+    CALIBRATION2("Calibration 2", R.drawable.calibration) { override fun create() =
+        Calibration2Activity() },
     BJ("BJ Megamix", R.drawable.lips) { override fun create() = BJActivity() },
     FASTSLOW("Fast/slow", R.drawable.speed) { override fun create() =
         FastSlowActivity() },
@@ -58,6 +60,25 @@ enum class ActivityType(val displayName: String, val iconResId: Int) {
     SINETIME("Sine time", R.drawable.wave) { override fun create() = SineTimeActivity() };
 
     abstract fun create(): Activity
+
+    @Composable
+    fun getDisplayName(): String {
+        return stringResource(displayNameResId)
+    }
+
+    companion object {
+        private val displayNames = mutableMapOf<ActivityType, String>()
+
+        fun initDisplayNames(context: android.content.Context) {
+            entries.forEach { type ->
+                displayNames[type] = context.getString(type.displayNameResId)
+            }
+        }
+
+        fun getDisplayName(type: ActivityType): String {
+            return displayNames[type] ?: type.name
+        }
+    }
 }
 
 object ActivityHost : PulseSource {
@@ -155,12 +176,15 @@ class ActivityHostViewModel : ViewModel() {
         Prefs.activityExcludedFromRandom.value = currentExcluded
         Prefs.activityExcludedFromRandom.save()
     }
+
     fun setCurrentActivity(type: ActivityType) {
         ActivityHost.setCurrentActivity(type)
     }
+
     fun stop() {
         Player.stopPlayer()
     }
+
     fun start() {
         Player.switchPulseSource(ActivityHost)
         Player.startPlayer()
@@ -172,6 +196,7 @@ fun ActivityHostPanel(
     viewModel: ActivityHostViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val currentState by ActivityHost.currentActivity.collectAsStateWithLifecycle()
     val currentType = currentState.type
     val currentInstance = currentState.instance
@@ -183,7 +208,9 @@ fun ActivityHostPanel(
     val isCalibration = currentType.displayName.contains("Calibrate")
 
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -210,7 +237,7 @@ fun ActivityHostPanel(
                         currentValue = currentType,
                         onValueChange = { viewModel.setCurrentActivity(it) },
                         options = ActivityType.entries,
-                        getText = { it.displayName },
+                        getText = { context.getString(it.displayNameResId) },
                         getIcon = { it.iconResId },
                         textColor = {
                             if (it in excludedActivities) excludedColor else Color.Unspecified
@@ -255,7 +282,7 @@ fun ActivityHostPanel(
                 }
 
                 SliderWithLabel(
-                    label = "Random activity change probability",
+                    label = stringResource(R.string.activity_random_change_probability),
                     value = activityChangeProbability,
                     onValueChange = { Prefs.activityChangeProbability.value = it },
                     onValueChangeFinished = { Prefs.activityChangeProbability.save() },
@@ -282,7 +309,7 @@ fun ActivityHostPanel(
                 if(!isCalibration) {
                     // Title
                     Text(
-                        text = "${currentType.displayName} settings",
+                        text = "${stringResource(currentType.displayNameResId)} settings",
                         style = MaterialTheme.typography.titleLarge
                     )
 

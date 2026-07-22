@@ -221,7 +221,7 @@ fun <T> OptionPicker(
     currentValue: T,
     onValueChange: (T) -> Unit,
     options: List<T>,
-    getText: (T) -> String,
+    getText: @Composable (T) -> String,
     modifier: Modifier = Modifier,
     getIcon: (T) -> Int? = { null },
     textColor: (T) -> Color = { Color.Unspecified },
@@ -229,9 +229,7 @@ fun <T> OptionPicker(
     enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val sortedOptions = remember(options, getText) {
-        options.sortedBy { getText(it) }
-    }
+    val sortedOptions = options
 
     val textStyle = when (size) {
         OptionPickerSize.Standard -> MaterialTheme.typography.labelLarge

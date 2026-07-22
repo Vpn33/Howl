@@ -44,6 +44,23 @@ class HowlActivity : ComponentActivity() {
             }
         })
         enableEdgeToEdge()
+
+        // 应用语言设置
+        val language = Prefs.language.value
+        val locale = java.util.Locale(language)
+        java.util.Locale.setDefault(locale)
+        val resources = resources
+        val configuration = resources.configuration
+        configuration.setLocale(locale)
+
+//        // 对于Android 7.0及以上版本，使用createConfigurationContext
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//            createConfigurationContext(configuration)
+//        } else {
+            // 对于旧版本，使用updateConfiguration
+            resources.updateConfiguration(configuration, resources.displayMetrics)
+//        }
+
         setContent {
             HowlTheme {
                 HowlAppScreen()
@@ -61,6 +78,7 @@ fun HowlAppScreen(
     activityHostViewModel: ActivityHostViewModel = viewModel(),
     manualViewModel: ManualViewModel = viewModel(),
     settingsViewModel: SettingsViewModel = viewModel(),
+    waveViewModel: WaveViewModel = viewModel(),
 ) {
     val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
     val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
@@ -139,7 +157,8 @@ fun HowlAppScreen(
                 manualViewModel = manualViewModel,
                 onRequestPermissions = { permissions, onResult ->
                     checkAndRequestPermissions(permissions, onResult)
-                }
+                },
+                waveViewModel = waveViewModel
             )
         }
     }

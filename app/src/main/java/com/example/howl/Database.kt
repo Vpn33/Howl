@@ -34,7 +34,7 @@ interface PreferencesDao {
 
 @Database(
     entities = [PreferenceEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class HowlDatabase : RoomDatabase() {

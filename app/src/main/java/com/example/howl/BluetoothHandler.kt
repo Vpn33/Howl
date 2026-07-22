@@ -26,6 +26,7 @@ import androidx.annotation.RequiresPermission
 import android.location.LocationManager
 import androidx.core.location.LocationManagerCompat
 
+
 enum class ConnectionStatus {
     Disconnected,
     Connecting,
@@ -159,6 +160,8 @@ object BluetoothHandler {
     @SuppressLint("MissingPermission")
     private fun connectToDevice(deviceInfo: SupportedDevice) {
         onConnectionStatusUpdate?.invoke(ConnectionStatus.Connecting)
+        // 更新ConnectionManager的状态
+        ConnectionManager.setConnectionStatus(ConnectionStatus.Connecting)
         Player.switchOutput(deviceInfo.outputType)
         gatt = bluetoothDevice?.connectGatt(contextRef?.get(), false, gattCallback, BluetoothDevice.TRANSPORT_LE)
     }
@@ -171,6 +174,8 @@ object BluetoothHandler {
         bluetoothDevice = null
         Player.output.handleBluetoothEvent(BluetoothEvent(type = BluetoothEventType.Disconnected))
         onConnectionStatusUpdate?.invoke(ConnectionStatus.Disconnected)
+        // 更新ConnectionManager的状态
+        ConnectionManager.setConnectionStatus(ConnectionStatus.Disconnected)
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -197,6 +202,8 @@ object BluetoothHandler {
             HLog.d(TAG, "Services discovered.")
             onConnectionStatusUpdate?.invoke(ConnectionStatus.Connected)
             Player.output.handleBluetoothEvent(BluetoothEvent(type = BluetoothEventType.Connected))
+            // 更新ConnectionManager的状态
+            ConnectionManager.setConnectionStatus(ConnectionStatus.Connected)
         }
 
         override fun onCharacteristicChanged(
