@@ -79,6 +79,7 @@ fun HowlAppScreen(
     manualViewModel: ManualViewModel = viewModel(),
     settingsViewModel: SettingsViewModel = viewModel(),
     waveViewModel: WaveViewModel = viewModel(),
+    powerRampViewModel: PowerRampViewModel = viewModel(),
 ) {
     val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
     val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
@@ -130,6 +131,11 @@ fun HowlAppScreen(
         view.keepScreenOn = playerState.isPlaying
     }
 
+    // Provide PowerRampViewModel to MainOptions for runtime power ramp processing
+    LaunchedEffect(powerRampViewModel) {
+        MainOptions.powerRampViewModel = powerRampViewModel
+    }
+
     Scaffold(
         bottomBar = {
             ConnectionStatusBar(
@@ -157,7 +163,8 @@ fun HowlAppScreen(
                 onRequestPermissions = { permissions, onResult ->
                     checkAndRequestPermissions(permissions, onResult)
                 },
-                waveViewModel = waveViewModel
+                waveViewModel = waveViewModel,
+                powerRampViewModel = powerRampViewModel
             )
         }
     }

@@ -61,6 +61,7 @@ fun TabLayout(
     activityHostViewModel: ActivityHostViewModel,
     manualViewModel: ManualViewModel,
     waveViewModel: WaveViewModel,
+    powerRampViewModel: PowerRampViewModel,
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -119,6 +120,7 @@ fun TabLayout(
                     "Wave" -> WavePanel(viewModel = waveViewModel)
                     "Settings" -> SettingsPanel(
                         viewModel = settingsViewModel,
+                        powerRampViewModel = powerRampViewModel,
                         onRequestPermissions = onRequestPermissions
                     )
                     "Debug" -> LogViewer()
@@ -139,6 +141,7 @@ fun TabLayoutPreview() {
         val activityHostViewModel: ActivityHostViewModel = viewModel()
         val manualViewModel: ManualViewModel = viewModel()
         val waveViewModel: WaveViewModel = viewModel()
+        val powerRampViewModel: PowerRampViewModel = viewModel()
         TabLayout (
             tabLayoutViewModel = viewModel,
             playerViewModel = playerViewModel,
@@ -147,6 +150,7 @@ fun TabLayoutPreview() {
             activityHostViewModel = activityHostViewModel,
             manualViewModel = manualViewModel,
             waveViewModel = waveViewModel,
+            powerRampViewModel = powerRampViewModel,
             onRequestPermissions = { _, _ -> },
             modifier = Modifier.fillMaxHeight()
         )

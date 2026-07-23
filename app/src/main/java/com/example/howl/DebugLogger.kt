@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -227,7 +226,7 @@ fun LogViewer() {
                         shape = MaterialTheme.shapes.large
                     )
             ) {
-                items(logEntries, key = { it.timestamp.hashCode() * 31 + it.message.hashCode() }) { entry ->
+                items(logEntries) { entry ->
                     val formattedText = HLog.formatLogEntry(entry)
                     val entryColor = entry.level.color
 
