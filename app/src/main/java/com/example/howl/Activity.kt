@@ -1117,10 +1117,11 @@ class OppositesActivity : Activity() {
         newRandomAmplitudeTarget(ampA)
         newRandomFrequencyTarget(freqA)
         speedChange()
-        speedChangeTimer.start()
         manager.register(ampA)
         manager.register(freqA)
+        manager.register(speedChangeTimer)
         manager.register(overallSpeed)
+        speedChangeTimer.start()
     }
 
     private fun speedChange() {
