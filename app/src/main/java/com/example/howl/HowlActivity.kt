@@ -80,7 +80,12 @@ fun HowlAppScreen(
     settingsViewModel: SettingsViewModel = viewModel(),
     waveViewModel: WaveViewModel = viewModel(),
     powerRampViewModel: PowerRampViewModel = viewModel(),
+    civetSensorViewModel: CivetSensorViewModel = viewModel(),
+    opossumViewModel: OpossumViewModel = viewModel(),
 ) {
+    // Wire cross-viewModel references
+    civetSensorViewModel.setOpossumViewModel(opossumViewModel)
+
     val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
     val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
     val playerState by playerViewModel.playerState.collectAsStateWithLifecycle()
@@ -160,11 +165,14 @@ fun HowlAppScreen(
                 generatorViewModel = generatorViewModel,
                 activityHostViewModel = activityHostViewModel,
                 manualViewModel = manualViewModel,
+                waveViewModel = waveViewModel,
+                powerRampViewModel = powerRampViewModel,
+                civetSensorViewModel = civetSensorViewModel,
+                opossumViewModel = opossumViewModel,
                 onRequestPermissions = { permissions, onResult ->
                     checkAndRequestPermissions(permissions, onResult)
                 },
-                waveViewModel = waveViewModel,
-                powerRampViewModel = powerRampViewModel
+                modifier = Modifier
             )
         }
     }

@@ -83,6 +83,7 @@
     <string name="tab_activity">活动</string>
     <string name="tab_settings">设置</string>
     <string name="tab_debug">调试</string>
+    <string name="tab_civet_sensor">灵猫传感器</string>
     
     <!-- 按钮文本 -->
     <string name="button_pause">暂停</string>

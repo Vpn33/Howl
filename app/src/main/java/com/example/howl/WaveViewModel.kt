@@ -1456,10 +1456,16 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                                 .fillMaxWidth()
                                 .then(
                                     if (isPlaying) {
-                                        Modifier.background(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = MaterialTheme.shapes.small
-                                        )
+                                        Modifier
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                                shape = MaterialTheme.shapes.small
+                                            )
+                                            .border(
+                                                width = 3.dp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = MaterialTheme.shapes.small
+                                            )
                                     } else {
                                         Modifier
                                     }
@@ -1471,12 +1477,19 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                                         viewModel.switchToWave(context, channel, index)
                                     }
                                 )
-                                .padding(8.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = wave.name,
+                                style = if (isPlaying) {
+                                    MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                    )
+                                } else {
+                                    MaterialTheme.typography.bodyMedium
+                                },
                                 color = if (isPlaying) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {

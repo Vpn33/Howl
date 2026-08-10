@@ -25,7 +25,6 @@ class HowlApp : Application() {
 
         // 同步加载语言设置并应用
         val language = loadLanguageSync(db)
-        HLog.d("HowlApp", "Loaded language setting: $language")
         applyLanguage(language)
 
         // 初始化ActivityType的displayNames映射，使用初始语言设置

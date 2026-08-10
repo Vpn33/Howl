@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class TabLayoutViewModel : ViewModel() {
-    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Wave", "Settings")
+    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Wave", "Civet Sensor", "Opossum", "Settings")
     private val debugTab = "Debug"
 
     private val _tabIndex = MutableStateFlow(0)
@@ -45,7 +45,11 @@ class TabLayoutViewModel : ViewModel() {
                 fixedTabs
             }
         }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, fixedTabs)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf("Player", "Generator", "Activity", "Manual", "Wave", "Civet Sensor", "Opossum", "Settings"))
+    
+    fun setCivetSensorTabIndex(index: Int) {
+        _tabIndex.update { index }
+    }
 
     fun setTabIndex(index: Int) {
         _tabIndex.update { index }
@@ -62,6 +66,8 @@ fun TabLayout(
     manualViewModel: ManualViewModel,
     waveViewModel: WaveViewModel,
     powerRampViewModel: PowerRampViewModel,
+    civetSensorViewModel: CivetSensorViewModel,
+    opossumViewModel: OpossumViewModel,
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -102,6 +108,8 @@ fun TabLayout(
                             "Manual" -> Icon(painterResource(R.drawable.joystick), contentDescription = null)
                             "Wave" -> Icon(painterResource(R.drawable.waveform), contentDescription = null)
                             "Settings" -> Icon(painterResource(R.drawable.settings), contentDescription = null)
+                            "Civet Sensor" -> Icon(painterResource(R.drawable.civet_sensor), contentDescription = null)
+                            "Opossum" -> Icon(painterResource(R.drawable.opossum), contentDescription = null)
                             "Debug" -> Icon(painterResource(R.drawable.debug), contentDescription = null)
                         }
                     }
@@ -118,6 +126,8 @@ fun TabLayout(
                     "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
                     "Manual" -> ManualPanel(viewModel = manualViewModel)
                     "Wave" -> WavePanel(viewModel = waveViewModel)
+                    "Civet Sensor" -> CivetSensorPanel(civetViewModel = civetSensorViewModel)
+                    "Opossum" -> OpossumPanel(opossumViewModel = opossumViewModel)
                     "Settings" -> SettingsPanel(
                         viewModel = settingsViewModel,
                         powerRampViewModel = powerRampViewModel,
@@ -142,6 +152,8 @@ fun TabLayoutPreview() {
         val manualViewModel: ManualViewModel = viewModel()
         val waveViewModel: WaveViewModel = viewModel()
         val powerRampViewModel: PowerRampViewModel = viewModel()
+        val civetSensorViewModel: CivetSensorViewModel = viewModel()
+        val opossumViewModel: OpossumViewModel = viewModel()
         TabLayout (
             tabLayoutViewModel = viewModel,
             playerViewModel = playerViewModel,
@@ -151,6 +163,8 @@ fun TabLayoutPreview() {
             manualViewModel = manualViewModel,
             waveViewModel = waveViewModel,
             powerRampViewModel = powerRampViewModel,
+            civetSensorViewModel = civetSensorViewModel,
+            opossumViewModel = opossumViewModel,
             onRequestPermissions = { _, _ -> },
             modifier = Modifier.fillMaxHeight()
         )
