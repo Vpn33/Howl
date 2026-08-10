@@ -265,6 +265,7 @@ All original code is released under the MIT License. There is an additional stip
 2. Fixed an error where playing FapTap Funscript scripts resulted in a non-integer data error. 修正播放faptap的Funscript脚本出现数据非整型错误的问题
 3. Enhance the openness of the RemoteControlServer to enable other devices to invoke its interfaces. 增加RemoteControlServer的开放性，使得其他设备也可以调用接口；
 4. Add automatic power ramp. 增加自动爬坡的功能
+5. Add support for DG-LAB's civetedging-sensor and opossum-vibrate-controller devices. 增加对DG-LAB实验室灵猫和负鼠设备的支持
     
     Automatic power ramp for keep edgeing with ruined。
     
