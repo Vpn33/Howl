@@ -221,12 +221,22 @@ class FunscriptPulseSource : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = true
+    override val seekable: Boolean = true
     override var shouldLoop: Boolean = false
     override var readyToPlay: Boolean = false
-    override var isRemote: Boolean = false
+    override var latencyCompensation: Boolean = false
 
     private val axes = mutableMapOf<String, FunscriptAxis>()
+
+    /** Sorted list of axis IDs present in the loaded funscript (e.g. ["L0", "R0", "R2"]). */
+    val axisIds: List<String>
+        get() = axes.keys.sorted()
+
+    /** Returns the normalised position (0.0–1.0) of the given axis at [time], or null if the axis doesn't exist. */
+    fun getAxisPosition(axisId: String, time: Double): Double? {
+        return axes[axisId]?.getPositionAtTime(time)
+    }
+
     val jsonConfig = Json { ignoreUnknownKeys = true }
 
     companion object {
@@ -248,7 +258,6 @@ class FunscriptPulseSource : PulseSource {
         private const val SAMPLES_PER_SIGMA = 4
     }
 
-    override fun updateState(currentTime: Double) {}
     private fun calculateBaseFrequencies(time: Double, position: Double, amplitude: Double): Pair<Double, Double> {
         /*
         Calculates our base frequencies from the common L0 (up/down) axis that all funscripts
@@ -406,7 +415,7 @@ class FunscriptPulseSource : PulseSource {
         return rawAmp
     }
 
-    override fun getPulseAtTime(time: Double): Pulse {
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
         val mainAxis = axes["L0"] ?: return Pulse() // Fallback if somehow missing
 
         val funscriptPositionalEffectStrength = Prefs.funscriptPositionalEffectStrength.value.toDouble()
@@ -473,7 +482,8 @@ class FunscriptPulseSource : PulseSource {
 
         // Update display info with axis count and IDs
         val axisIds = axes.keys.sorted()
-        _displayInfo.value = "${axes.size} ${if (axes.size == 1) "axis" else "axes"} [${axisIds.joinToString(", ")}]"
+        _displayInfo.value = "${axes.size} axis funscript"
+        //_displayInfo.value = "${axes.size} ${if (axes.size == 1) "axis" else "axes"} funscript"
 
         HLog.i("Funscript", "Processed ${axes.size} ${if (axes.size == 1) "axis" else "axes"}.")
     }
@@ -527,7 +537,7 @@ class FunscriptPulseSource : PulseSource {
 
         _displayName.value = title
         duration = axes.values.maxOfOrNull { it.getDuration() ?: 0.0 }
-        isRemote = true
+        latencyCompensation = true
         readyToPlay = true
         shouldLoop = loop
         return duration

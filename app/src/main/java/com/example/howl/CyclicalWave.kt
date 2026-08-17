@@ -74,14 +74,14 @@ class CyclicalWave(val shape: WaveShape) {
     ): Pair<WavePoint, WavePoint> {
         val points = shape.points
         val index = points.indexOfLast { it.time <= phase }
-        return when {
-            index == -1 -> {
+        return when (index) {
+            -1 -> {
                 // All points are after the phase, wrap to previous cycle's last point
                 val previous = points.last().withTimeWrappedBackwards()
                 val next = points.first()
                 Pair(previous, next)
             }
-            index == points.lastIndex -> {
+            points.lastIndex -> {
                 // Phase is after the last point, wrap to next cycle's first point
                 val previous = points.last()
                 val next = points.first().withTimeWrappedForwards()
@@ -156,7 +156,7 @@ class JitterHandler {
         if (cycle != lastCycle) {
             if (lastCycle == -1) {
                 // First update cycle or restarted.
-                // Initialize both factors to the same random value to ensure
+                // Initialise both factors to the same random value to ensure
                 // consistent jitter application from the very start.
                 val initialFactor = generateFactor()
                 previousFactor = initialFactor
@@ -456,7 +456,7 @@ class NiceSmoother(initialValue: Double = 0.0, val range: ClosedFloatingPointRan
 }
 
 class NoiseGenerator {
-    private val noise = OpenSimplexNoise(System.currentTimeMillis())
+    private val noise = SimplexNoise(System.currentTimeMillis())
 
     fun getNoise(time: Double, rotation: Double, radius: Double, axis: Int, shiftResult: Boolean): Pair<Double, Double> {
         val circleX = radius * cos(rotation)

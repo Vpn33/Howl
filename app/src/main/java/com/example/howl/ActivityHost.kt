@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,51 +73,29 @@ object ActivityHost : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = false
+    override val seekable: Boolean = false
     override val shouldLoop: Boolean = false
     override var readyToPlay: Boolean = true
-    override var isRemote: Boolean = false
-
-    private var lastUpdateTime = -1.0
-    private var lastSimulationTime = -1.0
+    override var latencyCompensation: Boolean = false
 
     private val _currentActivity = MutableStateFlow(switchActivity(randomActivityType()))
     val currentActivity: StateFlow<ActivityState> = _currentActivity.asStateFlow()
 
-    override fun updateState(currentTime: Double) {
-        if (lastUpdateTime !in 0.0..currentTime)
-            lastUpdateTime = currentTime
-
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
         val changeProbability = Prefs.activityChangeProbability.value
-        val timeDelta = currentTime - lastUpdateTime
-
-        val probability = (changeProbability * 3.0 * timeDelta) / 60.0
+        val probability = (changeProbability * 3.0 * deltaTime) / 60.0
         if (Random.nextDouble() < probability) {
             randomActivity()
         }
 
-        lastUpdateTime = currentTime
-    }
-
-    override fun getPulseAtTime(time: Double): Pulse {
-        if (lastSimulationTime !in 0.0..time) {
-            lastSimulationTime = time
-        }
-
-        //Log.d("ActivityHost", "Time: $time")
-        val simulationTimeDelta = time - lastSimulationTime
-        lastSimulationTime = time
-
-        _currentActivity.value.instance.runSimulation(simulationTimeDelta)
+        _currentActivity.value.instance.runSimulation(deltaTime)
         return _currentActivity.value.instance.getPulse()
     }
 
     private fun switchActivity(type: ActivityType): ActivityState {
         _displayName.value = "Activity (${type.displayName})"
-        lastSimulationTime = -1.0
-        lastUpdateTime = -1.0
 
-        // Create and initialize the activity instance
+        // Create and initialise the activity instance
         return ActivityState(type, type.create().apply { initialise() })
     }
 
@@ -310,7 +288,7 @@ fun ActivityHostPanel(
 @Preview
 @Composable
 fun ActivityHostPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: ActivityHostViewModel = viewModel()
         ActivityHostPanel(
             viewModel = viewModel,

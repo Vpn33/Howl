@@ -33,7 +33,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -226,27 +226,12 @@ object Generator : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = false
+    override val seekable: Boolean = false
     override val shouldLoop: Boolean = false
     override var readyToPlay: Boolean = false
-    override var isRemote: Boolean = false
+    override var latencyCompensation: Boolean = false
 
-    private var lastSimulationTime = -1.0
-    private var lastUpdateTime = -1.0
     private var initialised = false
-
-    override fun updateState(currentTime: Double) {
-        if (lastUpdateTime !in 0.0..currentTime)
-            lastUpdateTime = currentTime
-        val autoChange = Prefs.generatorAutoChange.value
-        val timeDelta = currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-        if (autoChange) {
-            channelA.makeRandomChanges(timeDelta)
-            channelB.makeRandomChanges(timeDelta)
-        }
-        updateInfo()
-    }
 
     fun initialise() {
         if(!initialised) {
@@ -281,15 +266,15 @@ object Generator : PulseSource {
         return if(channelNumber==0) channelA else channelB
     }
 
-    override fun getPulseAtTime(time: Double): Pulse {
-        if (lastSimulationTime !in 0.0..time) {
-            lastSimulationTime = time
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
+        val autoChange = Prefs.generatorAutoChange.value
+        if (autoChange) {
+            channelA.makeRandomChanges(deltaTime)
+            channelB.makeRandomChanges(deltaTime)
         }
-
-        val simulationTimeDelta = time - lastSimulationTime
-        lastSimulationTime = time
-        channelA.update(simulationTimeDelta)
-        channelB.update(simulationTimeDelta)
+        updateInfo()
+        channelA.update(deltaTime)
+        channelB.update(deltaTime)
 
         val (ampA, freqA) = channelA.getAmpAndFreq()
         val (ampB, freqB) = channelB.getAmpAndFreq()
@@ -298,7 +283,7 @@ object Generator : PulseSource {
     }
 }
 
-class GeneratorViewModel() : ViewModel() {
+class GeneratorViewModel : ViewModel() {
     fun randomise() {
         Generator.randomise()
     }
@@ -358,9 +343,7 @@ fun GeneratorPanel(
     val generatorWaveChangeProbability by Prefs.generatorWaveChangeProbability.collectAsStateWithLifecycle()
 
     val playerState by Player.playerState.collectAsStateWithLifecycle()
-    val mainOptionsState by MainOptions.state.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == Generator
-    val frequencyRange = mainOptionsState.minFrequency..mainOptionsState.maxFrequency
     var showChannelASettings by remember { mutableStateOf(false) }
     var showChannelBSettings by remember { mutableStateOf(false) }
 
@@ -376,8 +359,8 @@ fun GeneratorPanel(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            GeneratorParametersInfo("Channel A", generatorState.channelAInfo, frequencyRange, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
-            GeneratorParametersInfo("Channel B", generatorState.channelBInfo, frequencyRange, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo("Channel A", generatorState.channelAInfo, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo("Channel B", generatorState.channelBInfo, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -600,7 +583,6 @@ fun GeneratorParametersSettings(
 fun GeneratorParametersInfo(
     title: String,
     generatorChannelInfo: GeneratorChannelInfo,
-    frequencyRange: IntRange,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -637,15 +619,13 @@ fun GeneratorParametersInfo(
                 category = "Freq shape",
                 value = generatorChannelInfo.freqWaveName
             )
-            val freqLow =
-                frequencyRange.first + generatorChannelInfo.minFreq * (frequencyRange.last - frequencyRange.first)
-            val freqHigh =
-                frequencyRange.first + generatorChannelInfo.maxFreq * (frequencyRange.last - frequencyRange.first)
+            val freqLow = String.format(Locale.US, "%.1f", generatorChannelInfo.minFreq * 100.0)
+            val freqHigh = String.format(Locale.US, "%.1f", generatorChannelInfo.maxFreq * 100.0)
             val freqText =
                 if (generatorChannelInfo.freqWaveName == "Constant")
-                    String.format(Locale.US, "%.1fHz", freqHigh)
+                    "$freqHigh%"
                 else
-                    String.format(Locale.US, "%.1fHz - %.1fHz", freqLow, freqHigh)
+                    "$freqLow% - $freqHigh%"
             GeneratorParametersInfoRow(
                 category = "Freq",
                 value = freqText
@@ -678,7 +658,7 @@ fun GeneratorParametersInfoRow(
 @Preview
 @Composable
 fun GeneratorPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: GeneratorViewModel = viewModel()
         GeneratorPanel(
             viewModel = viewModel,

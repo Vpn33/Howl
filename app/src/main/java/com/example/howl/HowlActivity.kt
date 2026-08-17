@@ -9,10 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,10 +21,22 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.activity.OnBackPressedCallback
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.example.howl.ui.theme.HowlTheme
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
+import com.example.howl.ui.theme.AppTheme
 
 private data class PermissionRequest(
     val permissions: Array<String>,
@@ -45,7 +54,7 @@ class HowlActivity : ComponentActivity() {
         })
         enableEdgeToEdge()
         setContent {
-            HowlTheme {
+            AppTheme {
                 HowlAppScreen()
             }
         }
@@ -62,12 +71,12 @@ fun HowlAppScreen(
     manualViewModel: ManualViewModel = viewModel(),
     settingsViewModel: SettingsViewModel = viewModel(),
 ) {
-    val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
-    val batteryPercent by ConnectionManager.batteryLevel.collectAsStateWithLifecycle()
     val playerState by playerViewModel.playerState.collectAsStateWithLifecycle()
 
     // Permission launcher
     val context = LocalContext.current
+    val app = context.applicationContext as HowlApp
+    val scope = rememberCoroutineScope()
 
     var pendingPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
 
@@ -95,52 +104,78 @@ fun HowlAppScreen(
         }
     }
 
-    fun onConnectClick() {
-        checkAndRequestPermissions(BluetoothHandler.ALL_BLE_PERMISSIONS) { isGranted ->
-            if (isGranted) {
-                HLog.d("Howl", "Bluetooth permissions granted.")
-                BluetoothHandler.attemptConnection()
-            } else {
-                HLog.d("Howl", "Bluetooth permissions denied.")
-            }
-        }
-    }
-
     // Keep the screen on whenever the player is playing
     val view = LocalView.current
     LaunchedEffect(playerState.isPlaying) {
         view.keepScreenOn = playerState.isPlaying
     }
 
-    Scaffold(
-        bottomBar = {
-            ConnectionStatusBar(
-                connectionStatus,
-                batteryPercent,
-                { onConnectClick() },
-                disconnectFunction = { BluetoothHandler.disconnect() },
-                modifier = Modifier.navigationBarsPadding()
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            MainOptionsPanel(viewModel = mainOptionsViewModel)
-            TabLayout(
-                tabLayoutViewModel = tabLayoutViewModel,
-                playerViewModel = playerViewModel,
-                settingsViewModel = settingsViewModel,
-                generatorViewModel = generatorViewModel,
-                activityHostViewModel = activityHostViewModel,
-                manualViewModel = manualViewModel,
-                onRequestPermissions = { permissions, onResult ->
-                    checkAndRequestPermissions(permissions, onResult)
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    Scaffold { innerPadding ->
+        val containerModifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+
+        if (isLandscape) {
+            Row(modifier = containerModifier) {
+                Column(
+                    modifier = Modifier
+                        .width(420.dp)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    MainOptionsPanel(
+                        viewModel = mainOptionsViewModel,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutputsPanel(
+                        onRequestPermissions = { permissions, onResult ->
+                            checkAndRequestPermissions(permissions, onResult)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-            )
+                TabLayout(
+                    tabLayoutViewModel = tabLayoutViewModel,
+                    playerViewModel = playerViewModel,
+                    settingsViewModel = settingsViewModel,
+                    generatorViewModel = generatorViewModel,
+                    activityHostViewModel = activityHostViewModel,
+                    manualViewModel = manualViewModel,
+                    onRequestPermissions = { permissions, onResult ->
+                        checkAndRequestPermissions(permissions, onResult)
+                    },
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+            }
+        } else {
+            Column(modifier = containerModifier) {
+                MainOptionsPanel(viewModel = mainOptionsViewModel)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutputsPanel(
+                    onRequestPermissions = { permissions, onResult ->
+                        checkAndRequestPermissions(permissions, onResult)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TabLayout(
+                    tabLayoutViewModel = tabLayoutViewModel,
+                    playerViewModel = playerViewModel,
+                    settingsViewModel = settingsViewModel,
+                    generatorViewModel = generatorViewModel,
+                    activityHostViewModel = activityHostViewModel,
+                    manualViewModel = manualViewModel,
+                    onRequestPermissions = { permissions, onResult ->
+                        checkAndRequestPermissions(permissions, onResult)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                )
+            }
         }
     }
 }

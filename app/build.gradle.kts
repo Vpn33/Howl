@@ -13,19 +13,22 @@ android {
         applicationId = "com.example.howl"
         minSdk = 26
         targetSdk = 37
-        versionCode = 111
-        versionName = "1.1.1"
+        versionCode = 200
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            optimization {
+                enable = true
+            }
+            /*isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
-            )
+            )*/
         }
     }
     buildFeatures {

@@ -76,7 +76,7 @@ class WaveShape(
             d[i] = deltaPos / h
         }
 
-        // Initialize slopes using the Fritsch-Carlson method
+        // Initialise slopes using the Fritsch-Carlson method
         for (i in 0 until n) {
             val prevIndex = if (i == 0) n - 1 else i - 1
             val nextIndex = if (i == n - 1) 0 else i + 1
@@ -119,7 +119,7 @@ data class Quadruple<T1, T2, T3, T4>(
 )
 
 data class PolarPosition(
-    val radius: Float, // Normalized from 0.0 (center) to 1.0 (edge)
+    val radius: Float, // Normalized from 0.0 (centre) to 1.0 (edge)
     val angleRadians: Float // Direction from 0.0 to 2*PI radians
 )
 
@@ -154,6 +154,10 @@ fun ClosedRange<Long>.lerp(fraction: Double): Long = lerp(start, endInclusive, f
 fun IntRange.toProportionOf(parent: IntRange): ClosedFloatingPointRange<Float> {
     val parentSize = (parent.last - parent.first).toFloat()
     return ((this.first - parent.first) / parentSize)..((this.last - parent.first) / parentSize)
+}
+
+fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
+    return this.first.toFloat()..this.last.toFloat()
 }
 
 fun Float.roughlyEqual(other: Float) : Boolean {
@@ -348,7 +352,7 @@ fun calculatePositionalEffect(
     position: Double,
     positionalEffectStrength: Double
 ): Pair<Double, Double> {
-    // Curve to tune the positional effect to provide equal sensations at the center and extremes.
+    // Curve to tune the positional effect to provide equal sensations at the centre and extremes.
     // 1.0 = linear panning. 0.5 = constant power panning (default).
     val curve = Prefs.calibrationPositionalEffectCurve.value.toDouble().coerceAtLeast(0.01)
 
@@ -411,96 +415,125 @@ fun Uri.getName(context: Context): String {
     }
 }
 
-class CircularBuffer<T>(var capacity: Int): Iterable<T> {
-    private var buffer: Array<T?> = arrayOfNulls(capacity)
-
-    private var start = 0
-    var size = 0
-        private set
-
+/**
+ * General thread safe circular buffer class that can be used to store history or as a FIFO queue.
+ * Uses a lightweight optimistic locking mechanism that assumes concurrent access will be rare.
+ */
+class CircularBuffer<T>(capacity: Int) {
     init {
         require(capacity > 0) { "Capacity must be positive" }
     }
 
-    val isEmpty get() = size == 0
-    val isFull get() = size == capacity
-    fun first(): T? = if (isEmpty) null else buffer[start]
-    fun last(): T? = if (isEmpty) null else buffer[(start + size - 1) % capacity]
+    private val lock = Any()
 
-    fun clear() {
-        start = 0
-        size = 0
-        buffer.fill(null) // Optional: Clear references to help garbage collection
+    // Private internal mutable state variables
+    private var _capacity = capacity
+    private var buffer: Array<T?> = arrayOfNulls(_capacity)
+    private var start = 0
+    private var _size = 0
+
+    // Thread-safe public properties
+    val capacity: Int
+        get() = synchronized(lock) { _capacity }
+
+    val size: Int
+        get() = synchronized(lock) { _size }
+
+    val isEmpty: Boolean
+        get() = synchronized(lock) { _size == 0 }
+
+    val isFull: Boolean
+        get() = synchronized(lock) { _size == _capacity }
+
+    fun firstOrNull(): T? = synchronized(lock) {
+        if (_size == 0) null else buffer[start]
     }
 
-    fun add(element: T, overwrite: Boolean = false) {
-        if (isFull) {
+    fun lastOrNull(): T? = synchronized(lock) {
+        if (_size == 0) null else buffer[(start + _size - 1) % _capacity]
+    }
+
+    fun clear() = synchronized(lock) {
+        start = 0
+        _size = 0
+        buffer.fill(null) // Clear references to help garbage collection
+    }
+
+    // Internal helper assumes the lock is already held
+    private fun addInternal(element: T, overwrite: Boolean) {
+        if (_size == _capacity) {
             if (!overwrite) {
                 throw IllegalStateException("Cannot perform add operation since buffer is full and overwrite=false")
             }
             buffer[start] = element
-            start = (start + 1) % capacity
+            start = (start + 1) % _capacity
         } else {
-            buffer[(start + size) % capacity] = element
-            size++
+            buffer[(start + _size) % _capacity] = element
+            _size++
         }
     }
 
-    fun addAll(elements: Collection<T>, overwrite: Boolean = false) {
-        elements.forEach { add(it, overwrite) }
+    fun add(element: T, overwrite: Boolean = false) = synchronized(lock) {
+        addInternal(element, overwrite)
     }
 
-    fun removeFirstOrNull(): T? {
-        if (isEmpty) return null
+    // non-atomic, can partially write when overwrite = false
+    fun addAll(elements: Collection<T>, overwrite: Boolean = false) = synchronized(lock) {
+        for (element in elements) {
+            addInternal(element, overwrite)
+        }
+    }
+
+    fun removeFirstOrNull(): T? = synchronized(lock) {
+        if (_size == 0) return null
         val element = buffer[start]
         buffer[start] = null
-        start = (start + 1) % capacity
-        size--
-        return element
+        start = (start + 1) % _capacity
+        _size--
+        element
     }
 
-    fun removeLastOrNull(): T? {
-        if (isEmpty) return null
-        val index = (start + size - 1) % capacity
+    fun removeLastOrNull(): T? = synchronized(lock) {
+        if (_size == 0) return null
+        val index = (start + _size - 1) % _capacity
         val element = buffer[index]
         buffer[index] = null
-        size--
-        return element
+        _size--
+        element
     }
 
-    fun resize(newCapacity: Int, clear: Boolean = false) {
-        require(newCapacity > 0)
-        if (newCapacity == capacity && !clear)
-            return
+    fun resize(newCapacity: Int, clear: Boolean = false): Unit = synchronized(lock) {
+        require(newCapacity > 0) { "New capacity must be positive" }
+        if (newCapacity == _capacity && !clear) return
 
-        val oldElements = if (clear) emptyList() else toList().takeLast(newCapacity)
+        val oldElements = if (clear) emptyList() else toListInternal().takeLast(newCapacity)
 
-        capacity = newCapacity
+        _capacity = newCapacity
         buffer = arrayOfNulls(newCapacity)
         start = 0
-        size = 0
+        _size = 0
 
-        addAll(oldElements)
-    }
-
-    fun toList(): List<T> = List(size) { i -> buffer[(start + i) % capacity]!! }
-
-    override fun toString(): String {
-        return toList().toString()
-    }
-
-    override fun iterator(): Iterator<T> {
-        return object : Iterator<T> {
-            private var index = 0
-
-            override fun hasNext(): Boolean {
-                return index < size
-            }
-
-            override fun next(): T {
-                if (!hasNext()) throw NoSuchElementException()
-                return buffer[(start + index++) % capacity]!!
-            }
+        for (e in oldElements) {
+            addInternal(e, false) // Re-add elements atomically without needing overwrite logic
         }
+    }
+
+    // Internal helper assumes the lock is already held
+    @Suppress("UNCHECKED_CAST")
+    private fun toListInternal(): List<T> = List(_size) { i -> buffer[(start + i) % _capacity] as T }
+
+    fun toList(): List<T> = synchronized(lock) {
+        toListInternal()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun lastN(n: Int): List<T> = synchronized(lock) {
+        val count = n.coerceIn(0, _size)
+        val offset = _size - count
+        List(count) { i -> buffer[(start + offset + i) % _capacity] as T }
+    }
+
+    override fun toString(): String = synchronized(lock) {
+        toListInternal().toString()
     }
 }

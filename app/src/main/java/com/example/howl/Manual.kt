@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,10 +44,10 @@ object Manual : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = false
+    override val seekable: Boolean = false
     override val shouldLoop: Boolean = false
     override var readyToPlay: Boolean = true
-    override var isRemote: Boolean = false
+    override var latencyCompensation: Boolean = false
 
     // Raw touchpad positions (targets)
     private val _leftPadPosition = MutableStateFlow(CartesianPosition(0f, 0f))
@@ -65,31 +64,30 @@ object Manual : PulseSource {
     private var leftPadVelocity = CartesianPosition(0f, 0f)
     private var rightPadVelocity = CartesianPosition(0f, 0f)
 
-    // Simulation timing state
-    private var lastSimulationTime = -1.0
-
-    override fun getPulseAtTime(time: Double): Pulse {
-        // Initialize last time on first run or sequence reset
-        if (lastSimulationTime !in 0.0..time) {
-            lastSimulationTime = time
-        }
-
-        val deltaSimulationTime = (time - lastSimulationTime).toFloat()
-        lastSimulationTime = time
-
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
         val smoothTime = Prefs.manualSmoothdampTime.value
 
-        // Smooth Left Pad
         val leftTarget = _leftPadPosition.value
-        val leftResult = smoothDamp(smoothedLeftPadPosition, leftTarget, leftPadVelocity, smoothTime, deltaSimulationTime)
-        smoothedLeftPadPosition = leftResult.first
-        leftPadVelocity = leftResult.second
-
-        // Smooth Right Pad
         val rightTarget = _rightPadPosition.value
-        val rightResult = smoothDamp(smoothedRightPadPosition, rightTarget, rightPadVelocity, smoothTime, deltaSimulationTime)
-        smoothedRightPadPosition = rightResult.first
-        rightPadVelocity = rightResult.second
+
+        if (smoothTime <= 0f) {
+            // No smoothing, use the raw touchpad positions directly.
+            smoothedLeftPadPosition = leftTarget
+            smoothedRightPadPosition = rightTarget
+            // Zero out velocities so a subsequent switch back to smoothing
+            // doesn't inherit stale momentum.
+            leftPadVelocity = CartesianPosition(0f, 0f)
+            rightPadVelocity = CartesianPosition(0f, 0f)
+        } else {
+            // Apply smoothing
+            val leftResult = smoothDamp(smoothedLeftPadPosition, leftTarget, leftPadVelocity, smoothTime, deltaTime.toFloat())
+            smoothedLeftPadPosition = leftResult.first
+            leftPadVelocity = leftResult.second
+
+            val rightResult = smoothDamp(smoothedRightPadPosition, rightTarget, rightPadVelocity, smoothTime, deltaTime.toFloat())
+            smoothedRightPadPosition = rightResult.first
+            rightPadVelocity = rightResult.second
+        }
 
         // Convert smoothed Cartesian coordinates back to Polar for audio generation
         val leftAngle = atan2(smoothedLeftPadPosition.y, smoothedLeftPadPosition.x)
@@ -107,9 +105,6 @@ object Manual : PulseSource {
             ampA = leftRadius,
             ampB = rightRadius
         )
-    }
-
-    override fun updateState(currentTime: Double) {
     }
 
     fun updateLeftPadPosition(position: CartesianPosition) {
@@ -133,14 +128,14 @@ object Manual : PulseSource {
         val pi = PI.toFloat()
         val twoPi = 2f * pi
 
-        // Normalize angle to [0, 2π)
-        val normalized = ((angleRadians % twoPi) + twoPi) % twoPi
+        // Normalise angle to [0, 2π)
+        val normalised = ((angleRadians % twoPi) + twoPi) % twoPi
 
-        // Top is at angle -π/2, which normalizes to 3π/2
+        // Top is at angle -π/2, which normalises to 3π/2
         val topAngle = 3f * pi / 2f
 
         // Absolute angular distance from top around the circle
-        val distFromTop = abs(normalized - topAngle)
+        val distFromTop = abs(normalised - topAngle)
 
         // Take the shorter path (clockwise or counterclockwise)
         val shortestDist = min(distFromTop, twoPi - distFromTop)
@@ -262,8 +257,8 @@ fun ManualSettingsPanel(
             value = smoothTime,
             onValueChange = { Prefs.manualSmoothdampTime.value = it },
             onValueChangeFinished = { Prefs.manualSmoothdampTime.save() },
-            valueRange = 0.1f..2.0f,
-            steps = 189,
+            valueRange = 0.0f..2.0f,
+            steps = 199,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
     }

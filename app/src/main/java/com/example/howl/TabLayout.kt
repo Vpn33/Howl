@@ -2,11 +2,13 @@ package com.example.howl
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,13 +16,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,9 +73,26 @@ fun TabLayout(
         }
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        ScrollableTabRow(
-            selectedTabIndex = tabIndex,
+    // Use a safe selected index so the tab row never receives an out-of-range index.
+    val selectedTabIndex = if (visibleTabs.isEmpty()) {
+        0
+    } else {
+        tabIndex.coerceIn(0, visibleTabs.lastIndex)
+    }
+
+    val currentTab = visibleTabs.getOrNull(selectedTabIndex)
+    val contentScrollState = rememberScrollState()
+
+    // Reset scroll position when switching tabs.
+    LaunchedEffect(currentTab) {
+        contentScrollState.scrollTo(0)
+    }
+
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        PrimaryScrollableTabRow(
+            selectedTabIndex = selectedTabIndex,
             edgePadding = 0.dp,
             divider = {},
             modifier = Modifier.fillMaxWidth()
@@ -87,11 +105,10 @@ fun TabLayout(
                             style = MaterialTheme.typography.titleMedium
                         )
                     },
-                    //text = { Text(title) },
-                    selected = tabIndex == index,
+                    selected = selectedTabIndex == index,
                     onClick = { tabLayoutViewModel.setTabIndex(index) },
                     modifier = Modifier.weight(1f, fill = false),
-                    icon = {
+                    /*icon = {
                         when (title) {
                             "Player" -> Icon(painterResource(R.drawable.player), contentDescription = null)
                             "Generator" -> Icon(painterResource(R.drawable.wave), contentDescription = null)
@@ -100,23 +117,35 @@ fun TabLayout(
                             "Settings" -> Icon(painterResource(R.drawable.settings), contentDescription = null)
                             "Debug" -> Icon(painterResource(R.drawable.debug), contentDescription = null)
                         }
-                    }
+                    }*/
                 )
             }
         }
-        HorizontalDivider(thickness = 1.dp, modifier = Modifier.fillMaxWidth())
 
-        visibleTabs.getOrNull(tabIndex)?.let { currentTab ->
-            when (currentTab) {
-                "Player" -> CombinedPanel(viewModel = playerViewModel)
-                "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
-                "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
-                "Manual" -> ManualPanel(viewModel = manualViewModel)
-                "Settings" -> SettingsPanel(
-                    viewModel = settingsViewModel,
-                    onRequestPermissions = onRequestPermissions
-                )
-                "Debug" -> LogViewer()
+        HorizontalDivider(
+            thickness = 1.dp,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Only this area scrolls.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(contentScrollState)
+        ) {
+            currentTab?.let { tab ->
+                when (tab) {
+                    "Player" -> CombinedPanel(viewModel = playerViewModel)
+                    "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
+                    "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
+                    "Manual" -> ManualPanel(viewModel = manualViewModel)
+                    "Settings" -> SettingsPanel(
+                        viewModel = settingsViewModel,
+                        onRequestPermissions = onRequestPermissions
+                    )
+                    "Debug" -> LogViewer()
+                }
             }
         }
     }
@@ -125,7 +154,7 @@ fun TabLayout(
 @Preview
 @Composable
 fun TabLayoutPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: TabLayoutViewModel = viewModel()
         val playerViewModel: PlayerViewModel = viewModel()
         val settingsViewModel: SettingsViewModel = viewModel()

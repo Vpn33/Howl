@@ -43,25 +43,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.Playhead.Mode
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import java.io.IOException
-import kotlin.time.DurationUnit
-import kotlin.time.TimeSource.Monotonic.markNow
 import java.util.Locale
 import java.lang.ref.WeakReference
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.roundToInt
-import kotlin.time.TimeMark
 
 fun formatTime(position: Double): String {
     val minutes = (position / 60).toInt()
@@ -69,29 +63,9 @@ fun formatTime(position: Double): String {
     return String.format(Locale.US, "%02d:%04.1f", minutes, seconds)
 }
 
-@Serializable
-data class Pulse (
-    val ampA: Float = 0.0f,
-    val ampB: Float = 0.0f,
-    val freqA: Float = 0.0f,
-    val freqB: Float = 0.0f
-)
-
-fun Pulse.blend(other: Pulse, proportion: Float): Pulse {
-    val t = proportion.coerceIn(0.0f, 1.0f)
-    return Pulse(
-        ampA = ampA + t * (other.ampA - ampA),
-        ampB = ampB + t * (other.ampB - ampB),
-        freqA = freqA + t * (other.freqA - freqA),
-        freqB = freqB + t * (other.freqB - freqB)
-    )
-}
-
 data class PlayerState(
     val activePulseSource: PulseSource? = null,
-    val startPosition: Double = 0.0,
     val isPlaying: Boolean = false,
-    val startTime: TimeMark? = null,
     val syncFineTune: Float = 0.0f,
 )
 
@@ -105,19 +79,17 @@ interface PulseSource {
     val displayName: StateFlow<String>
     val displayInfo: StateFlow<String>
     val duration: Double?
-    val isFinite: Boolean
+    val seekable: Boolean
     val shouldLoop: Boolean
     val readyToPlay: Boolean
-    val isRemote: Boolean
-    fun getPulseAtTime(time: Double): Pulse
-    fun updateState(currentTime: Double)
+    val latencyCompensation: Boolean
+    fun getPulse(time: Double, deltaTime: Double): Pulse
 }
 
 object Player {
     private var contextRef: WeakReference<Context>? = null
-    var output: Output = DummyOutput()
     var recorder: RecorderOutput = RecorderOutput()
-    private val noiseGenerator = NoiseGenerator()
+    val playhead = Playhead()
 
     private val _playerState = MutableStateFlow(PlayerState())
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
@@ -132,21 +104,6 @@ object Player {
 
     fun initialise(context: Context) {
         contextRef = WeakReference(context)
-    }
-    fun switchOutput(outputType: OutputType) {
-        Prefs.outputType.value = outputType
-        stopPlayer()
-        output.end()
-        MainOptions.setChannelPower(0, 0)
-        MainOptions.setChannelPower(1, 0)
-        output = when (outputType) {
-            OutputType.COYOTE3 -> Coyote3Output()
-            OutputType.COYOTE2 -> Coyote2Output()
-            OutputType.AUDIO_WAVELET -> AudioOutput()
-            OutputType.AUDIO_CONTINUOUS -> ContinuousAudioOutput()
-        }
-        output.initialise()
-        MainOptions.setFrequenciesToOutputDefaults(output)
     }
     fun setRecordState(newRecordState: RecordState) {
         _recordState.update { newRecordState }
@@ -163,112 +120,17 @@ object Player {
             return 0.0
 
         val syncFineTune = playerState.value.syncFineTune
-        val isRemote = playerState.value.activePulseSource?.isRemote ?: false
+        val isRemote = playerState.value.activePulseSource?.latencyCompensation ?: false
         val latency = if (isRemote) Prefs.playerRemoteLatency.value.toDouble() else 0.0
 
         return syncFineTune + latency
     }
-    private fun applyNoise(time: Double, pulse: Pulse, ampNoiseAmount: Double, ampNoiseSpeed: Double, freqNoiseAmount: Double, freqNoiseSpeed: Double): Pulse {
-        val noiseRotationSpeed = 0.05
-        val noiseRadius = 0.3
-        val (ampNoiseA, ampNoiseB) = noiseGenerator.getNoise(
-            time = time * ampNoiseSpeed,
-            rotation = time * noiseRotationSpeed,
-            radius = noiseRadius,
-            axis = 0,
-            shiftResult = false
-        )
-        val (freqNoiseA, freqNoiseB) = noiseGenerator.getNoise(
-            time = time * freqNoiseSpeed,
-            rotation = time * noiseRotationSpeed,
-            radius = noiseRadius,
-            axis = 1,
-            shiftResult = false
-        )
-        return Pulse(
-            ampA = (pulse.ampA + ampNoiseA * ampNoiseAmount).toFloat().coerceIn(0.0f..1.0f),
-            ampB = (pulse.ampB + ampNoiseB * ampNoiseAmount).toFloat().coerceIn(0.0f..1.0f),
-            freqA = (pulse.freqA + freqNoiseA * freqNoiseAmount).toFloat().coerceIn(0.0f..1.0f),
-            freqB = (pulse.freqB + freqNoiseB * freqNoiseAmount).toFloat().coerceIn(0.0f..1.0f),
-        )
-    }
-    fun applySpecialEffects(time: Double, pulse: Pulse): Pulse {
 
-        var modifiedPulse = pulse.copy(
-            freqA = if (Prefs.sfxFrequencyInvertA.value) 1.0f - pulse.freqA else pulse.freqA,
-            freqB = if (Prefs.sfxFrequencyInvertB.value) 1.0f - pulse.freqB else pulse.freqB,
-        )
-
-        if (Prefs.sfxAmplitudeNoiseAmount.value > 0.0 || Prefs.sfxFrequencyNoiseAmount.value > 0.0) {
-            modifiedPulse = applyNoise(
-                time = time,
-                pulse = modifiedPulse,
-                ampNoiseAmount = Prefs.sfxAmplitudeNoiseAmount.value.toDouble(),
-                ampNoiseSpeed = Prefs.sfxAmplitudeNoiseSpeed.value.toDouble(),
-                freqNoiseAmount = Prefs.sfxFrequencyNoiseAmount.value.toDouble(),
-                freqNoiseSpeed = Prefs.sfxFrequencyNoiseSpeed.value.toDouble()
-            )
-        }
-
-        modifiedPulse = modifiedPulse.copy(
-            freqA = calculateFeelAdjustment(
-                value = modifiedPulse.freqA,
-                feel = Prefs.sfxFrequencyFeelA.value
-            ),
-            freqB = calculateFeelAdjustment(
-                value = modifiedPulse.freqB,
-                feel = Prefs.sfxFrequencyFeelB.value
-            ),
-            ampA = calculateFeelAdjustment(
-                value = modifiedPulse.ampA,
-                feel = Prefs.sfxAmplitudeFeelA.value
-            ),
-            ampB = calculateFeelAdjustment(
-                value = modifiedPulse.ampB,
-                feel = Prefs.sfxAmplitudeFeelB.value
-            )
-        )
-
-        modifiedPulse = modifiedPulse.copy(
-            ampA = (modifiedPulse.ampA * Prefs.sfxAmplitudeScaleA.value).coerceAtMost(1.0f),
-            ampB = (modifiedPulse.ampB * Prefs.sfxAmplitudeScaleB.value).coerceAtMost(1.0f),
-            freqA = (modifiedPulse.freqA + Prefs.sfxFrequencyAdjustA.value).coerceIn(0.0f..1.0f),
-            freqB = (modifiedPulse.freqB + Prefs.sfxFrequencyAdjustB.value).coerceIn(0.0f..1.0f)
-        )
-
-        return modifiedPulse
-    }
-
-    fun applyCalibration(pulse: Pulse): Pulse {
-        val powerBalance = Prefs.calibrationPowerBalance.value
-        val freqBalanceA = Prefs.calibrationFrequencyBalanceA.value
-        val freqBalanceB = Prefs.calibrationFrequencyBalanceB.value
-
-        // Power balance: scales down the channel opposite to the balance direction
-        val ampAScale = 1.0f - max(0f, powerBalance - 0.5f) * 2.0f
-        val ampBScale = 1.0f - max(0f, 0.5f - powerBalance) * 2.0f
-
-        // Frequency balance: attenuates specific frequency ranges based on balance deviation
-        val freqScaleA = calculateFrequencyScale(freqBalanceA, pulse.freqA)
-        val freqScaleB = calculateFrequencyScale(freqBalanceB, pulse.freqB)
-
-        return pulse.copy(
-            ampA = (pulse.ampA * ampAScale * freqScaleA).coerceIn(0f, 1f),
-            ampB = (pulse.ampB * ampBScale * freqScaleB).coerceIn(0f, 1f)
-        )
-    }
-
-    private fun calculateFrequencyScale(freqBalance: Float, freq: Float): Float {
-        val reduction = 2.0f * abs(freqBalance - 0.5f)
-        val target = if (freqBalance < 0.5f) freq else 1.0f - freq
-        return 1.0f - reduction * target
-    }
-
-    fun applyPostProcessing(time: Double, pulse: Pulse): Pulse {
+    fun applyPostProcessing(pulse: Pulse): Pulse {
         val mainOptionsState = MainOptions.state.value
         val swapChannels = mainOptionsState.swapChannels
 
-        val inputPulse = if (swapChannels) {
+        return if (swapChannels) {
             pulse.copy(
                 ampA = pulse.ampB,
                 ampB = pulse.ampA,
@@ -278,41 +140,33 @@ object Player {
         } else {
             pulse
         }
-
-        val processedPulse = if (Prefs.sfxEnabled.value) {
-            applySpecialEffects(time, inputPulse)
-        } else {
-            inputPulse
-        }
-
-        return applyCalibration(processedPulse)
     }
-    fun getPulseAtTime(time: Double): Pulse {
+
+    fun getPulse(time: Double, deltaTime: Double): Pulse {
         val activePulseSource = playerState.value.activePulseSource
-        val pulse = activePulseSource?.getPulseAtTime(time) ?: Pulse()
-        return applyPostProcessing(time, pulse)
+        return activePulseSource?.getPulse(time, deltaTime) ?: Pulse()
     }
+
     fun stopPlayer() {
         _playerState.update { it.copy(isPlaying = false) }
-        output.stop()
+        playhead.stop()
+        OutputManager.stop()
     }
+
     fun startPlayer(from: Double? = null) {
         val playerState = playerState.value
-        val currentPosition = playerPosition.value
-        val playFrom = from ?: currentPosition
-        if(playerState.activePulseSource?.readyToPlay != true)
-            return
-        _playerState.update { it.copy(
-            isPlaying = true,
-            startTime = markNow(),
-            startPosition = playFrom
-        ) }
-        output.start()
+        val playFrom = from ?: playhead.position
+        if (playerState.activePulseSource?.readyToPlay != true) return
+
+        _playerState.update { it.copy(isPlaying = true) }
+        playhead.setSpeed(Prefs.playerPlaybackSpeed.value.toDouble())
+        playhead.start(playFrom)
+        OutputManager.start()
 
         val context = contextRef?.get() ?: return
-        val serviceIntent = Intent(context, PlayerService::class.java)
-        context.startService(serviceIntent)
+        context.startService(Intent(context, PlayerService::class.java))
     }
+
     fun loadFile(uri: Uri, context: Context) {
         val fileName = uri.getName(context)
         val extension = fileName.substringAfterLast('.', "").lowercase()
@@ -349,51 +203,39 @@ object Player {
 
         switchPulseSource(source)
     }
+
     fun switchPulseSource(source: PulseSource?) {
         val playerState = playerState.value
         if (source == null || playerState.activePulseSource != source) {
             _playerState.update { it.copy(
                 activePulseSource = source,
-                startPosition = 0.0,
-                startTime = null,
                 isPlaying = false,
                 syncFineTune = 0.0f
             ) }
+            playhead.reset()
             setPlayerPosition(0.0)
         }
     }
-    fun getCurrentPosition(): Double {
-        val playerState = playerState.value
-        val recordState = recordState.value
-        if (recordState.recordMode) {
-            val playerPosition = playerPosition.value
-            // Round to nearest 40th of a second
-            val roundedPosition = (playerPosition * 40).roundToInt() / 40.0
-            return roundedPosition
-        }
-        else {
-            val playbackSpeed = Prefs.playerPlaybackSpeed.value
-            val elapsed = playerState.startTime?.elapsedNow()?.toDouble(DurationUnit.SECONDS) ?: 0.0
-            return playerState.startPosition + elapsed * playbackSpeed
-        }
-    }
+
+    fun getCurrentPosition(): Double = playhead.position
+
     fun seek(position: Double? = null) {
         // May also be called with null position to resync the player, for example when changing
         // playback speed
-        val playerState = playerState.value
-        val currentPosition = playerPosition.value
-
-        val finite = playerState.activePulseSource?.isFinite ?: false
-        val pos = if (!finite || position == null) currentPosition else position
-        _playerState.update { it.copy(
-            startTime = markNow(),
-            startPosition = pos
-        ) }
+        val seekable = playerState.value.activePulseSource?.seekable ?: false
+        if (!seekable && position != null) {
+            Log.d("Player", "Ignored seek command (unseekable source).")
+            return
+        }
+        playhead.setSpeed(Prefs.playerPlaybackSpeed.value.toDouble())
+        val pos = position ?: playhead.position
+        playhead.seek(pos)
         setPlayerPosition(pos)
+        //(output as? BaseOutput)?.clearPending()
     }
 }
 
-class PlayerViewModel() : ViewModel() {
+class PlayerViewModel : ViewModel() {
     val playerState: StateFlow<PlayerState> = Player.playerState
     val recordState: StateFlow<RecordState> = Player.recordState
 
@@ -431,9 +273,11 @@ class PlayerViewModel() : ViewModel() {
 
         if(enable) {
             resizeRecordingBuffer(recordBufferLengthActive, true)
+            Player.playhead.setMode(Mode.PULSE_ACCURATE)
         }
         else {
             resizeRecordingBuffer(recordBufferLengthPassive, true)
+            Player.playhead.setMode(Mode.TIME_ACCURATE)
             seek(null)
         }
 
@@ -474,14 +318,6 @@ fun AdvancedControlsPanel(
     val playerShowSyncFineTune by Prefs.playerShowSyncFineTune.collectAsStateWithLifecycle()
     val playerPlaybackSpeed by Prefs.playerPlaybackSpeed.collectAsStateWithLifecycle()
     val playerRemoteLatency by Prefs.playerRemoteLatency.collectAsStateWithLifecycle()
-
-    val funscriptVolume by Prefs.funscriptVolume.collectAsStateWithLifecycle()
-    val funscriptPositionalEffectStrength by Prefs.funscriptPositionalEffectStrength.collectAsStateWithLifecycle()
-    val funscriptFreqEnergyProportion by Prefs.funscriptFreqEnergyProportion.collectAsStateWithLifecycle()
-    val funscriptDirectionalFreqShift by Prefs.funscriptDirectionalFreqShift.collectAsStateWithLifecycle()
-    val funscriptFlipDirectionalFreqShift by Prefs.funscriptFlipDirectionalFreqShift.collectAsStateWithLifecycle()
-    val funscriptNormaliseAxes by Prefs.funscriptNormaliseAxes.collectAsStateWithLifecycle()
-    val funscriptSmoothingSigma by Prefs.funscriptSmoothingSigma.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
@@ -524,283 +360,6 @@ fun AdvancedControlsPanel(
                 Prefs.playerShowSyncFineTune.save()
             }
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Funscript settings", style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = "Scaling coefficient",
-            value = funscriptVolume,
-            onValueChange = { Prefs.funscriptVolume.value = it },
-            onValueChangeFinished = { Prefs.funscriptVolume.save() },
-            valueRange = 0.5f..1.0f,
-            steps = 49,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Positional effect strength",
-            value = funscriptPositionalEffectStrength,
-            onValueChange = { Prefs.funscriptPositionalEffectStrength.value = it },
-            onValueChangeFinished = { Prefs.funscriptPositionalEffectStrength.save() },
-            valueRange = 0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Amplitude calculation window",
-            value = funscriptSmoothingSigma,
-            onValueChange = { Prefs.funscriptSmoothingSigma.value = it },
-            onValueChangeFinished = { Prefs.funscriptSmoothingSigma.save() },
-            valueRange = 0f..0.5f,
-            steps = 49,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Frequency energy proportion",
-            value = funscriptFreqEnergyProportion,
-            onValueChange = { Prefs.funscriptFreqEnergyProportion.value = it },
-            onValueChangeFinished = { Prefs.funscriptFreqEnergyProportion.save() },
-            valueRange = 0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Frequency directional shift",
-            value = funscriptDirectionalFreqShift,
-            onValueChange = { Prefs.funscriptDirectionalFreqShift.value = it },
-            onValueChangeFinished = { Prefs.funscriptDirectionalFreqShift.save() },
-            valueRange = 0f..0.5f,
-            steps = 49,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SwitchWithLabel(
-            label = "Flip frequency directional shift",
-            checked = funscriptFlipDirectionalFreqShift,
-            onCheckedChange = {
-                Prefs.funscriptFlipDirectionalFreqShift.value = it
-                Prefs.funscriptFlipDirectionalFreqShift.save()
-            }
-        )
-        SwitchWithLabel(
-            label = "Normalise axes (when loading)",
-            checked = funscriptNormaliseAxes,
-            onCheckedChange = {
-                Prefs.funscriptNormaliseAxes.value = it
-                Prefs.funscriptNormaliseAxes.save()
-            }
-        )
-    }
-}
-
-@Composable
-fun SpecialEffectsPanel(
-    viewModel: PlayerViewModel,
-    modifier: Modifier = Modifier
-) {
-    val sfxEnabled by Prefs.sfxEnabled.collectAsStateWithLifecycle()
-    val sfxFrequencyInvertA by Prefs.sfxFrequencyInvertA.collectAsStateWithLifecycle()
-    val sfxFrequencyInvertB by Prefs.sfxFrequencyInvertB.collectAsStateWithLifecycle()
-    val sfxAmplitudeScaleA by Prefs.sfxAmplitudeScaleA.collectAsStateWithLifecycle()
-    val sfxAmplitudeScaleB by Prefs.sfxAmplitudeScaleB.collectAsStateWithLifecycle()
-    val sfxFrequencyFeelA by Prefs.sfxFrequencyFeelA.collectAsStateWithLifecycle()
-    val sfxFrequencyFeelB by Prefs.sfxFrequencyFeelB.collectAsStateWithLifecycle()
-    val sfxAmplitudeFeelA by Prefs.sfxAmplitudeFeelA.collectAsStateWithLifecycle()
-    val sfxAmplitudeFeelB by Prefs.sfxAmplitudeFeelB.collectAsStateWithLifecycle()
-    val sfxAmplitudeNoiseAmount by Prefs.sfxAmplitudeNoiseAmount.collectAsStateWithLifecycle()
-    val sfxAmplitudeNoiseSpeed by Prefs.sfxAmplitudeNoiseSpeed.collectAsStateWithLifecycle()
-    val sfxFrequencyNoiseAmount by Prefs.sfxFrequencyNoiseAmount.collectAsStateWithLifecycle()
-    val sfxFrequencyNoiseSpeed by Prefs.sfxFrequencyNoiseSpeed.collectAsStateWithLifecycle()
-    val sfxFrequencyAdjustA by Prefs.sfxFrequencyAdjustA.collectAsStateWithLifecycle()
-    val sfxFrequencyAdjustB by Prefs.sfxFrequencyAdjustB.collectAsStateWithLifecycle()
-
-    Column(
-        modifier = modifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Special effects", style = MaterialTheme.typography.headlineSmall)
-        }
-        SwitchWithLabel(
-            label = "Apply special effects",
-            checked = sfxEnabled,
-            onCheckedChange = {
-                Prefs.sfxEnabled.value = it
-                Prefs.sfxEnabled.save()
-            }
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Amplitude adjustments", style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = "Amplitude feel (channel A)",
-            value = sfxAmplitudeFeelA,
-            onValueChange = { Prefs.sfxAmplitudeFeelA.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeFeelA.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Amplitude feel (channel B)",
-            value = sfxAmplitudeFeelB,
-            onValueChange = { Prefs.sfxAmplitudeFeelB.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeFeelB.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Scale amplitude (channel A)",
-            value = sfxAmplitudeScaleA,
-            onValueChange = { Prefs.sfxAmplitudeScaleA.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeScaleA.save() },
-            valueRange = 0.0f..2.0f,
-            steps = 39,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Scale amplitude (channel B)",
-            value = sfxAmplitudeScaleB,
-            onValueChange = { Prefs.sfxAmplitudeScaleB.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeScaleB.save() },
-            valueRange = 0.0f..2.0f,
-            steps = 39,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Frequency adjustments", style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = "Frequency feel (channel A)",
-            value = sfxFrequencyFeelA,
-            onValueChange = { Prefs.sfxFrequencyFeelA.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyFeelA.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Frequency feel (channel B)",
-            value = sfxFrequencyFeelB,
-            onValueChange = { Prefs.sfxFrequencyFeelB.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyFeelB.save() },
-            valueRange = 0.5f..2.0f,
-            steps = 149,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SwitchWithLabel(
-            label = "Invert channel A frequencies",
-            checked = sfxFrequencyInvertA,
-            onCheckedChange = {
-                Prefs.sfxFrequencyInvertA.value = it
-                Prefs.sfxFrequencyInvertA.save()
-            },
-            enabled = sfxEnabled
-        )
-        SwitchWithLabel(
-            label = "Invert channel B frequencies",
-            checked = sfxFrequencyInvertB,
-            onCheckedChange = {
-                Prefs.sfxFrequencyInvertB.value = it
-                Prefs.sfxFrequencyInvertB.save()
-            },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Frequency adjust (channel A)",
-            value = sfxFrequencyAdjustA,
-            onValueChange = { Prefs.sfxFrequencyAdjustA.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyAdjustA.save() },
-            valueRange = -1.0f..1.0f,
-            steps = 199,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        SliderWithLabel(
-            label = "Frequency adjust (channel B)",
-            value = sfxFrequencyAdjustB,
-            onValueChange = { Prefs.sfxFrequencyAdjustB.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyAdjustB.save() },
-            valueRange = -1.0f..1.0f,
-            steps = 199,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Random noise", style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = "Random amplitude noise (amount)",
-            value = sfxAmplitudeNoiseAmount,
-            onValueChange = { Prefs.sfxAmplitudeNoiseAmount.value = it },
-            onValueChangeFinished = { Prefs.sfxAmplitudeNoiseAmount.save() },
-            valueRange = 0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        if (sfxAmplitudeNoiseAmount > 0f) {
-            SliderWithLabel(
-                label = "Random amplitude noise (speed)",
-                value = sfxAmplitudeNoiseSpeed,
-                onValueChange = { Prefs.sfxAmplitudeNoiseSpeed.value = it },
-                onValueChangeFinished = { Prefs.sfxAmplitudeNoiseSpeed.save() },
-                valueRange = 0.1f..20.0f,
-                steps = 198,
-                valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-                enabled = sfxEnabled
-            )
-        }
-        SliderWithLabel(
-            label = "Random frequency noise (amount)",
-            value = sfxFrequencyNoiseAmount,
-            onValueChange = { Prefs.sfxFrequencyNoiseAmount.value = it },
-            onValueChangeFinished = { Prefs.sfxFrequencyNoiseAmount.save() },
-            valueRange = 0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            enabled = sfxEnabled
-        )
-        if (sfxFrequencyNoiseAmount > 0f) {
-            SliderWithLabel(
-                label = "Random frequency noise (speed)",
-                value = sfxFrequencyNoiseSpeed,
-                onValueChange = { Prefs.sfxFrequencyNoiseSpeed.value = it },
-                onValueChangeFinished = { Prefs.sfxFrequencyNoiseSpeed.save() },
-                valueRange = 0.1f..20.0f,
-                steps = 198,
-                valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-                enabled = sfxEnabled
-            )
-        }
     }
 }
 
@@ -975,13 +534,12 @@ fun RecordPanel(
 fun PlayerPanel(
     viewModel: PlayerViewModel,
     onAdvancedSettingsClick: () -> Unit,
-    onSpecialEffectsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val playerState by viewModel.playerState.collectAsStateWithLifecycle()
     val activeSource = playerState.activePulseSource
     val playerShowSyncFineTune by Prefs.playerShowSyncFineTune.collectAsStateWithLifecycle()
-    val sfxEnabled by Prefs.sfxEnabled.collectAsStateWithLifecycle()
+    val showFunscriptMeters by Prefs.miscShowFunscriptMeters.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val displayName by (activeSource?.displayName ?: remember { MutableStateFlow("Player") })
@@ -1077,19 +635,6 @@ fun PlayerPanel(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Special effects options button
-                Button(
-                    onClick = onSpecialEffectsClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (sfxEnabled) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                    )
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.special_effects),
-                        contentDescription = "Special effects"
-                    )
-                }
-
                 // Advanced options button
                 Button(
                     onClick = onAdvancedSettingsClick
@@ -1099,6 +644,12 @@ fun PlayerPanel(
                         contentDescription = "Advanced settings"
                     )
                 }
+            }
+            if (showFunscriptMeters && activeSource is FunscriptPulseSource) {
+                FunscriptMeters(
+                    funscriptSource = activeSource,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
             // Sync fine tune (if enabled)
             if (playerShowSyncFineTune) {
@@ -1122,7 +673,6 @@ fun CombinedPanel(
     modifier: Modifier = Modifier
 ) {
     var showAdvancedSettings by remember { mutableStateOf(false) }
-    var showSpecialEffects by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.padding(16.dp),
@@ -1133,7 +683,6 @@ fun CombinedPanel(
         PlayerPanel(
             viewModel = viewModel,
             onAdvancedSettingsClick = { showAdvancedSettings = true },
-            onSpecialEffectsClick = { showSpecialEffects = true },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -1157,28 +706,12 @@ fun CombinedPanel(
             }
         }
     }
-
-    if (showSpecialEffects) {
-        Dialog(
-            onDismissRequest = { showSpecialEffects = false }
-        ) {
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                SpecialEffectsPanel(
-                    viewModel = viewModel,
-                )
-            }
-        }
-    }
 }
 
 @Preview
 @Composable
 fun PlayerPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: PlayerViewModel = viewModel()
         CombinedPanel(
             viewModel = viewModel,

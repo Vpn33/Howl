@@ -1,8 +1,10 @@
 package com.example.howl
 
-import androidx.compose.foundation.BorderStroke
+import android.util.Log
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -17,9 +19,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -39,7 +42,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
+import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -57,15 +64,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.isActive
-import kotlin.math.PI
-import kotlin.math.atan2
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -297,62 +304,6 @@ fun <T> OptionPicker(
 }
 
 @Composable
-fun PowerLevelMeters(
-) {
-    val lastPulse by PulseHistory.lastPulseWithPlayerState.collectAsStateWithLifecycle(initialValue = Pulse())
-
-    Row {
-        PowerLevelMeter(
-            powerLevelProvider = { lastPulse.ampA },
-            frequencyProvider = { lastPulse.freqA },
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        PowerLevelMeter(
-            powerLevelProvider = { lastPulse.ampB },
-            frequencyProvider = { lastPulse.freqB },
-        )
-    }
-}
-
-@Composable
-fun PowerLevelMeter(
-    powerLevelProvider: () -> Float,
-    frequencyProvider: () -> Float,
-) {
-    val powerBarStartColor = Color(0xFFFF0000)
-    val powerBarEndColor = Color(0xFFFFFF00)
-    Box(
-        modifier = Modifier
-            .width(12.dp)
-            .fillMaxHeight()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
-                shape = MaterialTheme.shapes.extraSmall
-            )
-            .padding(1.dp)
-            .drawBehind {
-                val powerLevel = powerLevelProvider().coerceIn(0f, 1f)
-                if (powerLevel  > 0f) {
-                    val barHeight = size.height * powerLevel
-                    val frequency = frequencyProvider()
-                    val barColor = lerp(
-                        powerBarStartColor,
-                        powerBarEndColor,
-                        frequency
-                    )
-                    drawRect(
-                        color = barColor,
-                        topLeft = Offset(0f, size.height - barHeight),
-                        size = Size(size.width, barHeight)
-                    )
-                }
-            }
-    )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
 fun LongPressButton(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -431,7 +382,7 @@ fun CircularTouchpad(
     // Track whether the user's finger is currently pressing the touchpad
     val isTouched = remember { mutableStateOf(false) }
 
-    // Extract MaterialTheme colors here while we are still in a @Composable context
+    // Extract MaterialTheme colours here while we are still in a @Composable context
     val touchpadBackgroundColor = MaterialTheme.colorScheme.surfaceVariant
     val touchpadBorderColor = MaterialTheme.colorScheme.outline
     val indicatorColor = MaterialTheme.colorScheme.primary
@@ -480,7 +431,7 @@ fun CircularTouchpad(
 
                     onPositionChange(CartesianPosition(currentX, currentY))
 
-                    // Break the loop once we've fully returned to the center
+                    // Break the loop once we've fully returned to the centre
                     if (progress >= 1f) {
                         break
                     }
@@ -526,7 +477,7 @@ fun CircularTouchpad(
                         val clampedDistance = distance.coerceAtMost(innerRadius)
                         val scale = if (distance == 0f) 0f else clampedDistance / distance
 
-                        // Normalize against the inner radius so output is -1..1 relative to the drawable area
+                        // Normalise against the inner radius so output is -1..1 relative to the drawable area
                         val normalizedX = ((dx * scale) / innerRadius).coerceIn(-1f, 1f)
                         val normalizedY = ((dy * scale) / innerRadius).coerceIn(-1f, 1f)
 
@@ -580,4 +531,361 @@ fun CircularTouchpad(
             )
         }
     }
+}
+
+@Composable
+fun ConfirmationDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    confirmText: String = "Yes",
+    dismissText: String = "Cancel"
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm", style = MaterialTheme.typography.headlineSmall) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(confirmText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(dismissText)
+            }
+        }
+    )
+}
+
+/**
+ * Vertical meter for linear axes (L0, L1, L2).
+ * Shows a position indicator (horizontal bar) within a vertical track.
+ * 0.0 = bottom, 1.0 = top.
+ */
+@Composable
+fun VerticalPositionMeter(
+    position: Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+) {
+    val animatedPosition by animateFloatAsState(
+        targetValue = position.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "vertical_meter"
+    )
+
+    val borderColor = MaterialTheme.colorScheme.outline
+
+    Box(
+        modifier = modifier
+            .width(28.dp)
+            .border(1.dp, borderColor, MaterialTheme.shapes.extraSmall)
+            .padding(1.dp)
+            .drawBehind {
+                // Track background
+                drawRect(color = trackColor)
+
+                // Position indicator: a horizontal bar at the current height
+                val indicatorHeight = 4.dp.toPx()
+                // 0.0 = bottom, 1.0 = top, so invert Y
+                val posY = size.height * (1f - animatedPosition)
+                val top = (posY - indicatorHeight / 2f).coerceIn(0f, size.height - indicatorHeight)
+
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(0f, top),
+                    size = Size(size.width, indicatorHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+                )
+            }
+    )
+}
+
+/**
+ * Circular dial meter for rotation axes (R0, R1, R2).
+ * 270° sweep with the central/neutral position (0.5) at the bottom (6 o'clock).
+ * The track is drawn as a 270° arc with a gap at the top, so the rotation
+ * limits are clearly visible.
+ *   position 0.0 → needle at upper-left  (~10:30)
+ *   position 0.5 → needle at bottom      ( 6:00)
+ *   position 1.0 → needle at upper-right (~ 1:30)
+ */
+@Composable
+fun RotationDialMeter(
+    position: Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+) {
+    val animatedPosition by animateFloatAsState(
+        targetValue = position.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "rotation_meter"
+    )
+
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .drawBehind {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val radius = size.minDimension / 2f
+                val strokeWidth = 2.dp.toPx()
+                val arcRadius = radius - strokeWidth
+
+                // Angle mapping (canvas degrees: 0°=3 o'clock, clockwise positive)
+                // 270° total sweep, neutral (0.5) at bottom (90°)
+                val sweepTotal = 270f
+                val angleAtZero = -45f       // position 0.0 → upper-right
+                val angleAtCenter = 90f      // position 0.5 → bottom
+                val currentAngle = angleAtZero + sweepTotal * (1f - animatedPosition)
+
+                // Track: a 270° arc with a gap at the top (between the two limits)
+                drawArc(
+                    color = trackColor,
+                    startAngle = angleAtZero,
+                    sweepAngle = sweepTotal,
+                    useCenter = false,
+                    topLeft = Offset(center.x - arcRadius, center.y - arcRadius),
+                    size = Size(arcRadius * 2f, arcRadius * 2f),
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+
+                // Arc from neutral (bottom) to current position
+                val arcSweep = currentAngle - angleAtCenter
+                if (abs(arcSweep) > 1f) {
+                    // drawArc needs a positive sweepAngle; pick the correct start
+                    val drawStart = if (arcSweep > 0f) angleAtCenter else currentAngle
+                    val drawSweep = abs(arcSweep)
+
+                    drawArc(
+                        color = color,
+                        startAngle = drawStart,
+                        sweepAngle = drawSweep,
+                        useCenter = false,
+                        topLeft = Offset(center.x - arcRadius, center.y - arcRadius),
+                        size = Size(arcRadius * 2f, arcRadius * 2f),
+                        style = Stroke(width = strokeWidth * 1.5f, cap = StrokeCap.Round)
+                    )
+                }
+
+                // Needle from centre to edge
+                val needleLength = arcRadius * 0.72f
+                val angleRad = Math.toRadians(currentAngle.toDouble())
+                val needleEnd = Offset(
+                    center.x + (needleLength * cos(angleRad)).toFloat(),
+                    center.y + (needleLength * sin(angleRad)).toFloat()
+                )
+                drawLine(
+                    color = color,
+                    start = center,
+                    end = needleEnd,
+                    strokeWidth = strokeWidth * 1.2f,
+                    cap = StrokeCap.Round
+                )
+
+                // Centre dot
+                drawCircle(
+                    color = color,
+                    radius = strokeWidth * 1.5f,
+                    center = center
+                )
+            }
+    )
+}
+
+private enum class MeterType {
+    LINEAR,     // L0, L1, L2 → vertical position meters
+    ROTATION    // R0, R1, R2 → circular dials
+}
+
+private fun meterTypeForAxis(axisId: String): MeterType = when (axisId) {
+    "L0", "L1", "L2" -> MeterType.LINEAR
+    "R0", "R1", "R2" -> MeterType.ROTATION
+    else -> MeterType.LINEAR
+}
+
+private fun friendlyAxisName(axisId: String): String = when (axisId) {
+    "L0" -> "Stroke"
+    "L1" -> "Surge"
+    "L2" -> "Sway"
+    "R0" -> "Twist"
+    "R1" -> "Roll"
+    "R2" -> "Pitch"
+    else -> axisId
+}
+
+@Composable
+fun FunscriptMeters(
+    funscriptSource: FunscriptPulseSource,
+    modifier: Modifier = Modifier
+) {
+    val currentPosition by Player.playerPosition.collectAsStateWithLifecycle()
+    val axisIds = remember(funscriptSource) { funscriptSource.axisIds }
+
+    val linearAxes = axisIds.filter { meterTypeForAxis(it) == MeterType.LINEAR }
+    val rotationAxes = axisIds.filter { meterTypeForAxis(it) == MeterType.ROTATION }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        //horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        // ── Linear axes: vertical position meters ──
+        if (linearAxes.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                for (axisId in linearAxes) {
+                    val position = funscriptSource.getAxisPosition(axisId, currentPosition) ?: 0.0
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = friendlyAxisName(axisId),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        VerticalPositionMeter(
+                            position = position.toFloat(),
+                            modifier = Modifier.height(48.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Rotation axes: circular dials ──
+        if (rotationAxes.isNotEmpty()) {
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                for (axisId in rotationAxes) {
+                    val position = funscriptSource.getAxisPosition(axisId, currentPosition) ?: 0.0
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = friendlyAxisName(axisId),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        RotationDialMeter(
+                            position = position.toFloat(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A wrapper around Material 3's [RangeSlider] that enforces a minimum gap
+ * between the two handles without pushing the stationary handle around.
+ *
+ * Behaviour:
+ * - Dragging the lower handle towards the upper handle stops it at
+ *   `upper - minimumGap`.
+ * - Dragging the upper handle towards the lower handle stops it at
+ *   `lower + minimumGap`.
+ * - The stationary handle remains fixed.
+ */
+@Composable
+fun ConstrainedRangeSlider(
+    value: ClosedFloatingPointRange<Float>,
+    onValueChange: (ClosedFloatingPointRange<Float>) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    minimumGap: Float = 0f,
+    onValueChangeFinished: (() -> Unit)? = null,
+    colors: SliderColors = SliderDefaults.colors()
+) {
+    var currentValue by remember { mutableStateOf(value) }
+
+    LaunchedEffect(value) {
+        currentValue = value
+    }
+
+    RangeSlider(
+        modifier = modifier,
+        enabled = enabled,
+        value = currentValue,
+        valueRange = valueRange,
+        steps = steps,
+        colors = colors,
+        onValueChange = { proposed ->
+            val constrained = if (minimumGap <= 0f) {
+                proposed
+            } else {
+                constrainRange(
+                    proposed = proposed,
+                    current = currentValue,
+                    minimumGap = minimumGap,
+                    bounds = valueRange
+                )
+            }
+
+            currentValue = constrained
+            onValueChange(constrained)
+        },
+        onValueChangeFinished = {
+            onValueChangeFinished?.invoke()
+        }
+    )
+}
+
+private fun constrainRange(
+    proposed: ClosedFloatingPointRange<Float>,
+    current: ClosedFloatingPointRange<Float>,
+    minimumGap: Float,
+    bounds: ClosedFloatingPointRange<Float>
+): ClosedFloatingPointRange<Float> {
+    var start = proposed.start.coerceIn(bounds.start, bounds.endInclusive)
+    var end = proposed.endInclusive.coerceIn(bounds.start, bounds.endInclusive)
+
+    val startMoved = start != current.start
+    val endMoved = end != current.endInclusive
+
+    when {
+        // Only the lower handle moved.
+        startMoved && !endMoved -> {
+            val maxStart = (end - minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+            start = start.coerceIn(bounds.start, maxStart)
+        }
+
+        // Only the upper handle moved.
+        endMoved && !startMoved -> {
+            val minEnd = (start + minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+            end = end.coerceIn(minEnd, bounds.endInclusive)
+        }
+
+        // Rare fallback if both handles moved. Clamp whichever moved further.
+        else -> {
+            val startDelta = abs(start - current.start)
+            val endDelta = abs(end - current.endInclusive)
+
+            if (startDelta >= endDelta) {
+                val maxStart = (end - minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+                start = start.coerceIn(bounds.start, maxStart)
+            } else {
+                val minEnd = (start + minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+                end = end.coerceIn(minEnd, bounds.endInclusive)
+            }
+        }
+    }
+
+    // Guard against weird edge cases if we somehow breached our minimum gap
+    if (end - start < minimumGap) {
+        end = (start + minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+        start = (end - minimumGap).coerceIn(bounds.start, bounds.endInclusive)
+    }
+
+    return start..end
 }

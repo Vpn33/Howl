@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 interface PreferenceAdapter<T> {
@@ -74,6 +73,20 @@ class EnumListAdapter<T : Enum<T>>(private val values: Array<T>) : PreferenceAda
     }
 }
 
+object OutputStateListAdapter : PreferenceAdapter<List<OutputState>> {
+    override fun serialise(value: List<OutputState>): String {
+        return Json.encodeToString(value)
+    }
+
+    override fun deserialise(value: String): List<OutputState> {
+        return try {
+            Json.decodeFromString(value)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+}
+
 class Preference<T>(
     val name: String,
     val default: T,
@@ -95,6 +108,10 @@ class Preference<T>(
 
     fun save() {
         Prefs.save(this)
+    }
+
+    fun resetToDefault() {
+        _state.value = default
     }
 
     internal fun loadFromString(str: String?) {
@@ -150,6 +167,35 @@ object Prefs {
         }
     }
 
+    fun resetAll(exceptions: List<Preference<*>> = emptyList()) {
+        val exceptionNames = exceptions.map { it.name }.toSet()
+        val toReset = registry.values.filter { it.name !in exceptionNames }
+        performReset(toReset)
+    }
+
+    fun resetByPrefix(prefix: String, exceptions: List<Preference<*>> = emptyList()) {
+        val exceptionNames = exceptions.map { it.name }.toSet()
+        val toReset = registry.values.filter {
+            it.name.startsWith(prefix) && it.name !in exceptionNames
+        }
+        performReset(toReset)
+    }
+
+    private fun performReset(prefs: Collection<Preference<*>>) {
+        if (prefs.isEmpty()) return
+
+        // Reset in-memory values
+        prefs.forEach { it.resetToDefault() }
+
+        // Remove the preference rows from the database.
+        // No need to write anything since an absent row implies the default.
+        val names = prefs.map { it.name }
+        Log.d("Preferences", "Resetting ${names.size} preference(s)")
+        scope.launch {
+            database?.preferencesDao()?.deleteByNames(names)
+        }
+    }
+
     fun <T> register(name: String, default: T, adapter: PreferenceAdapter<T>): Preference<T> {
         if (registry.containsKey(name)) {
             throw IllegalStateException("Preference with name '$name' already registered.")
@@ -172,10 +218,7 @@ object Prefs {
     val powerAutoIncrementDelayA = register("power_auto_inc_delay_a", 120, IntAdapter)
     val powerAutoIncrementDelayB = register("power_auto_inc_delay_b", 120, IntAdapter)
 
-    // Calibrations
-    val calibrationPowerBalance = register("calibration_power_balance", 0.5f, FloatAdapter)
-    val calibrationFrequencyBalanceA = register("calibration_frequency_balance_a", 0.5f, FloatAdapter)
-    val calibrationFrequencyBalanceB = register("calibration_frequency_balance_b", 0.5f, FloatAdapter)
+    // Global calibrations
     val calibrationPositionalEffectCurve = register("calibration_positional_effect_curve", 0.5f, FloatAdapter)
 
     // Funscript related
@@ -186,23 +229,6 @@ object Prefs {
     val funscriptFlipDirectionalFreqShift = register("funscript_flip_directional_freq_shift", false, BooleanAdapter)
     val funscriptNormaliseAxes = register("funscript_normalise_axes", true, BooleanAdapter)
     val funscriptSmoothingSigma = register("funscript_smoothing_sigma", 0.2f, FloatAdapter)
-
-    // Player special effects
-    val sfxEnabled = register("sfx_enabled", false, BooleanAdapter)
-    val sfxFrequencyInvertA = register("sfx_freq_invert_a", false, BooleanAdapter)
-    val sfxFrequencyInvertB = register("sfx_freq_invert_b", false, BooleanAdapter)
-    val sfxAmplitudeScaleA = register("sfx_amp_scale_a", 1.0f, FloatAdapter)
-    val sfxAmplitudeScaleB = register("sfx_amp_scale_b", 1.0f, FloatAdapter)
-    val sfxFrequencyFeelA = register("sfx_freq_feel_a", 1.0f, FloatAdapter)
-    val sfxFrequencyFeelB = register("sfx_freq_feel_b", 1.0f, FloatAdapter)
-    val sfxAmplitudeFeelA = register("sfx_amp_feel_a", 1.0f, FloatAdapter)
-    val sfxAmplitudeFeelB = register("sfx_amp_feel_b", 1.0f, FloatAdapter)
-    val sfxAmplitudeNoiseAmount = register("sfx_amp_noise_amount", 0.0f, FloatAdapter)
-    val sfxAmplitudeNoiseSpeed = register("sfx_amp_noise_speed", 5.0f, FloatAdapter)
-    val sfxFrequencyNoiseAmount = register("sfx_freq_noise_amount", 0.0f, FloatAdapter)
-    val sfxFrequencyNoiseSpeed = register("sfx_freq_noise_speed", 5.0f, FloatAdapter)
-    val sfxFrequencyAdjustA = register("sfx_freq_adjust_a", 0.0f, FloatAdapter)
-    val sfxFrequencyAdjustB = register("sfx_freq_adjust_b", 0.0f, FloatAdapter)
 
     // Generator related
     val generatorAutoChange = register("generator_auto_change", false, BooleanAdapter)
@@ -233,28 +259,17 @@ object Prefs {
 
     // Misc options
     val miscShowPowerMeter = register("misc_show_power_meter", true, BooleanAdapter)
+    val miscShowFunscriptMeters = register("misc_show_funscript_meters", true, BooleanAdapter)
     val miscShowDebugLog = register("misc_show_debug_log", false, BooleanAdapter)
+    val miscPulseChartStyle = register("misc_pulse_chart_style", PulseChartStyle.Point, EnumAdapter(
+        PulseChartStyle.entries.toTypedArray()))
 
     // Remote access
     val remoteAccess = register("remote_access", false, BooleanAdapter)
     val remoteAPIKey = register("remote_api_key", "changeme", StringAdapter)
 
-    // Output options
-    val outputType = register("output_type", OutputType.COYOTE3, EnumAdapter(OutputType.entries.toTypedArray()))
-    // Coyote 3 output parameters
-    val outputC3FrequencyBalanceA = register("output_c3_freq_balance_a", 200, IntAdapter)
-    val outputC3FrequencyBalanceB = register("output_c3_freq_balance_b", 200, IntAdapter)
-    val outputC3IntensityBalanceA = register("output_c3_intensity_balance_a", 0, IntAdapter)
-    val outputC3IntensityBalanceB = register("output_c3_intensity_balance_b", 0, IntAdapter)
-    // Audio output parameters
-    val outputAudioWaveShape = register("output_audio_wave_shape", AudioWaveShape.SINE, EnumAdapter(AudioWaveShape.entries.toTypedArray()))
-    val outputAudioCarrierShape = register("output_audio_carrier_shape", AudioWaveShape.SINE, EnumAdapter(AudioWaveShape.entries.toTypedArray()))
-    val outputAudioMaxFrequency = register("output_audio_max_freq", 1000, IntAdapter)
-    val outputAudioMinFrequency = register("output_audio_min_freq", 500, IntAdapter)
-    val outputAudioCarrierPhaseType = register("output_audio_carrier_phase", AudioPhaseType.OFFSET, EnumAdapter(AudioPhaseType.entries.toTypedArray()))
-    val outputAudioCarrierFrequency = register("output_audio_carrier_freq", 1000, IntAdapter)
-    val outputAudioWaveletWidth = register("output_audio_wavelet_width", 5, IntAdapter)
-    val outputAudioWaveletFade = register("output_audio_wavelet_fade", 0.5f, FloatAdapter)
+    // Output states (compound preference with various fields for each active output)
+    val outputStates = register("output_states", emptyList<OutputState>(), OutputStateListAdapter)
 }
 
 @Composable

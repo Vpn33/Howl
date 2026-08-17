@@ -1,6 +1,9 @@
 package com.example.howl
 import android.util.Log
-import androidx.compose.foundation.border
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -13,29 +16,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.math.roundToInt
 
 data class MainOptionsState (
     val channelAPower: Int = 0,
@@ -43,23 +51,10 @@ data class MainOptionsState (
     val globalMute: Boolean = false,
     val autoIncreasePower: Boolean = false,
     val swapChannels: Boolean = false,
-    val frequencyRange: IntRange = 100..1000,
-    val frequencyRangeSelectedSubset: ClosedFloatingPointRange<Float> = 0.0f..1.0f,
-) {
-    val minFrequency: Int
-        get() {
-            val rangeSpan = frequencyRange.last - frequencyRange.first
-            return frequencyRange.first + (rangeSpan * frequencyRangeSelectedSubset.start).roundToInt()
-        }
-
-    val maxFrequency: Int
-        get() {
-            val rangeSpan = frequencyRange.last - frequencyRange.first
-            return frequencyRange.first + (rangeSpan * frequencyRangeSelectedSubset.endInclusive).roundToInt()
-        }
-}
+)
 
 object MainOptions {
+    val POWER_RANGE: IntRange = 0..200
     private val _state = MutableStateFlow(MainOptionsState())
     val state: StateFlow<MainOptionsState> = _state.asStateFlow()
     private var autoIncrementPowerCounterA: Long = 0L
@@ -79,6 +74,10 @@ object MainOptions {
             }
             else -> {}
         }
+    }
+
+    fun zeroPower() {
+        _state.update { it.copy(channelAPower = 0, channelBPower = 0) }
     }
 
     fun incrementChannelPower(channel: Int, step: Int = 0) {
@@ -172,36 +171,9 @@ object MainOptions {
     fun setSwapChannels(swap: Boolean) {
         _state.update { it.copy(swapChannels = swap)}
     }
-
-    fun setFrequencyRange(range: IntRange, overrideSelectedSubset: Boolean = false) {
-        _state.update { currentState ->
-            if (overrideSelectedSubset) {
-                currentState.copy(
-                    frequencyRange = range,
-                    frequencyRangeSelectedSubset = 0.0f..1.0f
-                )
-            } else {
-                currentState.copy(
-                    frequencyRange = range,
-                )
-            }
-        }
-    }
-
-    fun setFrequencyRangeSelectedSubset(range: ClosedFloatingPointRange<Float>) {
-        _state.update { it.copy(frequencyRangeSelectedSubset = range) }
-    }
-
-    fun setFrequenciesToOutputDefaults(output: Output) {
-        val frequencyRangeSubset = output.defaultFrequencyRange.toProportionOf(output.allowedFrequencyRange)
-        _state.update { it.copy(
-            frequencyRange = output.allowedFrequencyRange,
-            frequencyRangeSelectedSubset = frequencyRangeSubset,
-        ) }
-    }
 }
 
-class MainOptionsViewModel() : ViewModel() {
+class MainOptionsViewModel : ViewModel() {
     private val _pulseChartMode = MutableStateFlow(PulseChartMode.Off)
     val pulseChartMode: StateFlow<PulseChartMode> = _pulseChartMode.asStateFlow()
 
@@ -229,10 +201,6 @@ class MainOptionsViewModel() : ViewModel() {
         MainOptions.setSwapChannels(swap)
     }
 
-    fun setFrequencyRangeSelectedSubset(range: ClosedFloatingPointRange<Float>) {
-        MainOptions.setFrequencyRangeSelectedSubset(range)
-    }
-
     fun cyclePulseChart() {
         val newMode = _pulseChartMode.value.next()
         _pulseChartMode.update { newMode }
@@ -247,6 +215,7 @@ fun MainOptionsPanel(
     val mainOptionsState by MainOptions.state.collectAsStateWithLifecycle()
     val showPowerMeter by Prefs.miscShowPowerMeter.collectAsStateWithLifecycle()
     val pulseChartMode by viewModel.pulseChartMode.collectAsStateWithLifecycle()
+    val lastPulse by PulseHistory.lastPulseWithPlayerState.collectAsStateWithLifecycle(initialValue = Pulse())
 
     val minSeparation = 0.05
     val muted = mainOptionsState.globalMute
@@ -257,13 +226,14 @@ fun MainOptionsPanel(
 
     Column(
         modifier = modifier
-            .padding(horizontal = 16.dp)
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.Center
+            // Removed horizontal padding here to allow the top row to overhang
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // 8.dp outer padding + 8.dp inner panel padding = 16.dp total alignment
+                .padding(horizontal = 8.dp)
                 .height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -272,165 +242,87 @@ fun MainOptionsPanel(
                 channelIndex = 0,
                 channelLabel = "A",
                 power = mainOptionsState.channelAPower,
-                viewModel = viewModel
+                viewModel = viewModel,
             )
-
-            // Center: Power meters (grouped together)
-            if (showPowerMeter) {
-                Row(
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    PowerLevelMeters()
-                }
-            } else {
-                // Empty spacer when power meters are hidden to maintain layout
-                Spacer(modifier = Modifier.width(12.dp + 8.dp + 12.dp)) // width of two meters + spacer
-            }
 
             // Right side: Channel B controls
             PowerLevelPanel(
                 channelIndex = 1,
                 channelLabel = "B",
                 power = mainOptionsState.channelBPower,
-                viewModel = viewModel
+                viewModel = viewModel,
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth()
+
+        // Wrap the remaining controls in a Column to restore standard 16.dp padding
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp)
         ) {
-            Button(
-                modifier = Modifier.weight(1.0f)
-                    .height(toolbarButtonHeight),
-                contentPadding = PaddingValues(2.dp),
-                onClick = {
-                    viewModel.setGlobalMute(!muted)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (muted) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(painter = painterResource(R.drawable.mute), contentDescription = "Mute output")
-            //Text(if (muted) "Pulse output muted" else "Mute pulse output")
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                modifier = Modifier.height(toolbarButtonHeight),
-                contentPadding = PaddingValues(2.dp),
-                //shape = RoundedCornerShape(8.dp),
-                onClick = {
-                    viewModel.setAutoIncreasePower(!autoIncreasePower)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (autoIncreasePower) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                )
-            ) {
-                Icon(painter = painterResource(R.drawable.auto_increase), contentDescription = "Auto increase power")
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                modifier = Modifier.height(toolbarButtonHeight),
-                contentPadding = PaddingValues(2.dp),
-                //shape = RoundedCornerShape(8.dp),
-                onClick = {
-                    viewModel.cyclePulseChart()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (pulseChartMode != PulseChartMode.Off) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                )
-            ) {
-                Icon(painter = painterResource(R.drawable.chart), contentDescription = "Pulse chart")
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                modifier = Modifier.height(toolbarButtonHeight),
-                contentPadding = PaddingValues(2.dp),
-                //shape = RoundedCornerShape(8.dp),
-                onClick = {
-                    viewModel.setSwapChannels(!swapChannels)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (swapChannels) activeButtonColour else ButtonDefaults.buttonColors().containerColor
-                )
-            ) {
-                Icon(painter = painterResource(R.drawable.swap), contentDescription = "Swap channels")
-            }
-
-        }
-
-        //Spacer(modifier = Modifier.height(4.dp))
-
-        //Text(text = "Frequency range (Hz)", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = "${mainOptionsState.minFrequency}Hz", modifier = modifier.widthIn(40.dp), style = MaterialTheme.typography.labelMedium)
-            RangeSlider(
-                modifier = Modifier.weight(1f),
-                value = mainOptionsState.frequencyRangeSelectedSubset,
-                steps = 0, // there's a crash due to an Android bug if we set the steps we actually want
-                // https://issuetracker.google.com/issues/324934900
-                // make it continuous and round in onValueChange instead as a workaround
-                //onValueChange = { viewModel.setFrequencyRangeSelectedSubset(it) },
-                onValueChange = { newRange ->
-                    if (newRange.endInclusive - newRange.start >= minSeparation) {
-                        viewModel.setFrequencyRangeSelectedSubset(newRange)
-                    }
-                },
-                valueRange = 0.0f..1.0f,
-                onValueChangeFinished = { },
-            )
-            Text(text = "${mainOptionsState.maxFrequency}Hz", modifier = modifier.widthIn(40.dp), style = MaterialTheme.typography.labelMedium)
-        }
-        when (pulseChartMode) {
-            PulseChartMode.Combined -> {
-                PulsePlotter(
-                    modifier = Modifier
-                        .height(200.dp)
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline,
-                            shape = MaterialTheme.shapes.small
-                        )
-                        .padding(3.dp),
-                    mode = PulsePlotMode.Combined
-                )
-            }
-            PulseChartMode.Separate -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
+                Button(
+                    modifier = Modifier.weight(1.0f)
+                        .height(toolbarButtonHeight),
+                    contentPadding = PaddingValues(2.dp),
+                    onClick = {
+                        viewModel.setGlobalMute(!muted)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (muted) activeButtonColour else ButtonDefaults.buttonColors().containerColor
+                    )
                 ) {
-                    PulsePlotter(
-                        modifier = Modifier
-                            .height(200.dp)
-                            .weight(1.0f)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .padding(3.dp),
-                        mode = PulsePlotMode.AmplitudeOnly
+                    Icon(painter = painterResource(R.drawable.mute), contentDescription = "Mute output")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    modifier = Modifier.height(toolbarButtonHeight),
+                    contentPadding = PaddingValues(2.dp),
+                    onClick = {
+                        viewModel.setAutoIncreasePower(!autoIncreasePower)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (autoIncreasePower) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    PulsePlotter(
-                        modifier = Modifier
-                            .height(200.dp)
-                            .weight(1.0f)
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
-                                shape = MaterialTheme.shapes.small
-                            )
-                            .padding(3.dp),
-                        mode = PulsePlotMode.FrequencyOnly
+                ) {
+                    Icon(painter = painterResource(R.drawable.auto_increase), contentDescription = "Auto increase power")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    modifier = Modifier.height(toolbarButtonHeight),
+                    contentPadding = PaddingValues(2.dp),
+                    onClick = {
+                        viewModel.cyclePulseChart()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (pulseChartMode != PulseChartMode.Off) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
+                ) {
+                    Icon(painter = painterResource(R.drawable.chart), contentDescription = "Pulse chart")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    modifier = Modifier.height(toolbarButtonHeight),
+                    contentPadding = PaddingValues(2.dp),
+                    onClick = {
+                        viewModel.setSwapChannels(!swapChannels)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (swapChannels) activeButtonColour else ButtonDefaults.buttonColors().containerColor
+                    )
+                ) {
+                    Icon(painter = painterResource(R.drawable.swap), contentDescription = "Swap channels")
                 }
             }
-            PulseChartMode.Off -> {}
+
+            if (pulseChartMode != PulseChartMode.Off) {
+                Spacer(modifier = Modifier.height(8.dp))
+                PulseChartPanel(
+                    mode = pulseChartMode,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -440,15 +332,123 @@ fun PowerLevelPanel(
     channelIndex: Int,
     channelLabel: String,
     power: Int,
-    viewModel: MainOptionsViewModel
+    viewModel: MainOptionsViewModel,
+    modifier: Modifier = Modifier
 ) {
-    Column {
+    // Read state locally so only this composable recomposes when pulse data or meter visibility changes
+    val lastPulse by PulseHistory.lastPulseWithPlayerState.collectAsStateWithLifecycle(initialValue = Pulse())
+    val showPowerMeter by Prefs.miscShowPowerMeter.collectAsStateWithLifecycle()
+
+    val meterAmplitude = if (showPowerMeter) {
+        if (channelIndex == 0) lastPulse.ampA else lastPulse.ampB
+    } else {
+        0f
+    }
+
+    val meterFrequency = if (channelIndex == 0) lastPulse.freqA else lastPulse.freqB
+
+    // 1. Smooth the incoming amplitude
+    val animatedAmplitude by animateFloatAsState(
+        targetValue = meterAmplitude,
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "amplitudeAnimation"
+    )
+
+    // 2. Smooth the incoming frequency (for colour transitions)
+    val animatedFrequency by animateFloatAsState(
+        targetValue = meterFrequency,
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "frequencyAnimation"
+    )
+
+    val isDarkTheme = isSystemInDarkTheme()
+    val powerBarStartColor = if (isDarkTheme) Color(0xFFFF0000) else Color(0xFFFF0000)
+    val powerBarEndColor = if (isDarkTheme) Color(0xFFFFFF00) else Color(0xFFFFDF00)
+    val topGradiantAlpha = if (isDarkTheme) 0.45f else 0.75f
+    val bottomGradiantAlpha = if (isDarkTheme) 0.25f else 0.55f
+    val leadingEdgeAlpha = if (isDarkTheme) 0.8f else 1.0f
+
+    // Use the *animated* frequency to interpolate colour
+    val baseMeterColor = lerp(
+        powerBarStartColor,
+        powerBarEndColor,
+        animatedFrequency.coerceIn(0f, 1f)
+    )
+
+    val topGradientColor = Color(
+        red = baseMeterColor.red,
+        green = baseMeterColor.green,
+        blue = baseMeterColor.blue,
+        alpha = topGradiantAlpha
+    )
+
+    val bottomGradientColor = Color(
+        red = baseMeterColor.red,
+        green = baseMeterColor.green,
+        blue = baseMeterColor.blue,
+        alpha = bottomGradiantAlpha
+    )
+
+    val leadingEdgeColor = Color(
+        red = baseMeterColor.red,
+        green = baseMeterColor.green,
+        blue = baseMeterColor.blue,
+        alpha = leadingEdgeAlpha
+    )
+
+    val topIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp))
+            .drawBehind {
+                // Fixed faint line at the top to give users a reference point for 100%
+                drawLine(
+                    color = topIndicatorColor,
+                    start = Offset(0f, 0.5.dp.toPx()),
+                    end   = Offset(size.width, 0.5.dp.toPx()),
+                    strokeWidth = 1.dp.toPx()
+                )
+
+                val powerLevel = animatedAmplitude.coerceIn(0f, 1f)
+                if (powerLevel > 0f) {
+                    val barHeight = size.height * powerLevel
+                    val startY = size.height - barHeight
+
+                    val brush = Brush.verticalGradient(
+                        colors = listOf(
+                            topGradientColor,
+                            bottomGradientColor
+                        ),
+                        startY = startY,
+                        endY = size.height
+                    )
+
+                    drawRect(
+                        brush = brush,
+                        topLeft = Offset(0f, startY),
+                        size = Size(size.width, barHeight)
+                    )
+
+                    drawLine(
+                        color = leadingEdgeColor,
+                        start = Offset(0f, startY),
+                        end = Offset(size.width, startY),
+                        strokeWidth = 3.dp.toPx()
+                    )
+                }
+            }
+            // Added 8.dp horizontal padding so the content pushes the edges of the background outward
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
         Text(
             text = "$power",
             style = MaterialTheme.typography.displayLarge,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
-        Row {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+        ) {
             LongPressButton(
                 onClick = { viewModel.decrementChannelPower(channelIndex) },
                 onLongClick = { viewModel.setChannelPower(channelIndex, 0) },
@@ -483,7 +483,7 @@ fun PowerLevelPanel(
 @Preview
 @Composable
 fun MainOptionsPanelPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: MainOptionsViewModel = viewModel()
         MainOptionsPanel(
             viewModel = viewModel,

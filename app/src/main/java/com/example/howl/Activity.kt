@@ -757,10 +757,10 @@ class MilkerActivity : Activity() {
     }
 
     override fun getPulse(): Pulse {
-        var ampA = 0.0
-        var ampB = 0.0
-        var freqA = 0.0
-        var freqB = 0.0
+        var ampA: Double
+        var ampB: Double
+        var freqA: Double
+        var freqB: Double
 
         when (currentStage) {
             MilkerStage.Womp -> {
@@ -1119,8 +1119,8 @@ class OppositesActivity : Activity() {
         speedChange()
         manager.register(ampA)
         manager.register(freqA)
-        manager.register(speedChangeTimer)
         manager.register(overallSpeed)
+        manager.register(speedChangeTimer)
         speedChangeTimer.start()
     }
 
@@ -1191,8 +1191,6 @@ class PowerCalibrationActivity : Activity() {
     }
 
     override val permanentSettings: @Composable () -> Unit = {
-        val calibrationPowerBalance by Prefs.calibrationPowerBalance.collectAsStateWithLifecycle()
-
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1203,17 +1201,8 @@ class PowerCalibrationActivity : Activity() {
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Use the main power controls to set both channels to the same numbered power level (e.g. both 20). Then use the slider below to adjust the balance until the sensation you feel on both channels is equal.\n", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Use the main power controls to set both channels to the same numbered power level (e.g. both 20). Then adjust your output's power balance slider until the sensation you feel on both channels is equal.\n", style = MaterialTheme.typography.bodyMedium)
         }
-        SliderWithLabel(
-            label = "Power balance",
-            value = calibrationPowerBalance,
-            onValueChange = { Prefs.calibrationPowerBalance.value = it },
-            onValueChangeFinished = { Prefs.calibrationPowerBalance.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
     }
 }
 
@@ -1324,9 +1313,6 @@ class FrequencyCalibrationActivity : Activity() {
     }
 
     override val permanentSettings: @Composable () -> Unit = {
-        val calibrationFrequencyBalanceA by Prefs.calibrationFrequencyBalanceA.collectAsStateWithLifecycle()
-        val calibrationFrequencyBalanceB by Prefs.calibrationFrequencyBalanceB.collectAsStateWithLifecycle()
-
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1337,38 +1323,14 @@ class FrequencyCalibrationActivity : Activity() {
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Adjust the sliders to change the frequency balance on each channel. For example you can make the lowest and highest frequencies feel equally powerful.", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Adjust your output's frequency balance sliders to change the relative power of high and low frequencies on each channel. For example, you might wish to make high and low frequencies feel equally powerful. But this is personal preference.", style = MaterialTheme.typography.bodyMedium)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "There's an element of personal preference to this adjustment - you might enjoy a different setting that is not perfectly balanced.", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "This adjustment is frequency range dependent. Using a different frequency range to what you calibrated with will cause the balance to shift.", style = MaterialTheme.typography.bodyMedium)
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = "This calibration is frequency range dependent. Using a different main frequency range to what you calibrated with will cause the balance to shift.", style = MaterialTheme.typography.bodyMedium)
-        }
-        SliderWithLabel(
-            label = "Frequency balance A",
-            value = calibrationFrequencyBalanceA,
-            onValueChange = { Prefs.calibrationFrequencyBalanceA.value = it },
-            onValueChangeFinished = { Prefs.calibrationFrequencyBalanceA.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = "Frequency balance B",
-            value = calibrationFrequencyBalanceB,
-            onValueChange = { Prefs.calibrationFrequencyBalanceB.value = it },
-            onValueChangeFinished = { Prefs.calibrationFrequencyBalanceB.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
     }
 }
 
@@ -1425,7 +1387,13 @@ class PositionalCalibrationActivity : Activity() {
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = "Howl uses positional effects whenever you play funscript files, and in several activities. Adjust the slider so that you feel the slow strokes evenly at all times. If the middle of the stroke feels weaker than the top and bottom, reduce the slider. If the middle feels stronger than the top and bottom, increase the slider.", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Howl uses positional effects whenever you play funscript files, and in several activities. Adjust the slider until you feel the slow strokes evenly throughout. If the top and bottom feel stronger than the middle, reduce the slider. If the middle feels stronger, increase the slider.", style = MaterialTheme.typography.bodyMedium)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "This is a global calibration and cannot currently be set per-device.", style = MaterialTheme.typography.bodyMedium)
         }
         SliderWithLabel(
             label = "Positional effect curve",
@@ -1598,10 +1566,10 @@ class BJActivity : Activity() {
     }
 
     override fun getPulse(): Pulse {
-        var ampA = 0.0
-        var ampB = 0.0
-        var freqA = 0.0
-        var freqB = 0.0
+        var ampA: Double
+        var ampB: Double
+        var freqA: Double
+        var freqB: Double
 
         when(_currentStage.value) {
             BJStage.FullLick -> {
