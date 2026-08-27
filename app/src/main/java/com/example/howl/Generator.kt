@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,16 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -231,27 +228,12 @@ object Generator : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = false
+    override val seekable: Boolean = false
     override val shouldLoop: Boolean = false
     override var readyToPlay: Boolean = false
-    override var isRemote: Boolean = false
+    override var latencyCompensation: Boolean = false
 
-    private var lastSimulationTime = -1.0
-    private var lastUpdateTime = -1.0
     private var initialised = false
-
-    override fun updateState(currentTime: Double) {
-        if (lastUpdateTime !in 0.0..currentTime)
-            lastUpdateTime = currentTime
-        val autoChange = Prefs.generatorAutoChange.value
-        val timeDelta = currentTime - lastUpdateTime
-        lastUpdateTime = currentTime
-        if (autoChange) {
-            channelA.makeRandomChanges(timeDelta)
-            channelB.makeRandomChanges(timeDelta)
-        }
-        updateInfo()
-    }
 
     fun initialise() {
         if(!initialised) {
@@ -286,15 +268,15 @@ object Generator : PulseSource {
         return if(channelNumber==0) channelA else channelB
     }
 
-    override fun getPulseAtTime(time: Double): Pulse {
-        if (lastSimulationTime !in 0.0..time) {
-            lastSimulationTime = time
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
+        val autoChange = Prefs.generatorAutoChange.value
+        if (autoChange) {
+            channelA.makeRandomChanges(deltaTime)
+            channelB.makeRandomChanges(deltaTime)
         }
-
-        val simulationTimeDelta = time - lastSimulationTime
-        lastSimulationTime = time
-        channelA.update(simulationTimeDelta)
-        channelB.update(simulationTimeDelta)
+        updateInfo()
+        channelA.update(deltaTime)
+        channelB.update(deltaTime)
 
         val (ampA, freqA) = channelA.getAmpAndFreq()
         val (ampB, freqB) = channelB.getAmpAndFreq()
@@ -303,7 +285,7 @@ object Generator : PulseSource {
     }
 }
 
-class GeneratorViewModel() : ViewModel() {
+class GeneratorViewModel : ViewModel() {
     fun randomise() {
         Generator.randomise()
     }
@@ -363,14 +345,14 @@ fun GeneratorPanel(
     val generatorWaveChangeProbability by Prefs.generatorWaveChangeProbability.collectAsStateWithLifecycle()
 
     val playerState by Player.playerState.collectAsStateWithLifecycle()
-    val mainOptionsState by MainOptions.state.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == Generator
-    val frequencyRange = mainOptionsState.minFrequency..mainOptionsState.maxFrequency
     var showChannelASettings by remember { mutableStateOf(false) }
     var showChannelBSettings by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -381,8 +363,8 @@ fun GeneratorPanel(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            GeneratorParametersInfo(stringResource(R.string.channel_a), generatorState.channelAInfo, frequencyRange, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
-            GeneratorParametersInfo(stringResource(R.string.channel_b), generatorState.channelBInfo, frequencyRange, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo("Channel A", generatorState.channelAInfo, onClick = { showChannelASettings = true }, modifier=Modifier.weight(1f))
+            GeneratorParametersInfo("Channel B", generatorState.channelBInfo, onClick = { showChannelBSettings = true }, modifier=Modifier.weight(1f))
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -399,12 +381,12 @@ fun GeneratorPanel(
                 if (isPlaying) {
                     Icon(
                         painter = painterResource(R.drawable.pause),
-                        contentDescription = stringResource(R.string.button_pause)
+                        contentDescription = "Pause"
                     )
                 } else {
                     Icon(
                         painter = painterResource(R.drawable.play),
-                        contentDescription = stringResource(R.string.button_play)
+                        contentDescription = "Play"
                     )
                 }
             }
@@ -413,9 +395,9 @@ fun GeneratorPanel(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.casino),
-                    contentDescription = stringResource(R.string.button_randomise)
+                    contentDescription = "Randomise"
                 )
-                Text(text = stringResource(R.string.generator_random), modifier = Modifier.padding(start = 8.dp))
+                Text(text = "Random", modifier = Modifier.padding(start = 8.dp))
             }
         }
         Row(
@@ -423,7 +405,7 @@ fun GeneratorPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = stringResource(R.string.generator_automatic_change_parameters), style = MaterialTheme.typography.labelLarge)
+            Text(text = "Automatically change parameters", style = MaterialTheme.typography.labelLarge)
             Switch(
                 checked = generatorAutoChange,
                 onCheckedChange = {
@@ -434,7 +416,7 @@ fun GeneratorPanel(
         }
         if (generatorAutoChange) {
             SliderWithLabel(
-                label = stringResource(R.string.generator_speed_change_probability),
+                label = "Speed change probability",
                 value = generatorSpeedChangeProbability,
                 onValueChange = { Prefs.generatorSpeedChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorSpeedChangeProbability.save() },
@@ -443,7 +425,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = stringResource(R.string.generator_amplitude_change_probability),
+                label = "Amplitude change probability",
                 value = generatorAmplitudeChangeProbability,
                 onValueChange = { Prefs.generatorAmplitudeChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorAmplitudeChangeProbability.save() },
@@ -452,7 +434,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = stringResource(R.string.generator_frequency_change_probability),
+                label = "Frequency change probability",
                 value = generatorFrequencyChangeProbability,
                 onValueChange = { Prefs.generatorFrequencyChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorFrequencyChangeProbability.save() },
@@ -461,7 +443,7 @@ fun GeneratorPanel(
                 valueDisplay = { String.format(Locale.US, "%03.2f", it) }
             )
             SliderWithLabel(
-                label = stringResource(R.string.generator_shape_change_probability),
+                label = "Shape change probability",
                 value = generatorWaveChangeProbability,
                 onValueChange = { Prefs.generatorWaveChangeProbability.value = it },
                 onValueChangeFinished = { Prefs.generatorWaveChangeProbability.save() },
@@ -477,14 +459,13 @@ fun GeneratorPanel(
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.heightIn(max = 600.dp)
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     GeneratorParametersSettings(
                         viewModel = viewModel,
                         channel = 0,
                         generatorChannelInfo = generatorState.channelAInfo,
-                        title = stringResource(R.string.channel_a_settings)
+                        title = "Channel A Settings"
                     )
                 }
             }
@@ -496,14 +477,13 @@ fun GeneratorPanel(
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.heightIn(max = 600.dp)
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     GeneratorParametersSettings(
                         viewModel = viewModel,
                         channel = 1,
                         generatorChannelInfo = generatorState.channelBInfo,
-                        title = stringResource(R.string.channel_b_settings)
+                        title = "Channel B Settings"
                     )
                 }
             }
@@ -519,26 +499,6 @@ fun GeneratorParametersSettings(
     title: String,
     modifier: Modifier = Modifier
 ) {
-    val waveNames = mapOf(
-        "Sawtooth" to stringResource(R.string.wave_shape_sawtooth),
-        "Triangle" to stringResource(R.string.wave_shape_triangle),
-        "Square" to stringResource(R.string.wave_shape_square),
-        "Constant" to stringResource(R.string.wave_shape_constant),
-        "Fangs" to stringResource(R.string.wave_shape_fangs),
-        "Curvy triangle" to stringResource(R.string.wave_shape_curvy_triangle),
-        "Curvy fangs" to stringResource(R.string.wave_shape_curvy_fangs),
-        "Curvy trapezium" to stringResource(R.string.wave_shape_curvy_trapezium),
-        "Gentle attack" to stringResource(R.string.wave_shape_gentle_attack),
-        "Fast attack" to stringResource(R.string.wave_shape_fast_attack),
-        "Faster attack" to stringResource(R.string.wave_shape_faster_attack),
-        "Rising tide" to stringResource(R.string.wave_shape_rising_tide),
-        "Flourish" to stringResource(R.string.wave_shape_flourish),
-        "Jelly" to stringResource(R.string.wave_shape_jelly),
-        "Tap + slide" to stringResource(R.string.wave_shape_tap_slide),
-        "Double time" to stringResource(R.string.wave_shape_double_time),
-        "Triple trouble" to stringResource(R.string.wave_shape_triple_trouble),
-        "Steps" to stringResource(R.string.wave_shape_steps)
-    )
     Column (modifier=modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)){
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
@@ -548,7 +508,7 @@ fun GeneratorParametersSettings(
             Text(text = title, style = MaterialTheme.typography.headlineSmall)
         }
         SliderWithLabel(
-            label = stringResource(R.string.generator_speed_label),
+            label = "Speed (repetitions/sec)",
             value = generatorChannelInfo.speed.toFloat(),
             onValueChange = { viewModel.setSpeed(channel = channel, speed = it.toDouble()) },
             onValueChangeFinished = { },
@@ -562,16 +522,16 @@ fun GeneratorParametersSettings(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = stringResource(R.string.generator_wave_shape))
+            Text(text = "Wave shape")
             OptionPicker(
                 currentValue = generatorChannelInfo.ampWaveName,
                 onValueChange = { viewModel.setAmpWave(channel, it) },
                 options = generatorWaveShapes.map { it.name },
-                getText = { waveNames[it] ?: it }
+                getText = { it }
             )
         }
         SliderWithLabel(
-            label = stringResource(R.string.generator_start_power),
+            label = "Start power",
             value = generatorChannelInfo.minAmp.toFloat(),
             onValueChange = { viewModel.setMinAmp(channel = channel, amplitude = it.toDouble()) },
             onValueChangeFinished = { },
@@ -580,7 +540,7 @@ fun GeneratorParametersSettings(
             valueDisplay = { String.format(Locale.US, "%.0f%%", it * 100.0) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.generator_end_power),
+            label = "End power",
             value = generatorChannelInfo.maxAmp.toFloat(),
             onValueChange = { viewModel.setMaxAmp(channel = channel, amplitude = it.toDouble()) },
             onValueChangeFinished = { },
@@ -594,16 +554,16 @@ fun GeneratorParametersSettings(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = stringResource(R.string.generator_freq_shape))
+            Text(text = "Freq shape")
             OptionPicker(
                 currentValue = generatorChannelInfo.freqWaveName,
                 onValueChange = { viewModel.setFreqWave(channel, it) },
                 options = generatorWaveShapes.map { it.name },
-                getText = { waveNames[it] ?: it }
+                getText = { it }
             )
         }
         SliderWithLabel(
-            label = stringResource(R.string.generator_start_frequency),
+            label = "Start frequency",
             value = generatorChannelInfo.minFreq.toFloat(),
             onValueChange = { viewModel.setMinFreq(channel = channel, frequency = it.toDouble()) },
             onValueChangeFinished = { },
@@ -612,7 +572,7 @@ fun GeneratorParametersSettings(
             valueDisplay = { String.format(Locale.US, "%.0f%%", it * 100.0) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.generator_end_frequency),
+            label = "End frequency",
             value = generatorChannelInfo.maxFreq.toFloat(),
             onValueChange = { viewModel.setMaxFreq(channel = channel, frequency = it.toDouble()) },
             onValueChangeFinished = { },
@@ -627,7 +587,6 @@ fun GeneratorParametersSettings(
 fun GeneratorParametersInfo(
     title: String,
     generatorChannelInfo: GeneratorChannelInfo,
-    frequencyRange: IntRange,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -646,33 +605,31 @@ fun GeneratorParametersInfo(
                 )
             }
             GeneratorParametersInfoRow(
-                category = stringResource(R.string.generator_category_shape),
+                category = "Shape",
                 value = generatorChannelInfo.ampWaveName
             )
             GeneratorParametersInfoRow(
-                category = stringResource(R.string.generator_category_speed),
+                category = "Speed",
                 value = String.format(Locale.US, "%.2f", generatorChannelInfo.speed)
             )
             val ampLow = String.format(Locale.US, "%.1f", generatorChannelInfo.minAmp * 100.0)
             val ampHigh = String.format(Locale.US, "%.1f", generatorChannelInfo.maxAmp * 100.0)
             val ampText = if (generatorChannelInfo.ampWaveName == "Constant") "$ampHigh%" else "$ampLow% - $ampHigh%"
             GeneratorParametersInfoRow(
-                category = stringResource(R.string.generator_category_power),
+                category = "Power",
                 value = ampText
             )
             GeneratorParametersInfoRow(
-                category = stringResource(R.string.generator_category_freq_shape),
+                category = "Freq shape",
                 value = generatorChannelInfo.freqWaveName
             )
-            val freqLow =
-                frequencyRange.first + generatorChannelInfo.minFreq * (frequencyRange.last - frequencyRange.first)
-            val freqHigh =
-                frequencyRange.first + generatorChannelInfo.maxFreq * (frequencyRange.last - frequencyRange.first)
+            val freqLow = String.format(Locale.US, "%.1f", generatorChannelInfo.minFreq * 100.0)
+            val freqHigh = String.format(Locale.US, "%.1f", generatorChannelInfo.maxFreq * 100.0)
             val freqText =
                 if (generatorChannelInfo.freqWaveName == "Constant")
-                    String.format(Locale.US, "%.1fHz", freqHigh)
+                    "$freqHigh%"
                 else
-                    String.format(Locale.US, "%.1fHz - %.1fHz", freqLow, freqHigh)
+                    "$freqLow% - $freqHigh%"
             GeneratorParametersInfoRow(
                 category = "Freq",
                 value = freqText
@@ -705,7 +662,7 @@ fun GeneratorParametersInfoRow(
 @Preview
 @Composable
 fun GeneratorPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: GeneratorViewModel = viewModel()
         GeneratorPanel(
             viewModel = viewModel,

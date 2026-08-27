@@ -48,7 +48,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -846,15 +846,15 @@ class WaveViewModel : ViewModel() {
         private var bChannelPlayIndex: Int,
         private var aChannelPlayElapsedTime: Double,
         private var bChannelPlayElapsedTime: Double,
-        override val displayInfo: StateFlow<String>
+        override val displayInfo: StateFlow<String>,
     ) : PulseSource {
         private val _displayName = MutableStateFlow("波形播放")
         override val displayName = _displayName.asStateFlow()
         override val duration: Double? = null
-        override val isFinite: Boolean = false
         override val shouldLoop: Boolean = true
         override val readyToPlay: Boolean = true
-        override val isRemote: Boolean = false
+        override val seekable: Boolean = false
+        override val latencyCompensation = false
 
         private var aChannelIdx = 0
         private var bChannelIdx = 0
@@ -869,9 +869,9 @@ class WaveViewModel : ViewModel() {
             bChannelPlayElapsedTime = currentState.bChannelPlayElapsedTime
         }
 
-        override fun getPulseAtTime(time: Double): Pulse {
+        override fun getPulse(time: Double, deltaTime: Double): Pulse {
             // 计算时间差
-            val deltaTime = if (lastUpdateTime > 0) time - lastUpdateTime else 0.01
+//            val deltaTime = if (lastUpdateTime > 0) time - lastUpdateTime else 0.01
             lastUpdateTime = time
 
             // 从ViewModel同步最新的播放时间
@@ -985,10 +985,6 @@ class WaveViewModel : ViewModel() {
                 freqA = (aV3.hz - 10.0f) / 990.0f, // 将10-1000的频率值转换为0.0-1.0的范围
                 freqB = (bV3.hz - 10.0f) / 990.0f  // 将10-1000的频率值转换为0.0-1.0的范围
             )
-        }
-
-        override fun updateState(currentTime: Double) {
-            // 可以在这里添加状态更新逻辑
         }
     }
 
@@ -1184,23 +1180,22 @@ fun WavePanel(
         viewModel.loadSavedState(context)
     }
 
-    // 监听Player状态变化，当切换到其他PulseSource时，更新WaveViewModel的播放状态
+    // 监听Player状态变化，当切换到其他PulseSource或播放器暂停时，更新WaveViewModel的播放状态
     val playerState by Player.playerState.collectAsStateWithLifecycle()
-    LaunchedEffect(playerState.activePulseSource) {
-        // 检查当前活跃的PulseSource是否为WavePulseSource
+    LaunchedEffect(playerState.activePulseSource, playerState.isPlaying) {
         val isWavePulseSource = playerState.activePulseSource is WaveViewModel.WavePulseSource
-        if (!isWavePulseSource) {
-            // 如果不是WavePulseSource，更新WaveViewModel的播放状态为false
+        if (!isWavePulseSource || !playerState.isPlaying) {
             viewModel.stopAllChannels()
         }
     }
 
-    // 监听蓝牙连接状态变化
-    val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
-    LaunchedEffect(connectionStatus) {
-        // 当连接状态变为断开时，重置WaveViewModel的播放状态
-        viewModel.onConnectionStatusChanged(connectionStatus)
-    }
+    // TODO 监听蓝牙连接状态变化
+//    // 监听蓝牙连接状态变化
+//    val connectionStatus by ConnectionManager.connectionStatus.collectAsStateWithLifecycle()
+//    LaunchedEffect(connectionStatus) {
+//        // 当连接状态变为断开时，重置WaveViewModel的播放状态
+//        viewModel.onConnectionStatusChanged(connectionStatus)
+//    }
 
     // 使用Activity Result API处理文件夹选择结果
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -1214,12 +1209,11 @@ fun WavePanel(
         }
     }
 
-    val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(4.dp)
-            .verticalScroll(scrollState),
+            .fillMaxHeight()
+            .padding(4.dp),
         verticalArrangement = Arrangement.Top
     ) {
         Surface(
@@ -1244,7 +1238,9 @@ fun WavePanel(
         }
 
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp,
@@ -1254,7 +1250,7 @@ fun WavePanel(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(500.dp), // 减少固定高度
+                    .fillMaxHeight(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 左侧区域 - 通道A
@@ -1288,7 +1284,7 @@ fun WavePanel(
 @Preview
 @Composable
 fun WaveViewPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: WaveViewModel = viewModel()
         WavePanel(
             viewModel = viewModel,
@@ -1426,7 +1422,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(), // 减少最小高度
+                .weight(1f),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 2.dp,
@@ -1438,6 +1434,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight()
                     .padding(8.dp)
                     .verticalScroll(scrollState)
             ) {

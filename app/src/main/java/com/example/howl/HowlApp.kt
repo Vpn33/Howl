@@ -1,19 +1,27 @@
 package com.example.howl
 
+import android.annotation.SuppressLint
 import android.util.Log
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 const val howlVersion = BuildConfig.VERSION_NAME
 
 class HowlApp : Application() {
+    companion object {
+        @SuppressLint("StaticFieldLeak")
+        lateinit var context: Context
+            private set
+    }
     val database: HowlDatabase by lazy { HowlDatabase.getDatabase(this) }
 
     override fun onCreate() {
         super.onCreate()
+        context = applicationContext
 
         // 初始化数据库
         val db = HowlDatabase.getDatabase(this)
@@ -23,29 +31,27 @@ class HowlApp : Application() {
         val androidSDK = Build.VERSION.SDK_INT
         HLog.i("Howl", "Howl $howlVersion running on Android $androidVersion (SDK $androidSDK)")
 
+        OutputManager.initialise()
+
         // 同步加载语言设置并应用
         val language = loadLanguageSync(db)
+        HLog.d("HowlApp", "Loaded language setting: $language")
         applyLanguage(language)
-
-        // 初始化ActivityType的displayNames映射，使用初始语言设置
-        ActivityType.initDisplayNames(applicationContext)
-
-        // 初始化其他组件
-        BluetoothHandler.initialise(
-            context = applicationContext,
-            onConnectionStatusUpdate = { ConnectionManager.setConnectionStatus(it) }
-        )
-        Player.initialise(context = applicationContext)
-        Generator.initialise()
 
         // Load preferences asynchronously and initialise dependent components in a callback
         Prefs.loadAll {
             withContext(Dispatchers.Main) {
-                Player.switchOutput(Prefs.outputType.value)
+                val states = Prefs.outputStates.value
+                if (states.isNotEmpty()) {
+                    OutputManager.restoreOutputs(states)
+                }
             }
             RemoteControlServer.initialise()
             Log.d("Howl", "Async initialisation complete.")
         }
+
+        Player.initialise(context = applicationContext)
+        Generator.initialise()
     }
 
     // 应用语言设置

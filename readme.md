@@ -247,8 +247,7 @@ The Howl Sync add-on for Kodi allows .funscript files for videos that you're pla
 
 ## Common questions and answers
 
-**Can I use Howl on iOS?**
-No. Howl is a native Android app, so it's unlikely that an iOS version will ever exist (that would require rewriting most of the app).
+**Can I use Howl on iOS?**No. Howl is a native Android app, so it's unlikely that an iOS version will ever exist (that would require rewriting most of the app).
 
 ## Privacy
 
@@ -266,14 +265,14 @@ All original code is released under the MIT License. There is an additional stip
 3. Enhance the openness of the RemoteControlServer to enable other devices to invoke its interfaces. 增加RemoteControlServer的开放性，使得其他设备也可以调用接口；
 4. Add automatic power ramp. 增加自动爬坡的功能
 5. Add support for DG-LAB's civetedging-sensor and opossum-vibrate-controller devices. 增加对DG-LAB实验室灵猫和负鼠设备的支持
-    
-    Automatic power ramp for keep edgeing with ruined。
-    
-    Settings Tab's  Power Ramp configuration options
-    ![Image](https://github.com/user-attachments/assets/a7d73dbd-35d7-43e3-bd21-0c361e84ce50)
-    
-    Loop mode:
-    ![Image](https://github.com/user-attachments/assets/849318ac-e7b3-4700-8ef5-ca0c1bdc6dcc)
-    
-    Repeat mode:
-    ![Image](https://github.com/user-attachments/assets/37649ff4-693c-4f0c-82d5-ae8e8224716b)
+
+   Automatic power ramp for keep edgeing with ruined。
+
+   Settings Tab's  Power Ramp configuration options
+   ![Image](https://github.com/user-attachments/assets/a7d73dbd-35d7-43e3-bd21-0c361e84ce50)
+
+   Loop mode:
+   ![Image](https://github.com/user-attachments/assets/849318ac-e7b3-4700-8ef5-ca0c1bdc6dcc)
+
+   Repeat mode:
+   ![Image](https://github.com/user-attachments/assets/37649ff4-693c-4f0c-82d5-ae8e8224716b)

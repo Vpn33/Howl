@@ -30,6 +30,9 @@ interface PreferencesDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(prefs: List<PreferenceEntity>)
+
+    @Query("DELETE FROM preferences WHERE name IN (:names)")
+    suspend fun deleteByNames(names: List<String>)
 }
 
 @Database(

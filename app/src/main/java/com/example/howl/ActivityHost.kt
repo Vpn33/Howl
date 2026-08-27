@@ -1,5 +1,6 @@
 package com.example.howl
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,15 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,87 +35,31 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
-enum class ActivityType(val displayNameResId: Int, val iconResId: Int) {
-    LICKS(R.string.activity_infinite_licks, R.drawable.grin_tongue) {
-        override fun create() = LickActivity()
-    },
-    PENETRATION(R.string.activity_penetration, R.drawable.rocket) {
-        override fun create() = PenetrationActivity()
-    },
-    VIBRATOR(R.string.activity_sliding_vibrator, R.drawable.vibration) {
-        override fun create() = VibroActivity()
-    },
-    MILKMASTER(R.string.activity_milkmaster, R.drawable.cow) {
-        override fun create() = MilkerActivity()
-    },
-    CHAOS(R.string.activity_chaos, R.drawable.chaos) {
-        override fun create() = ChaosActivity()
-    },
-    HJ(R.string.activity_luxury_hj, R.drawable.hand) {
-        override fun create() = LuxuryHJActivity()
-    },
-    OPPOSITES(R.string.activity_opposites, R.drawable.yin_yang) {
-        override fun create() = OppositesActivity()
-    },
-    CALIBRATE_POWER(R.string.activity_calibrate_power, R.drawable.plug) {
-        override fun create() =
-            PowerCalibrationActivity()
-    },
-    CALIBRATE_FREQ(R.string.activity_calibrate_freq, R.drawable.calibration) {
-        override fun create() =
-            FrequencyCalibrationActivity()
-    },
-    CALIBRATE_POSITION(R.string.activity_calibrate_position, R.drawable.swapvert) {
-        override fun create() =
-            PositionalCalibrationActivity()
-    },
-    BJMEGAMIX(R.string.activity_bj_megamix, R.drawable.lips) {
-        override fun create() =
-            BJActivity()
-    },
-    FASTSLOW(R.string.activity_fast_slow, R.drawable.speed) {
-        override fun create() =
-            FastSlowActivity()
-    },
-    SIMPLEX(R.string.activity_simplex, R.drawable.wave_triangle) {
-        override fun create() = SimplexActivity()
-    },
-    RELENTLESS(R.string.activity_relentless, R.drawable.hammer) {
-        override fun create() = RelentlessActivity()
-    },
-    OVERFLOWING(R.string.activity_overflowing, R.drawable.water_drop) {
-        override fun create() =
-            OverflowingActivity()
-    },
-    SUCCUBUS(R.string.activity_succubus, R.drawable.succubus) {
-        override fun create() = SuccubusActivity()
-    },
-    SINETIME(R.string.activity_sine_time, R.drawable.wave) {
-        override fun create() = SineTimeActivity()
-    };
+enum class ActivityType(val displayName: String, val iconResId: Int) {
+    LICKS("Infinite licks", R.drawable.grin_tongue) { override fun create() = LickActivity() },
+    PENETRATION("Penetration", R.drawable.rocket) { override fun create() = PenetrationActivity() },
+    VIBRATOR("Sliding vibrator", R.drawable.vibration) { override fun create() = VibroActivity() },
+    MILKMASTER("Milkmaster 3000", R.drawable.cow) { override fun create() = MilkerActivity() },
+    CHAOS("Chaos", R.drawable.chaos) { override fun create() = ChaosActivity() },
+    HJ("Luxury HJ", R.drawable.hand) { override fun create() = LuxuryHJActivity() },
+    OPPOSITES("Opposites", R.drawable.yin_yang) { override fun create() = OppositesActivity() },
+    CALIBRATE_POWER("Calibrate power", R.drawable.plug) { override fun create() =
+        PowerCalibrationActivity() },
+    CALIBRATE_FREQ("Calibrate frequency", R.drawable.calibration) { override fun create() =
+        FrequencyCalibrationActivity() },
+    CALIBRATE_POSITION("Calibrate position", R.drawable.swapvert) { override fun create() =
+        PositionalCalibrationActivity() },
+    BJ("BJ Megamix", R.drawable.lips) { override fun create() = BJActivity() },
+    FASTSLOW("Fast/slow", R.drawable.speed) { override fun create() =
+        FastSlowActivity() },
+    SIMPLEX("Simplex", R.drawable.wave_triangle) { override fun create() = SimplexActivity() },
+    RELENTLESS("Relentless", R.drawable.hammer) { override fun create() = RelentlessActivity() },
+    OVERFLOWING("Overflowing", R.drawable.water_drop) { override fun create() =
+        OverflowingActivity() },
+    SUCCUBUS("Succubus", R.drawable.succubus) { override fun create() = SuccubusActivity() },
+    SINETIME("Sine time", R.drawable.wave) { override fun create() = SineTimeActivity() };
 
     abstract fun create(): Activity
-
-    @Composable
-    fun getDisplayName(): String {
-        return stringResource(displayNameResId)
-    }
-
-    fun isCalibration() = name.startsWith("CALIBRATION")
-
-    companion object {
-        private val displayNames = mutableMapOf<ActivityType, String>()
-
-        fun initDisplayNames(context: android.content.Context) {
-            entries.forEach { type ->
-                displayNames[type] = context.getString(type.displayNameResId)
-            }
-        }
-
-        fun getDisplayName(type: ActivityType): String {
-            return displayNames[type] ?: type.name
-        }
-    }
 }
 
 object ActivityHost : PulseSource {
@@ -132,51 +75,29 @@ object ActivityHost : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = false
+    override val seekable: Boolean = false
     override val shouldLoop: Boolean = false
     override var readyToPlay: Boolean = true
-    override var isRemote: Boolean = false
-
-    private var lastUpdateTime = -1.0
-    private var lastSimulationTime = -1.0
+    override var latencyCompensation: Boolean = false
 
     private val _currentActivity = MutableStateFlow(switchActivity(randomActivityType()))
     val currentActivity: StateFlow<ActivityState> = _currentActivity.asStateFlow()
 
-    override fun updateState(currentTime: Double) {
-        if (lastUpdateTime !in 0.0..currentTime)
-            lastUpdateTime = currentTime
-
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
         val changeProbability = Prefs.activityChangeProbability.value
-        val timeDelta = currentTime - lastUpdateTime
-
-        val probability = (changeProbability * 3.0 * timeDelta) / 60.0
+        val probability = (changeProbability * 3.0 * deltaTime) / 60.0
         if (Random.nextDouble() < probability) {
             randomActivity()
         }
 
-        lastUpdateTime = currentTime
-    }
-
-    override fun getPulseAtTime(time: Double): Pulse {
-        if (lastSimulationTime !in 0.0..time) {
-            lastSimulationTime = time
-        }
-
-        //Log.d("ActivityHost", "Time: $time")
-        val simulationTimeDelta = time - lastSimulationTime
-        lastSimulationTime = time
-
-        _currentActivity.value.instance.runSimulation(simulationTimeDelta)
+        _currentActivity.value.instance.runSimulation(deltaTime)
         return _currentActivity.value.instance.getPulse()
     }
 
     private fun switchActivity(type: ActivityType): ActivityState {
-        _displayName.value = "Activity"
-        lastSimulationTime = -1.0
-        lastUpdateTime = -1.0
+        _displayName.value = "Activity (${type.displayName})"
 
-        // Create and initialize the activity instance
+        // Create and initialise the activity instance
         return ActivityState(type, type.create().apply { initialise() })
     }
 
@@ -185,7 +106,7 @@ object ActivityHost : PulseSource {
     }
 
     fun randomActivityType(avoid: ActivityType? = null): ActivityType {
-        val excluded = Prefs.activityExcludedFromRandom.value.toSet()
+        val excluded = Prefs.activityExcludedFromRandom.value
         val candidates = ActivityType.entries.filter {
             it !in excluded && it != avoid
         }
@@ -214,15 +135,12 @@ class ActivityHostViewModel : ViewModel() {
         Prefs.activityExcludedFromRandom.value = currentExcluded
         Prefs.activityExcludedFromRandom.save()
     }
-
     fun setCurrentActivity(type: ActivityType) {
         ActivityHost.setCurrentActivity(type)
     }
-
     fun stop() {
         Player.stopPlayer()
     }
-
     fun start() {
         Player.switchPulseSource(ActivityHost)
         Player.startPlayer()
@@ -234,7 +152,6 @@ fun ActivityHostPanel(
     viewModel: ActivityHostViewModel,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val currentState by ActivityHost.currentActivity.collectAsStateWithLifecycle()
     val currentType = currentState.type
     val currentInstance = currentState.instance
@@ -243,12 +160,12 @@ fun ActivityHostPanel(
     val playerState by Player.playerState.collectAsStateWithLifecycle()
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == ActivityHost
     val excludedColor = MaterialTheme.colorScheme.error
-    val isCalibration = currentType.isCalibration()
+    val isCalibration = currentType.displayName.contains("Calibrate")
 
     Column(
         modifier = modifier
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -275,7 +192,7 @@ fun ActivityHostPanel(
                         currentValue = currentType,
                         onValueChange = { viewModel.setCurrentActivity(it) },
                         options = ActivityType.entries,
-                        getText = { stringResource(it.displayNameResId) },
+                        getText = { it.displayName },
                         getIcon = { it.iconResId },
                         textColor = {
                             if (it in excludedActivities) excludedColor else Color.Unspecified
@@ -320,7 +237,7 @@ fun ActivityHostPanel(
                 }
 
                 SliderWithLabel(
-                    label = stringResource(R.string.activity_random_change_probability),
+                    label = "Random activity change probability",
                     value = activityChangeProbability,
                     onValueChange = { Prefs.activityChangeProbability.value = it },
                     onValueChangeFinished = { Prefs.activityChangeProbability.save() },
@@ -344,10 +261,10 @@ fun ActivityHostPanel(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 //horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (!isCalibration) {
+                if(!isCalibration) {
                     // Title
                     Text(
-                        text = "${stringResource(currentType.displayNameResId)} settings",
+                        text = "${currentType.displayName} settings",
                         style = MaterialTheme.typography.titleLarge
                     )
 
@@ -358,7 +275,7 @@ fun ActivityHostPanel(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(stringResource(R.string.available_for_random_select))
+                        Text("Available for random select")
                         Switch(
                             checked = !isExcluded,
                             onCheckedChange = { viewModel.toggleExclusion(currentType) }
@@ -375,7 +292,7 @@ fun ActivityHostPanel(
 @Preview
 @Composable
 fun ActivityHostPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: ActivityHostViewModel = viewModel()
         ActivityHostPanel(
             viewModel = viewModel,

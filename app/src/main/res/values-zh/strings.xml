@@ -1,6 +1,7 @@
 <resources>
     <!-- 应用名称 -->
     <string name="app_name">Howl</string>
+    <string name="audio_playback_attribution">"Howl"</string>
     
     <!-- 设置页面 -->
     <string name="settings_version">Howl 版本 %1$s</string>

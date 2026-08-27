@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
@@ -17,11 +18,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 import android.util.Log
 
 import androidx.core.app.ServiceCompat
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
 class PlayerService : Service() {
@@ -31,12 +32,14 @@ class PlayerService : Service() {
     companion object {
         const val NOTIFICATION_CHANNEL_ID = "PlayerServiceChannel"
         const val NOTIFICATION_ID = 1
+        const val TAG = "PlayerService"
+        const val MAIN_LOOP_INTERVAL_NANOS = (MAIN_LOOP_INTERVAL_SECS * 1_000_000_000).toLong()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        //Log.d("PlayerService", "onStartCommand")
+        //Log.d(TAG, "onStartCommand")
         startForegroundService()
         startPlayerLoop()
         return START_STICKY
@@ -45,7 +48,7 @@ class PlayerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        HLog.v("PlayerService", "Player service ended")
+        HLog.v(TAG, "Player service ended")
     }
 
     private fun startForegroundService() {
@@ -53,21 +56,35 @@ class PlayerService : Service() {
         val notification = createNotification()
 
         try {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                notification,
-                FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            )
-            startForeground(NOTIFICATION_ID, notification)
-        } catch (e: Exception) {
-            // Sometimes we might not be allowed elevate to a foreground service, for example if Howl
-            // was running in the background and we got a network request to start playback.
-            val isFgNotAllowed = e.javaClass.name == "android.app.ForegroundServiceStartNotAllowedException"
-            if (isFgNotAllowed) {
-                HLog.w("PlayerService", "Not allowed to elevate playback service while Howl is running in the background. Turning off battery optimization for the app might help.")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // API 29+ allows us to specify the foreground service type
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    0
+                )
             }
-            Log.e("PlayerService", "Failed to start foreground service: ${e.message}")
+        } catch (e: Exception) {
+            // Android limits when apps are allowed to elevate to a foreground service. For example,
+            // if the app is in the background, and we start playback due to a remote API request,
+            // we will typically be blocked.
+            val isFgNotAllowed =
+                e.javaClass.name == "android.app.ForegroundServiceStartNotAllowedException"
+            if (isFgNotAllowed) {
+                HLog.w(
+                    TAG,
+                    "Not allowed to elevate playback service while Howl is running in the background. Turning off battery optimization for the app might help."
+                )
+            }
+            Log.e(TAG, "Failed to start foreground service: ${e.message}")
         }
     }
 
@@ -94,143 +111,114 @@ class PlayerService : Service() {
 
     private fun startPlayerLoop() {
         if (playerJob?.isActive == true) return
-        HLog.v("PlayerService", "Starting main player loop")
+        HLog.v(TAG, "Player service running")
         playerJob = serviceScope.launch {
             try {
+                val startTime = System.nanoTime()
+                var nextTickNanos = startTime
+                var lastAdjustedTime: Double? = null
+                val maxDurationNanos = Prefs.miscMaxPlaybackDurationHours.value.hours.inWholeNanoseconds
                 while (isActive) {
-                    val startTime = System.nanoTime()
-                    //Log.d("PlayerService", "Player loop running in service, start time=$startTime")
-                    val outputs = listOf(Player.output, Player.recorder)
+                    nextTickNanos += MAIN_LOOP_INTERVAL_NANOS
+                    //val startTime = System.nanoTime()
+                    //Log.d(TAG, "Player loop start time=$currentTime")
+                    val activeOutputs = OutputManager.outputs.value
+                    val outputs = activeOutputs + Player.recorder
                     val playerState = Player.playerState.value
 
                     if (!playerState.isPlaying) break
 
-                    val currentSource = playerState.activePulseSource
-                    val currentPosition = Player.getCurrentPosition()
-                    //Log.d("PlayerService", "$currentPosition")
-
-                    if (currentSource == null) {
+                    val currentSource = playerState.activePulseSource ?: run {
                         Player.stopPlayer()
                         break
                     }
 
-                    if (currentSource.duration != null && currentSource.duration!! > 0) {
-                        if (currentPosition > currentSource.duration!!) {
-                            if (currentSource.shouldLoop) {
-                                Player.seek(0.0)
-                                //Player.startPlayer(0.0)
-                                continue
-                            } else {
-                                Player.stopPlayer()
-                                break
-                            }
+                    val currentPosition = Player.getCurrentPosition()
+                    //Log.d(TAG, "$currentPosition")
+
+                    val duration = currentSource.duration
+                    if (duration != null && duration > 0 && currentPosition > duration) {
+                        // We have passed the end of the playback source
+                        if (currentSource.seekable && currentSource.shouldLoop) {
+                            Player.seek(0.0)
+                            lastAdjustedTime = null
+                            continue
                         }
+                        Player.stopPlayer()
+                        break
                     }
 
                     val mainOptionsState = MainOptions.state.value
                     val playbackSpeed = Prefs.playerPlaybackSpeed.value.toDouble()
                     val timeAdjustment = Player.getTimeAdjustment()
+                    val adjustedTime = (currentPosition + timeAdjustment * playbackSpeed).coerceAtLeast(0.0)
+                    //Log.d(TAG, "Time adjustment: $timeAdjustment    Adjusted time: $adjustedTime")
 
-                    val allPulses = collectPulses(
-                        outputs,
-                        currentPosition,
-                        playbackSpeed,
-                        timeAdjustment
-                    )
+                    // Compute delta, clamping to zero on first call or after a backward seek
+                    val deltaTime = lastAdjustedTime
+                        ?.let { (adjustedTime - it).coerceAtLeast(0.0) }
+                        ?: 0.0
+                    lastAdjustedTime = adjustedTime
 
-                    outputs.forEach { output ->
-                        val pulses = allPulses[output] ?: emptyList()
+                    //Log.d(TAG, "Adjusted time again: $adjustedTime")
 
-                        if (output.ready && pulses.isNotEmpty()) {
-                            val pulsesToSend = when {
-                                output == Player.recorder -> pulses
-                                !mainOptionsState.globalMute -> pulses
-                                output.sendSilenceWhenMuted -> List(output.pulseBatchSize) { Pulse() }
-                                else -> null
-                            }
+                    val sourcePulse = Player.getPulse(adjustedTime, deltaTime)
+                    val pulse = Player.applyPostProcessing(sourcePulse)
 
-                            pulsesToSend?.let {
-                                output.sendPulses(
-                                    mainOptionsState.channelAPower,
-                                    mainOptionsState.channelBPower,
-                                    mainOptionsState.minFrequency.toDouble(),
-                                    mainOptionsState.maxFrequency.toDouble(),
-                                    it
-                                )
-                            }
-                        }
+                    //Log.d(TAG, "< $pulse")
+
+                    PulseHistory.addPulse(pulse)
+
+                    val channelAPower = mainOptionsState.channelAPower
+                    val channelBPower = mainOptionsState.channelBPower
+
+                    if (channelAPower !in MainOptions.POWER_RANGE || channelBPower !in MainOptions.POWER_RANGE) {
+                        HLog.e(TAG, "Critical safety error, invalid power values received in main loop")
+                        break
                     }
 
-                    val nextPosition =
-                        currentPosition + (OUTPUT_TIMER * playbackSpeed)
-                    Player.setPlayerPosition(nextPosition)
-                    currentSource.updateState(nextPosition)
+                    for (output in outputs) {
+                        if (!output.ready) continue
 
-                    MainOptions.autoIncreasePower(OUTPUT_TIMER)
+                        val pulseToSend = when {
+                            output == Player.recorder -> sourcePulse
+                            !mainOptionsState.globalMute -> pulse
+                            output.sendSilenceWhenMuted -> Pulse() // silence
+                            else -> continue // skip entirely
+                        }
 
-                    // The loop delay is adjusted slightly to try and hit the target, taking into
-                    // account our own processing time. But always waiting for at least 90% of the
-                    // configured delay to avoid overwhelming a busy system, or calling Bluetooth
-                    // devices faster than intended.
-                    val desiredDelay = OUTPUT_TIMER.seconds
-                    val minDelay = (desiredDelay * 0.9)
-                    val elapsed = (System.nanoTime() - startTime).toDuration(DurationUnit.NANOSECONDS)
-                    val waitTime = (desiredDelay - elapsed).coerceAtLeast(minDelay)
-                    //Log.d("Player service", "Wait time - $waitTime")
-                    delay(waitTime)
+                        output.receivePulse(pulseToSend, channelAPower, channelBPower)
+                    }
+
+                    Player.playhead.tick()
+                    Player.setPlayerPosition(adjustedTime)
+
+                    MainOptions.autoIncreasePower(MAIN_LOOP_INTERVAL_SECS)
+
+                    val now = System.nanoTime()
+
+                    if (now - startTime >= maxDurationNanos) {
+                        HLog.w(TAG, "Maximum playback duration of ${Prefs.miscMaxPlaybackDurationHours.value}h reached. Stopping player.")
+                        Player.stopPlayer()
+                        break
+                    }
+
+                    val sleepNanos = nextTickNanos - now
+
+                    if (sleepNanos > 0) {
+                        delay(sleepNanos.nanoseconds)
+                    } else if (sleepNanos < -MAIN_LOOP_INTERVAL_NANOS) {
+                        // Overrun guard: if we're more than one full interval behind, snap forward to
+                        // the current time to prevent a rapid burst of catch up ticks.
+                        nextTickNanos = now
+                    }
                 }
             } catch (_: CancellationException) {
                 // Normal cancellation
-                HLog.v("PlayerService", "Foreground service cancelled")
+                HLog.v(TAG, "Foreground service cancelled")
             } finally {
                 stopSelf()
             }
         }
-    }
-
-    private fun collectPulses(
-        outputs: List<Output>,
-        currentPosition: Double,
-        playbackSpeed: Double,
-        timeAdjustment: Double
-    ): Map<Output, List<Pulse>> {
-        /*
-        Gets the pulses we need for each output. The logic here is a bit complicated since we have
-        to call Player.getPulseAtTime with strictly ascending times, because the real-time
-        generators like activities cannot go backwards. So we cannot call our pulse source for
-        each output in turn and must instead know all the times we need pulses for in advance.
-
-        This process does allow deduplication efficiencies e.g. since the Coyote 3 and the recorder
-        both want 4 pulses per 0.1 second tick, we use exactly the same pulses for both and avoid
-        generating twice.
-        */
-
-        // Step 1: Collect all requested times from all outputs
-        val outputTimesMap = mutableMapOf<Output, List<Double>>()
-        val allTimesSet = mutableSetOf<Double>()
-
-        for (output in outputs) {
-            val times = output.getNextTimes(currentPosition, playbackSpeed, timeAdjustment)
-            outputTimesMap[output] = times
-            allTimesSet.addAll(times)
-        }
-
-        // Step 2: Sort all our unique times in ascending order
-        val sortedTimes = allTimesSet.sorted()
-
-        // Step 3: Get the pulses we need for each timestamp from our pulse source
-        val pulseMap = mutableMapOf<Double, Pulse>()
-        for (time in sortedTimes) {
-            pulseMap[time] = Player.getPulseAtTime(time)
-        }
-
-        // Step 4: Distribute pulses back to each output based on what they originally asked for
-        val result = mutableMapOf<Output, List<Pulse>>()
-        for ((output, times) in outputTimesMap) {
-            val pulses = times.mapNotNull { pulseMap[it] }
-            result[output] = pulses
-        }
-
-        return result
     }
 }

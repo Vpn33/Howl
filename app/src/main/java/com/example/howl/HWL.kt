@@ -78,15 +78,13 @@ class HWLPulseSource : PulseSource {
     private val _displayInfo = MutableStateFlow("")
     override val displayInfo = _displayInfo.asStateFlow()
     override var duration: Double? = null
-    override val isFinite: Boolean = true
+    override val seekable: Boolean = true
     override var shouldLoop: Boolean = true
     override var readyToPlay: Boolean = false
-    override var isRemote: Boolean = false
-    var pulseData: MutableList<Pulse> = mutableListOf<Pulse>()
+    override var latencyCompensation: Boolean = false
+    var pulseData = mutableListOf<Pulse>()
 
-    override fun updateState(currentTime: Double) {}
-
-    override fun getPulseAtTime(time: Double): Pulse {
+    override fun getPulse(time: Double, deltaTime: Double): Pulse {
         if (pulseData.isEmpty()) {
             return Pulse()
         }
@@ -134,7 +132,7 @@ class HWLPulseSource : PulseSource {
 
         _displayName.value = name
         duration = pulseData.size * HWL_PULSE_TIME
-        isRemote = isRemoteSource
+        latencyCompensation = isRemoteSource
         readyToPlay = true
         return duration ?: 0.0
     }

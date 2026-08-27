@@ -56,6 +56,14 @@ data class PowerRampState(
     val powerRampPeakTimeRandomMinB: Int = 2,
     val powerRampPeakTimeRandomMaxB: Int = 8,
     val powerRampCycleModeB: String = "LOOP",
+    val powerRampIntervalModeA: String = "FIXED",
+    val powerRampIntervalFixedA: Int = 3,
+    val powerRampIntervalRandomMinA: Int = 1,
+    val powerRampIntervalRandomMaxA: Int = 5,
+    val powerRampIntervalModeB: String = "FIXED",
+    val powerRampIntervalFixedB: Int = 3,
+    val powerRampIntervalRandomMinB: Int = 1,
+    val powerRampIntervalRandomMaxB: Int = 5,
 )
 
 class PowerRampViewModel : ViewModel() {
@@ -102,6 +110,10 @@ class PowerRampViewModel : ViewModel() {
     private var powerRampIntervalTimeA: Float = -1f
     private var powerRampIntervalTimeB: Float = -1f
 
+    // 爬坡间隔：每个完整循环结束后在坡底停留的剩余毫秒数（0 表示不在停留）
+    private var powerRampBottomWaitA: Long = 0L
+    private var powerRampBottomWaitB: Long = 0L
+
     init {
         // Load initial state from Prefs
         _state.update {
@@ -138,6 +150,14 @@ class PowerRampViewModel : ViewModel() {
                 powerRampPeakTimeRandomMinB = Prefs.powerRampPeakTimeRandomMinB.value,
                 powerRampPeakTimeRandomMaxB = Prefs.powerRampPeakTimeRandomMaxB.value,
                 powerRampCycleModeB = Prefs.powerRampCycleModeB.value,
+                powerRampIntervalModeA = Prefs.powerRampIntervalModeA.value,
+                powerRampIntervalFixedA = Prefs.powerRampIntervalFixedA.value,
+                powerRampIntervalRandomMinA = Prefs.powerRampIntervalRandomMinA.value,
+                powerRampIntervalRandomMaxA = Prefs.powerRampIntervalRandomMaxA.value,
+                powerRampIntervalModeB = Prefs.powerRampIntervalModeB.value,
+                powerRampIntervalFixedB = Prefs.powerRampIntervalFixedB.value,
+                powerRampIntervalRandomMinB = Prefs.powerRampIntervalRandomMinB.value,
+                powerRampIntervalRandomMaxB = Prefs.powerRampIntervalRandomMaxB.value,
             )
         }
     }
@@ -303,8 +323,50 @@ class PowerRampViewModel : ViewModel() {
         _state.update { it.copy(powerRampCycleModeB = mode) }
     }
 
+    fun setPowerRampIntervalModeA(mode: String) {
+        Prefs.powerRampIntervalModeA.value = mode
+        Prefs.powerRampIntervalModeA.save()
+        _state.update { it.copy(powerRampIntervalModeA = mode) }
+    }
+
+    fun setPowerRampIntervalFixedA(time: Int) {
+        Prefs.powerRampIntervalFixedA.value = time
+        Prefs.powerRampIntervalFixedA.save()
+        _state.update { it.copy(powerRampIntervalFixedA = time) }
+    }
+
+    fun setPowerRampIntervalRandomA(min: Int, max: Int) {
+        Prefs.powerRampIntervalRandomMinA.value = min
+        Prefs.powerRampIntervalRandomMaxA.value = max
+        Prefs.powerRampIntervalRandomMinA.save()
+        Prefs.powerRampIntervalRandomMaxA.save()
+        _state.update { it.copy(powerRampIntervalRandomMinA = min, powerRampIntervalRandomMaxA = max) }
+    }
+
+    fun setPowerRampIntervalModeB(mode: String) {
+        Prefs.powerRampIntervalModeB.value = mode
+        Prefs.powerRampIntervalModeB.save()
+        _state.update { it.copy(powerRampIntervalModeB = mode) }
+    }
+
+    fun setPowerRampIntervalFixedB(time: Int) {
+        Prefs.powerRampIntervalFixedB.value = time
+        Prefs.powerRampIntervalFixedB.save()
+        _state.update { it.copy(powerRampIntervalFixedB = time) }
+    }
+
+    fun setPowerRampIntervalRandomB(min: Int, max: Int) {
+        Prefs.powerRampIntervalRandomMinB.value = min
+        Prefs.powerRampIntervalRandomMaxB.value = max
+        Prefs.powerRampIntervalRandomMinB.save()
+        Prefs.powerRampIntervalRandomMaxB.save()
+        _state.update { it.copy(powerRampIntervalRandomMinB = min, powerRampIntervalRandomMaxB = max) }
+    }
+
     // Reset all power ramp runtime variables
     fun resetPowerRamp() {
+        powerRampBottomWaitA = 0L
+        powerRampBottomWaitB = 0L
         powerRampTallyA = 0L
         powerRampTallyB = 0L
         powerRampCounterA = 0L
@@ -327,6 +389,23 @@ class PowerRampViewModel : ViewModel() {
         powerRampNadirRecordB = -1
     }
 
+    // 计算某一通道下一个完整循环结束后的爬坡间隔时间，并设置坡底停留的剩余毫秒数
+    private fun setupPowerRampCycleInterval(channel: Int) {
+        val mode = if (channel == 0) _state.value.powerRampIntervalModeA else _state.value.powerRampIntervalModeB
+        val seconds: Float = if (mode == "FIXED") {
+            (if (channel == 0) _state.value.powerRampIntervalFixedA else _state.value.powerRampIntervalFixedB).toFloat()
+        } else {
+            val minI = if (channel == 0) _state.value.powerRampIntervalRandomMinA else _state.value.powerRampIntervalRandomMinB
+            val maxI = if (channel == 0) _state.value.powerRampIntervalRandomMaxA else _state.value.powerRampIntervalRandomMaxB
+            (minI..maxI).random().toFloat()
+        }
+        if (channel == 0) {
+            powerRampBottomWaitA = (seconds * 1000).toLong()
+        } else {
+            powerRampBottomWaitB = (seconds * 1000).toLong()
+        }
+    }
+
     // Process power ramp logic - called from MainOptions.autoIncreasePower
     fun processPowerRamp(elapsed: Double, options: MainOptionsState) {
         val powerRampEnabled = _state.value.powerRampEnabled
@@ -340,7 +419,7 @@ class PowerRampViewModel : ViewModel() {
         var powerRampStart = false
 
         // 是否有开始爬坡时的强度记录
-        if (powerRampRecordA < 0 && powerRampMaxA < 0) {
+        if (powerRampRecordA < 0 && powerRampMaxA < 0 && powerRampBottomWaitA <= 0L) {
             powerRampStart = true
             // 如果有坡底随机时间的话 要设置成坡底时间 只是不改变初始的记录强度
             if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
@@ -436,7 +515,7 @@ class PowerRampViewModel : ViewModel() {
                 }
             }
         }
-        if (powerRampRecordB < 0 && powerRampMaxB < 0) {
+        if (powerRampRecordB < 0 && powerRampMaxB < 0 && powerRampBottomWaitB <= 0L) {
             powerRampStart = true
             // 保存开始爬坡时的强度记录
             powerRampRecordB = powerRampCurrentB
@@ -446,7 +525,7 @@ class PowerRampViewModel : ViewModel() {
             // 不能小于1
             if (powerRampCurrentB < 1) {
                 powerRampCurrentB = 1
-                powerRampRecordA = 1
+                powerRampRecordB = 1
             }
             // 计算爬坡最大强度
             powerRampMaxB = powerRampCurrentB + _state.value.powerRampIntensityBRangeEnd
@@ -529,8 +608,29 @@ class PowerRampViewModel : ViewModel() {
             autoIncrementDelayB += powerRampCurrentPeakTimeB
         }
 
-        if (options.channelAPower > 0) powerRampPeakCounterA += elapsedMs
-        if (options.channelBPower > 0) powerRampPeakCounterB += elapsedMs
+        // 处理爬坡间隔：完整循环结束后在坡底停留；停留结束（倒计时归零）即允许开始新一轮爬坡
+        if (powerRampBottomWaitA > 0L) {
+            powerRampBottomWaitA -= elapsedMs
+            if (powerRampBottomWaitA <= 0L) {
+                powerRampBottomWaitA = 0L
+                HLog.d("Power Ramp", "Cycle interval ended for A")
+            }
+        }
+        if (powerRampBottomWaitB > 0L) {
+            powerRampBottomWaitB -= elapsedMs
+            if (powerRampBottomWaitB <= 0L) {
+                powerRampBottomWaitB = 0L
+                HLog.d("Power Ramp", "Cycle interval ended for B")
+            }
+        }
+
+        // 停留期间不累加爬坡计数器，避免触发重复的分支循环重置
+        if (options.channelAPower > 0 && powerRampBottomWaitA <= 0L) {
+            powerRampPeakCounterA += elapsedMs
+        }
+        if (options.channelBPower > 0 && powerRampBottomWaitB <= 0L) {
+            powerRampPeakCounterB += elapsedMs
+        }
 
         if (powerRampChannelMode == "AB_SYNC") {
             if (powerRampPeakCounterA >= autoIncrementDelayA) {
@@ -576,6 +676,9 @@ class PowerRampViewModel : ViewModel() {
                         }
                         powerRampTallyA++
                         powerRampTallyB++
+                        // 完整循环结束，设置下一轮爬坡前的坡底间隔停留
+                        setupPowerRampCycleInterval(0)
+                        setupPowerRampCycleInterval(1)
                         HLog.d(
                             "Power Ramp",
                             "Power to nadir A:${powerRampRecordA} B:${powerRampRecordB} RampTally:${powerRampTallyA}"
@@ -641,6 +744,7 @@ class PowerRampViewModel : ViewModel() {
                                 "Power Ramp",
                                 "Power to nadir A:${powerRampRecordA} RampTallyA:${powerRampTallyA}"
                             )
+                            setupPowerRampCycleInterval(0)
                             powerRampRecordA = -1
                             powerRampMaxA = -1
                             powerRampPeakCounterA = 0L
@@ -694,6 +798,7 @@ class PowerRampViewModel : ViewModel() {
                                 "Power Ramp",
                                 "Power to nadir B:${powerRampRecordB} RampTallyB:${powerRampTallyB}"
                             )
+                            setupPowerRampCycleInterval(1)
                             powerRampRecordB = -1
                             powerRampMaxB = -1
                             powerRampPeakCounterB = 0L
@@ -708,6 +813,70 @@ class PowerRampViewModel : ViewModel() {
                     powerRampPeakCounterB = 0L
                 }
             }
+        }
+    }
+}
+
+// 爬坡间隔控件：模式（固定/随机）联动 时间（普通/区间）滑块
+@Composable
+private fun PowerRampIntervalControl(
+    title: String,
+    mode: String,
+    fixed: Int,
+    randomMin: Int,
+    randomMax: Int,
+    onModeChange: (String) -> Unit,
+    onFixedChange: (Int) -> Unit,
+    onRandomChange: (Int, Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = "${title}模式", style = MaterialTheme.typography.labelLarge)
+        OptionPicker(
+            currentValue = mode,
+            onValueChange = onModeChange,
+            options = listOf("FIXED", "RANDOM"),
+            getText = {
+                when (it) {
+                    "FIXED" -> "固定"
+                    "RANDOM" -> "随机"
+                    else -> it
+                }
+            }
+        )
+    }
+
+    if (mode == "FIXED") {
+        SliderWithLabel(
+            label = "$title(秒)",
+            value = fixed.toFloat(),
+            onValueChange = { onFixedChange(it.roundToInt()) },
+            onValueChangeFinished = {},
+            valueRange = 0.0f..60.0f,
+            steps = 59,
+            valueDisplay = { it.roundToInt().toString() }
+        )
+    } else {
+        Text(text = "$title(秒): $randomMin - $randomMax", style = MaterialTheme.typography.labelLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "$randomMin", modifier = Modifier.widthIn(40.dp))
+            RangeSlider(
+                modifier = Modifier.weight(1f),
+                value = randomMin.toFloat()..randomMax.toFloat(),
+                onValueChange = { newRange ->
+                    onRandomChange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                },
+                valueRange = 0.0f..60.0f,
+                steps = 59
+            )
+            Text(text = "$randomMax", modifier = Modifier.widthIn(40.dp))
         }
     }
 }
@@ -988,6 +1157,18 @@ fun PowerRampPanel(
                         }
                     )
                 }
+
+                // 爬坡间隔（每个完整循环后在坡底停留）
+                PowerRampIntervalControl(
+                    title = "爬坡间隔",
+                    mode = state.powerRampIntervalModeA,
+                    fixed = state.powerRampIntervalFixedA,
+                    randomMin = state.powerRampIntervalRandomMinA,
+                    randomMax = state.powerRampIntervalRandomMaxA,
+                    onModeChange = { viewModel.setPowerRampIntervalModeA(it) },
+                    onFixedChange = { viewModel.setPowerRampIntervalFixedA(it) },
+                    onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
+                )
             }
             "AB_INDEPENDENT" -> {
                 Text(text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -1226,6 +1407,18 @@ fun PowerRampPanel(
                     )
                 }
 
+                // A通道爬坡间隔（每个完整循环后在坡底停留）
+                PowerRampIntervalControl(
+                    title = "A通道爬坡间隔",
+                    mode = state.powerRampIntervalModeA,
+                    fixed = state.powerRampIntervalFixedA,
+                    randomMin = state.powerRampIntervalRandomMinA,
+                    randomMax = state.powerRampIntervalRandomMaxA,
+                    onModeChange = { viewModel.setPowerRampIntervalModeA(it) },
+                    onFixedChange = { viewModel.setPowerRampIntervalFixedA(it) },
+                    onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
+                )
+
                 Text(text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1440,6 +1633,18 @@ fun PowerRampPanel(
                         }
                     )
                 }
+
+                // B通道爬坡间隔（每个完整循环后在坡底停留）
+                PowerRampIntervalControl(
+                    title = "B通道爬坡间隔",
+                    mode = state.powerRampIntervalModeB,
+                    fixed = state.powerRampIntervalFixedB,
+                    randomMin = state.powerRampIntervalRandomMinB,
+                    randomMax = state.powerRampIntervalRandomMaxB,
+                    onModeChange = { viewModel.setPowerRampIntervalModeB(it) },
+                    onFixedChange = { viewModel.setPowerRampIntervalFixedB(it) },
+                    onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomB(min, max) }
+                )
             }
             "A_ONLY" -> {
                 Text(text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -1635,6 +1840,18 @@ fun PowerRampPanel(
                         }
                     )
                 }
+
+                // 爬坡间隔（每个完整循环后在坡底停留）
+                PowerRampIntervalControl(
+                    title = "爬坡间隔",
+                    mode = state.powerRampIntervalModeA,
+                    fixed = state.powerRampIntervalFixedA,
+                    randomMin = state.powerRampIntervalRandomMinA,
+                    randomMax = state.powerRampIntervalRandomMaxA,
+                    onModeChange = { viewModel.setPowerRampIntervalModeA(it) },
+                    onFixedChange = { viewModel.setPowerRampIntervalFixedA(it) },
+                    onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
+                )
             }
             "B_ONLY" -> {
                 Text(text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
@@ -1827,6 +2044,18 @@ fun PowerRampPanel(
                         }
                     )
                 }
+
+                // 爬坡间隔（每个完整循环后在坡底停留）
+                PowerRampIntervalControl(
+                    title = "爬坡间隔",
+                    mode = state.powerRampIntervalModeB,
+                    fixed = state.powerRampIntervalFixedB,
+                    randomMin = state.powerRampIntervalRandomMinB,
+                    randomMax = state.powerRampIntervalRandomMaxB,
+                    onModeChange = { viewModel.setPowerRampIntervalModeB(it) },
+                    onFixedChange = { viewModel.setPowerRampIntervalFixedB(it) },
+                    onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomB(min, max) }
+                )
             }
         }
     }

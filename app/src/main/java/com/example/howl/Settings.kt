@@ -7,20 +7,25 @@ import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.SecondaryScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,28 +33,49 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.howl.ui.theme.HowlTheme
+import com.example.howl.ui.theme.AppTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.roundToInt
 
-fun IntRange.toClosedFloatingPointRange(): ClosedFloatingPointRange<Float> {
-    return this.first.toFloat()..this.last.toFloat()
-}
+class SettingsViewModel : ViewModel() {
+    private val _selectedSettingsTab = MutableStateFlow(SettingsTab.POWER)
+    val selectedSettingsTab: StateFlow<SettingsTab> = _selectedSettingsTab.asStateFlow()
 
-class SettingsViewModel() : ViewModel() {
+    fun setSettingsTab(tab: SettingsTab) {
+        _selectedSettingsTab.value = tab
+    }
+
     fun setRemoteAccess(enabled: Boolean) {
         Prefs.remoteAccess.value = enabled
         Prefs.remoteAccess.save()
         if (enabled) {
             RemoteControlServer.start()
-        }
-        else {
+        } else {
             RemoteControlServer.stop()
         }
     }
 
+    fun resetAll() {
+        Player.stopPlayer()
+        MainOptions.zeroPower()
+        Prefs.resetAll(
+            exceptions = listOf(
+                Prefs.remoteAccess,
+                Prefs.remoteAPIKey,
+            )
+        )
+        OutputManager.restoreOutputs(Prefs.outputStates.value)
+    }
+
+    fun resetFunscript() {
+        Prefs.resetByPrefix("funscript_")
+    }
     fun setLanguage(language: String, context: Context) {
         // 保存语言设置到Prefs
         Prefs.language.value = language
@@ -66,307 +92,21 @@ class SettingsViewModel() : ViewModel() {
         context.startActivity(restartIntent)
         System.exit(0)
     }
-    fun setOutputType(outputType: OutputType) {
-        BluetoothHandler.disconnect()
-        Prefs.outputType.value = outputType
-        Prefs.outputType.save()
-        Player.switchOutput(outputType)
-    }
-    fun setAudioOutputMinFrequency(newFrequency: Int) {
-        val currentMax = Prefs.outputAudioMaxFrequency.value
-        val clampedMin = newFrequency.coerceAtMost(currentMax - 50).coerceAtLeast(10)
-        Prefs.outputAudioMinFrequency.value = clampedMin
-        audioOutputFrequencyRangeUpdated()
-    }
-    fun setAudioOutputMaxFrequency(newFrequency: Int) {
-        val currentMin = Prefs.outputAudioMinFrequency.value
-        val clampedMax = newFrequency.coerceAtLeast(currentMin + 50).coerceAtLeast(10)
-        Prefs.outputAudioMaxFrequency.value = clampedMax
-        audioOutputFrequencyRangeUpdated()
-    }
-    fun audioOutputFrequencyRangeUpdated() {
-        val newRange = Prefs.outputAudioMinFrequency.value .. Prefs.outputAudioMaxFrequency.value
-        Player.output.allowedFrequencyRange = newRange
-        MainOptions.setFrequencyRange(newRange)
-    }
-    fun syncCoyoteParameters() {
-        if (Player.output is Coyote3Output) {
-            val output = Player.output as Coyote3Output
-            if (output.ready)
-                output.syncParameters()
-        }
-    }
 }
 
-@Composable
-fun OutputSettingsPanel(
-    viewModel: SettingsViewModel,
-    modifier: Modifier = Modifier
-) {
-    val outputType by Prefs.outputType.collectAsStateWithLifecycle()
-    val outputC3FrequencyBalanceA by Prefs.outputC3FrequencyBalanceA.collectAsStateWithLifecycle()
-    val outputC3FrequencyBalanceB by Prefs.outputC3FrequencyBalanceB.collectAsStateWithLifecycle()
-    val outputC3IntensityBalanceA by Prefs.outputC3IntensityBalanceA.collectAsStateWithLifecycle()
-    val outputC3IntensityBalanceB by Prefs.outputC3IntensityBalanceB.collectAsStateWithLifecycle()
-    val outputAudioWaveShape by Prefs.outputAudioWaveShape.collectAsStateWithLifecycle()
-    val outputAudioCarrierShape by Prefs.outputAudioCarrierShape.collectAsStateWithLifecycle()
-    val outputAudioMaxFrequency by Prefs.outputAudioMaxFrequency.collectAsStateWithLifecycle()
-    val outputAudioMinFrequency by Prefs.outputAudioMinFrequency.collectAsStateWithLifecycle()
-    val outputAudioCarrierPhaseType by Prefs.outputAudioCarrierPhaseType.collectAsStateWithLifecycle()
-    val outputAudioCarrierFrequency by Prefs.outputAudioCarrierFrequency.collectAsStateWithLifecycle()
-    val outputAudioWaveletWidth by Prefs.outputAudioWaveletWidth.collectAsStateWithLifecycle()
-    val outputAudioWaveletFade by Prefs.outputAudioWaveletFade.collectAsStateWithLifecycle()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(text = stringResource(R.string.settings_version, howlVersion), style = MaterialTheme.typography.labelLarge)
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(text = stringResource(R.string.settings_output_options), style = MaterialTheme.typography.headlineSmall)
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = stringResource(R.string.settings_output_type), style = MaterialTheme.typography.labelLarge)
-        OptionPicker(
-            currentValue = outputType,
-            onValueChange = { viewModel.setOutputType(it) },
-            options = OutputType.entries,
-            getText = { it.displayName }
-        )
-    }
-
-    if(outputType == OutputType.AUDIO_WAVELET) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = stringResource(R.string.settings_audio_wavelet), style = MaterialTheme.typography.headlineSmall)
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = stringResource(R.string.settings_carrier_wave_shape), style = MaterialTheme.typography.labelLarge)
-            OptionPicker(
-                currentValue = outputAudioCarrierShape,
-                onValueChange = {
-                    Prefs.outputAudioCarrierShape.value = it
-                    Prefs.outputAudioCarrierShape.save()
-                },
-                options = AudioWaveShape.entries,
-                getText = { it.displayName }
-            )
-        }
-        SliderWithLabel(
-            label = stringResource(R.string.settings_carrier_wave_frequency),
-            value = outputAudioCarrierFrequency.toFloat(),
-            onValueChange = {
-                Prefs.outputAudioCarrierFrequency.value = it.roundToInt()
-            },
-            onValueChangeFinished = { Prefs.outputAudioCarrierFrequency.save() },
-            valueRange = 600.0f..2000.0f,
-            steps = 139,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        val waveletWidthRange = 3..10
-        SliderWithLabel(
-            label = "Wavelet width (in carrier wave cycles)",
-            value = outputAudioWaveletWidth.toFloat(),
-            onValueChange = { Prefs.outputAudioWaveletWidth.value = it.roundToInt() },
-            onValueChangeFinished = { Prefs.outputAudioWaveletWidth.save() },
-            valueRange = waveletWidthRange.first.toFloat()..waveletWidthRange.last.toFloat(),
-            steps = (waveletWidthRange.last - waveletWidthRange.first) - 1,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        SliderWithLabel(
-            label = "Wavelet fade in/out proportion",
-            value = outputAudioWaveletFade,
-            onValueChange = { Prefs.outputAudioWaveletFade.value = it },
-            onValueChangeFinished = { Prefs.outputAudioWaveletFade.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Carrier phase on each channel",
-                style = MaterialTheme.typography.labelLarge
-            )
-            OptionPicker(
-                currentValue = outputAudioCarrierPhaseType,
-                onValueChange = {
-                    Prefs.outputAudioCarrierPhaseType.value = it
-                    Prefs.outputAudioCarrierPhaseType.save()
-                },
-                options = AudioPhaseType.entries,
-                getText = { it.displayName }
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-
-            val dutyCycle =
-                ((1.0 / outputAudioCarrierFrequency) * outputAudioWaveletWidth) / 0.01
-            val displayDutyCycle = (dutyCycle * 100.0).coerceIn(0.0..100.0).roundToInt()
-            Text(
-                text = "Estimated duty cycle at 100Hz: $displayDutyCycle%",
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-    }
-
-    if(outputType == OutputType.AUDIO_CONTINUOUS) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = stringResource(R.string.settings_audio_continuous), style = MaterialTheme.typography.headlineSmall)
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = "WARNING: Continuous output is intended for devices with their own audio processing. Do not use it with directly driven devices such as DIY stereostim or the Tingler, as many frequency range choices are unsafe.", style = MaterialTheme.typography.bodyMedium)
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = stringResource(R.string.settings_wave_shape), style = MaterialTheme.typography.labelLarge)
-            OptionPicker(
-                currentValue = outputAudioWaveShape,
-                onValueChange = {
-                    Prefs.outputAudioWaveShape.value = it
-                    Prefs.outputAudioWaveShape.save()
-                },
-                options = AudioWaveShape.entries,
-                getText = { it.displayName }
-            )
-        }
-        val frequencySliderRange = 50..4000
-        SliderWithLabel(
-            label = stringResource(R.string.settings_minimum_frequency),
-            value = outputAudioMinFrequency.toFloat(),
-            onValueChange = { viewModel.setAudioOutputMinFrequency(it.roundToInt()) },
-            onValueChangeFinished = { Prefs.outputAudioMinFrequency.save() },
-            valueRange = frequencySliderRange.toClosedFloatingPointRange(),
-            steps = calculateSliderSteps(frequencySliderRange.toClosedFloatingPointRange(), 50.0f),
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.settings_maximum_frequency),
-            value = outputAudioMaxFrequency.toFloat(),
-            onValueChange = { viewModel.setAudioOutputMaxFrequency(it.roundToInt()) },
-            onValueChangeFinished = { Prefs.outputAudioMaxFrequency.save() },
-            valueRange = frequencySliderRange.toClosedFloatingPointRange(),
-            steps = calculateSliderSteps(frequencySliderRange.toClosedFloatingPointRange(), 50.0f),
-            valueDisplay = { it.roundToInt().toString() }
-        )
-    }
-
-    if(outputType == OutputType.COYOTE3) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = stringResource(R.string.settings_coyote_parameters), style = MaterialTheme.typography.headlineSmall)
-        }
-        SliderWithLabel(
-            label = stringResource(R.string.settings_channel_a_frequency_balance),
-            value = outputC3FrequencyBalanceA.toFloat(),
-            onValueChange = {
-                Prefs.outputC3FrequencyBalanceA.value = it.roundToInt()
-            },
-            onValueChangeFinished = {
-                Prefs.outputC3FrequencyBalanceA.save()
-                viewModel.syncCoyoteParameters()
-            },
-            valueRange = Coyote3Output.FREQUENCY_BALANCE_RANGE.toClosedFloatingPointRange(),
-            steps = Coyote3Output.FREQUENCY_BALANCE_RANGE.last - 1,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.settings_channel_b_frequency_balance),
-            value = outputC3FrequencyBalanceB.toFloat(),
-            onValueChange = {
-                Prefs.outputC3FrequencyBalanceB.value = it.roundToInt()
-            },
-            onValueChangeFinished = {
-                Prefs.outputC3FrequencyBalanceB.save()
-                viewModel.syncCoyoteParameters()
-            },
-            valueRange = Coyote3Output.FREQUENCY_BALANCE_RANGE.toClosedFloatingPointRange(),
-            steps = Coyote3Output.FREQUENCY_BALANCE_RANGE.last - 1,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.settings_channel_a_intensity_balance),
-            value = outputC3IntensityBalanceA.toFloat(),
-            onValueChange = {
-                Prefs.outputC3IntensityBalanceA.value = it.roundToInt()
-            },
-            onValueChangeFinished = {
-                Prefs.outputC3IntensityBalanceA.save()
-                viewModel.syncCoyoteParameters()
-            },
-            valueRange = Coyote3Output.INTENSITY_BALANCE_RANGE.toClosedFloatingPointRange(),
-            steps = Coyote3Output.INTENSITY_BALANCE_RANGE.last - 1,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.settings_channel_b_intensity_balance),
-            value = outputC3IntensityBalanceB.toFloat(),
-            onValueChange = {
-                Prefs.outputC3IntensityBalanceB.value = it.roundToInt()
-            },
-            onValueChangeFinished = {
-                Prefs.outputC3IntensityBalanceB.save()
-                viewModel.syncCoyoteParameters()
-            },
-            valueRange = Coyote3Output.INTENSITY_BALANCE_RANGE.toClosedFloatingPointRange(),
-            steps = Coyote3Output.INTENSITY_BALANCE_RANGE.last - 1,
-            valueDisplay = { it.roundToInt().toString() }
-        )
-    }
+enum class SettingsTab(val label: String) {
+    POWER("Power"),
+    POWER_RAMP("PowerRamp"),
+    FUNSCRIPT("Funscript"),
+    REMOTE_ACCESS("Remote access"),
+    CHARTS_METERS("Charts & meters"),
+    LANGUAGES("Languages"),
+    MISC("Misc"),
 }
 
 @Composable
 fun PowerSettingsPanel(
     viewModel: SettingsViewModel,
-    powerRampViewModel: PowerRampViewModel,
     modifier: Modifier = Modifier
 ) {
     val powerLimitA by Prefs.powerLimitA.collectAsStateWithLifecycle()
@@ -376,152 +116,212 @@ fun PowerSettingsPanel(
     val powerAutoIncrementDelayA by Prefs.powerAutoIncrementDelayA.collectAsStateWithLifecycle()
     val powerAutoIncrementDelayB by Prefs.powerAutoIncrementDelayB.collectAsStateWithLifecycle()
 
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(text = stringResource(R.string.settings_power_options), style = MaterialTheme.typography.headlineSmall)
-    }
-    SliderWithLabel(
-        label = stringResource(R.string.settings_channel_a_power_limit),
-        value = powerLimitA.toFloat(),
-        onValueChange = {
-            Prefs.powerLimitA.value = it.roundToInt()
-        },
-        onValueChangeFinished = {
-            Prefs.powerLimitA.save()
-            viewModel.syncCoyoteParameters()
-        },
-        valueRange = Coyote3Output.POWER_RANGE.toClosedFloatingPointRange(),
-        steps = Coyote3Output.POWER_RANGE.last - 1,
-        valueDisplay = { it.roundToInt().toString() }
-    )
-    SliderWithLabel(
-        label = stringResource(R.string.settings_channel_b_power_limit),
-        value = powerLimitB.toFloat(),
-        onValueChange = {
-            Prefs.powerLimitB.value = it.roundToInt()
-        },
-        onValueChangeFinished = {
-            Prefs.powerLimitB.save()
-            viewModel.syncCoyoteParameters()
-        },
-        valueRange = Coyote3Output.POWER_RANGE.toClosedFloatingPointRange(),
-        steps = Coyote3Output.POWER_RANGE.last - 1,
-        valueDisplay = { it.roundToInt().toString() }
-    )
-    val powerStepRange: IntRange = 1..10
-    SliderWithLabel(
-            label = stringResource(R.string.settings_power_step_size_a),
+    Column(modifier = modifier) {
+        SliderWithLabel(
+            label = "Power limit A",
+            value = powerLimitA.toFloat(),
+            onValueChange = {
+                Prefs.powerLimitA.value = it.roundToInt()
+            },
+            onValueChangeFinished = {
+                Prefs.powerLimitA.save()
+                OutputManager.powerLimitsUpdated()
+            },
+            valueRange = MainOptions.POWER_RANGE.toClosedFloatingPointRange(),
+            steps = MainOptions.POWER_RANGE.last - 1,
+            valueDisplay = { it.roundToInt().toString() }
+        )
+        SliderWithLabel(
+            label = "Power limit B",
+            value = powerLimitB.toFloat(),
+            onValueChange = {
+                Prefs.powerLimitB.value = it.roundToInt()
+            },
+            onValueChangeFinished = {
+                Prefs.powerLimitB.save()
+                OutputManager.powerLimitsUpdated()
+            },
+            valueRange = MainOptions.POWER_RANGE.toClosedFloatingPointRange(),
+            steps = MainOptions.POWER_RANGE.last - 1,
+            valueDisplay = { it.roundToInt().toString() }
+        )
+        val powerStepRange: IntRange = 1..10
+        SliderWithLabel(
+            label = "Power step size A",
             value = powerStepA.toFloat(),
             onValueChange = { Prefs.powerStepA.value = it.roundToInt() },
             onValueChangeFinished = { Prefs.powerStepA.save() },
-        valueRange = powerStepRange.toClosedFloatingPointRange(),
-        steps = powerStepRange.last - 1,
-        valueDisplay = { it.roundToInt().toString() }
-    )
-    SliderWithLabel(
-            label =  stringResource(R.string.settings_power_step_size_b),
+            valueRange = powerStepRange.toClosedFloatingPointRange(),
+            steps = powerStepRange.last - 1,
+            valueDisplay = { it.roundToInt().toString() }
+        )
+        SliderWithLabel(
+            label = "Power step size B",
             value = powerStepB.toFloat(),
             onValueChange = { Prefs.powerStepB.value = it.roundToInt() },
             onValueChangeFinished = { Prefs.powerStepB.save() },
-        valueRange = powerStepRange.toClosedFloatingPointRange(),
-        steps = powerStepRange.last - 1,
-        valueDisplay = { it.roundToInt().toString() }
-    )
-    val autoIncrementRange: IntRange = 5..300
-    SliderWithLabel(
-        label = stringResource(R.string.settings_power_auto_increase_delay_a),
-        value = powerAutoIncrementDelayA.toFloat(),
-        onValueChange = { Prefs.powerAutoIncrementDelayA.value = it.roundToInt() },
-        onValueChangeFinished = { Prefs.powerAutoIncrementDelayA.save() },
-        valueRange = autoIncrementRange.toClosedFloatingPointRange(),
-        steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
-        valueDisplay = { it.roundToInt().toString() }
-    )
-    SliderWithLabel(
-        label = stringResource(R.string.settings_power_auto_increase_delay_b),
-        value = powerAutoIncrementDelayB.toFloat(),
-        onValueChange = { Prefs.powerAutoIncrementDelayB.value = it.roundToInt() },
-        onValueChangeFinished = { Prefs.powerAutoIncrementDelayB.save() },
-        valueRange = autoIncrementRange.toClosedFloatingPointRange(),
-        steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
-        valueDisplay = { it.roundToInt().toString() }
-    )
-
+            valueRange = powerStepRange.toClosedFloatingPointRange(),
+            steps = powerStepRange.last - 1,
+            valueDisplay = { it.roundToInt().toString() }
+        )
+        val autoIncrementRange: IntRange = 5..300
+        SliderWithLabel(
+            label = "Power auto increase delay A (seconds)",
+            value = powerAutoIncrementDelayA.toFloat(),
+            onValueChange = { Prefs.powerAutoIncrementDelayA.value = it.roundToInt() },
+            onValueChangeFinished = { Prefs.powerAutoIncrementDelayA.save() },
+            valueRange = autoIncrementRange.toClosedFloatingPointRange(),
+            steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
+            valueDisplay = { it.roundToInt().toString() }
+        )
+        SliderWithLabel(
+            label = "Power auto increase delay B (seconds)",
+            value = powerAutoIncrementDelayB.toFloat(),
+            onValueChange = { Prefs.powerAutoIncrementDelayB.value = it.roundToInt() },
+            onValueChangeFinished = { Prefs.powerAutoIncrementDelayB.save() },
+            valueRange = autoIncrementRange.toClosedFloatingPointRange(),
+            steps = ((autoIncrementRange.last - autoIncrementRange.first) * 0.2 - 1).roundToInt(),
+            valueDisplay = { it.roundToInt().toString() }
+        )
+    }
+}
+@Composable
+fun PowerRampSettingsPanel(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val powerRampViewModel: PowerRampViewModel = viewModel()
     PowerRampPanel(powerRampViewModel)
 }
 
 @Composable
-fun CalibrationSettingsPanel(
+fun FunscriptSettingsPanel(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val positionalEffectCurve by Prefs.calibrationPositionalEffectCurve.collectAsStateWithLifecycle()
-    val powerBalance by Prefs.calibrationPowerBalance.collectAsStateWithLifecycle()
-    val frequencyBalanceA by Prefs.calibrationFrequencyBalanceA.collectAsStateWithLifecycle()
-    val frequencyBalanceB by Prefs.calibrationFrequencyBalanceB.collectAsStateWithLifecycle()
+    val funscriptVolume by Prefs.funscriptVolume.collectAsStateWithLifecycle()
+    val funscriptPositionalEffectStrength by Prefs.funscriptPositionalEffectStrength.collectAsStateWithLifecycle()
+    val funscriptFreqEnergyProportion by Prefs.funscriptFreqEnergyProportion.collectAsStateWithLifecycle()
+    val funscriptDirectionalFreqShift by Prefs.funscriptDirectionalFreqShift.collectAsStateWithLifecycle()
+    val funscriptFlipDirectionalFreqShift by Prefs.funscriptFlipDirectionalFreqShift.collectAsStateWithLifecycle()
+    val funscriptNormaliseAxes by Prefs.funscriptNormaliseAxes.collectAsStateWithLifecycle()
+    val funscriptSmoothingSigma by Prefs.funscriptSmoothingSigma.collectAsStateWithLifecycle()
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(text = stringResource(R.string.calibration_options), style = MaterialTheme.typography.headlineSmall)
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = "Advanced parameters for tuning Howl's funscript algorithm.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "用于调整 Howl 脚本算法的高级参数",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Most users should stick with the default values.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "大多数用户应坚持使用默认值",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        SliderWithLabel(
+            label = "Scaling coefficient",
+            subtitle = "缩放系数 (0.5 - 1.0)",
+            value = funscriptVolume,
+            onValueChange = { Prefs.funscriptVolume.value = it },
+            onValueChangeFinished = { Prefs.funscriptVolume.save() },
+            valueRange = 0.5f..1.0f,
+            steps = 49,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SliderWithLabel(
+            label = "Positional effect strength",
+            subtitle = "位置效应强度 (0 - 1.0)",
+            value = funscriptPositionalEffectStrength,
+            onValueChange = { Prefs.funscriptPositionalEffectStrength.value = it },
+            onValueChangeFinished = { Prefs.funscriptPositionalEffectStrength.save() },
+            valueRange = 0f..1.0f,
+            steps = 99,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SliderWithLabel(
+            label = "Amplitude calculation window",
+            subtitle = "振幅计算窗口 (0 - 0.5)",
+            value = funscriptSmoothingSigma,
+            onValueChange = { Prefs.funscriptSmoothingSigma.value = it },
+            onValueChangeFinished = { Prefs.funscriptSmoothingSigma.save() },
+            valueRange = 0f..0.5f,
+            steps = 49,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SliderWithLabel(
+            label = "Frequency energy proportion",
+            subtitle = "频率能量比例 (0 - 1.0)",
+            value = funscriptFreqEnergyProportion,
+            onValueChange = { Prefs.funscriptFreqEnergyProportion.value = it },
+            onValueChangeFinished = { Prefs.funscriptFreqEnergyProportion.save() },
+            valueRange = 0f..1.0f,
+            steps = 99,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SliderWithLabel(
+            label = "Frequency directional shift",
+            subtitle = "频率方向偏移 (0 - 0.5)",
+            value = funscriptDirectionalFreqShift,
+            onValueChange = { Prefs.funscriptDirectionalFreqShift.value = it },
+            onValueChangeFinished = { Prefs.funscriptDirectionalFreqShift.save() },
+            valueRange = 0f..0.5f,
+            steps = 49,
+            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
+        )
+        SwitchWithLabel(
+            label = "Flip frequency directional shift",
+            subtitle = "翻转频率方向偏移",
+            checked = funscriptFlipDirectionalFreqShift,
+            onCheckedChange = {
+                Prefs.funscriptFlipDirectionalFreqShift.value = it
+                Prefs.funscriptFlipDirectionalFreqShift.save()
+            }
+        )
+        SwitchWithLabel(
+            label = "Normalise axes (when loading)",
+            subtitle = "归一化轴（加载时）",
+            checked = funscriptNormaliseAxes,
+            onCheckedChange = {
+                Prefs.funscriptNormaliseAxes.value = it
+                Prefs.funscriptNormaliseAxes.save()
+            }
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = { viewModel.resetFunscript() },
+            ) {
+                Text("Reset funscript settings")
+            }
+        }
     }
-    SliderWithLabel(
-        label = stringResource(R.string.cpt_power_balance),
-        value = powerBalance,
-        onValueChange = { Prefs.calibrationPowerBalance.value = it },
-        onValueChangeFinished = { Prefs.calibrationPowerBalance.save() },
-        valueRange = 0.0f..1.0f,
-        steps = 99,
-        valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-    )
-    SliderWithLabel(
-        label = stringResource(R.string.cpt_frequency_balance_a),
-        value = frequencyBalanceA,
-        onValueChange = { Prefs.calibrationFrequencyBalanceA.value = it },
-        onValueChangeFinished = { Prefs.calibrationFrequencyBalanceA.save() },
-        valueRange = 0.0f..1.0f,
-        steps = 99,
-        valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-    )
-    SliderWithLabel(
-        label = stringResource(R.string.cpt_frequency_balance_b),
-        value = frequencyBalanceB,
-        onValueChange = { Prefs.calibrationFrequencyBalanceB.value = it },
-        onValueChangeFinished = { Prefs.calibrationFrequencyBalanceB.save() },
-        valueRange = 0.0f..1.0f,
-        steps = 99,
-        valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-    )
-    SliderWithLabel(
-        label = stringResource(R.string.cpt_positional_effect_curve),
-        value = positionalEffectCurve,
-        onValueChange = { Prefs.calibrationPositionalEffectCurve.value = it },
-        onValueChangeFinished = { Prefs.calibrationPositionalEffectCurve.save() },
-        valueRange = 0.1f..1.0f,
-        steps = 89,
-        valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-    )
 }
 
 @Composable
-fun SettingsPanel(
+fun RemoteAccessSettingsPanel(
     viewModel: SettingsViewModel,
-    powerRampViewModel: PowerRampViewModel,
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val miscShowPowerMeter by Prefs.miscShowPowerMeter.collectAsStateWithLifecycle()
-    val miscShowDebugLog by Prefs.miscShowDebugLog.collectAsStateWithLifecycle()
     val remoteAccess by Prefs.remoteAccess.collectAsStateWithLifecycle()
     val remoteAPIKey by Prefs.remoteAPIKey.collectAsStateWithLifecycle()
 
@@ -531,25 +331,7 @@ fun SettingsPanel(
         emptyArray()
     }
 
-    Column(
-        modifier = modifier
-            .padding(16.dp)
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        OutputSettingsPanel(viewModel, modifier)
-        PowerSettingsPanel(viewModel, powerRampViewModel, modifier)
-        CalibrationSettingsPanel(viewModel, modifier)
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "Remote access options", style = MaterialTheme.typography.headlineSmall)
-        }
+    Column(modifier = modifier) {
         SwitchWithLabel(
             label = "Allow remote access",
             checked = remoteAccess,
@@ -578,22 +360,38 @@ fun SettingsPanel(
             },
             label = { Text("Remote access key") },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)
         )
+    }
+}
 
+@Composable
+fun ChartsMetersSettingsPanel(
+    modifier: Modifier = Modifier
+) {
+    val miscShowPowerMeter by Prefs.miscShowPowerMeter.collectAsStateWithLifecycle()
+    val miscShowFunscriptMeters by Prefs.miscShowFunscriptMeters.collectAsStateWithLifecycle()
+    val miscPulseChartStyle by Prefs.miscPulseChartStyle.collectAsStateWithLifecycle()
+
+    Column(modifier = modifier) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = stringResource(R.string.settings_misc_options), style = MaterialTheme.typography.headlineSmall)
+            Text(text = "Chart style", style = MaterialTheme.typography.labelLarge)
+            OptionPicker(
+                currentValue = miscPulseChartStyle,
+                onValueChange = {
+                    Prefs.miscPulseChartStyle.value = it
+                    Prefs.miscPulseChartStyle.save()
+                },
+                options = PulseChartStyle.entries,
+                getText = { it.displayName }
+            )
         }
         SwitchWithLabel(
-            label = stringResource(R.string.settings_show_power_meter),
+            label = "Show power meters",
             checked = miscShowPowerMeter,
             onCheckedChange = {
                 Prefs.miscShowPowerMeter.value = it
@@ -601,7 +399,42 @@ fun SettingsPanel(
             }
         )
         SwitchWithLabel(
-            label = stringResource(R.string.settings_show_debug_log),
+            label = "Show funscript meters",
+            checked = miscShowFunscriptMeters,
+            onCheckedChange = {
+                Prefs.miscShowFunscriptMeters.value = it
+                Prefs.miscShowFunscriptMeters.save()
+            }
+        )
+    }
+}
+
+@Composable
+fun MiscSettingsPanel(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val miscShowDebugLog by Prefs.miscShowDebugLog.collectAsStateWithLifecycle()
+    val miscMaxPlaybackDurationHours by Prefs.miscMaxPlaybackDurationHours.collectAsStateWithLifecycle()
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Howl version $howlVersion",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SwitchWithLabel(
+            label = "Show debug log tab",
             checked = miscShowDebugLog,
             onCheckedChange = {
                 Prefs.miscShowDebugLog.value = it
@@ -609,59 +442,156 @@ fun SettingsPanel(
             }
         )
 
-        // Language settings
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SliderWithLabel(
+            label = "Max playback duration (hours)",
+            value = miscMaxPlaybackDurationHours.toFloat(),
+            onValueChange = { Prefs.miscMaxPlaybackDurationHours.value = it.toInt() },
+            onValueChangeFinished = { Prefs.miscMaxPlaybackDurationHours.save() },
+            valueRange = 1f..24f,
+            steps = 22,
+            valueDisplay = { "${it.toInt()}h" }
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = stringResource(R.string.settings_language), style = MaterialTheme.typography.headlineSmall)
-        }
-        val language by Prefs.language.collectAsStateWithLifecycle()
-        val context = LocalContext.current
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+                .padding(top = 8.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.Center
         ) {
             Button(
-                onClick = {
-                    viewModel.setLanguage("zh", context)
-                },
-                modifier = Modifier.padding(4.dp),
-                colors = if (language == "zh") ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) else ButtonDefaults.buttonColors()
+                onClick = { showResetDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
             ) {
-                Text("中文")
+                Text("Reset everything")
             }
-            Button(
-                onClick = {
-                    viewModel.setLanguage("en", context)
+        }
+
+        if (showResetDialog) {
+            ConfirmationDialog(
+                message = "This will reset all Howl's saved data, except remote access options. All preferences on all screens will be reset, and all of your outputs will be removed. Are you sure?",
+                onConfirm = {
+                    viewModel.resetAll()
+                    showResetDialog = false
                 },
-                modifier = Modifier.padding(4.dp),
-                colors = if (language == "en") ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) else ButtonDefaults.buttonColors()
-            ) {
-                Text("English")
+                onDismiss = { showResetDialog = false },
+                confirmText = "Reset",
+                dismissText = "Cancel"
+            )
+        }
+    }
+}
+
+@Composable
+fun LanguagesSettingsPanel(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+// Language settings
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(text = stringResource(R.string.settings_language), style = MaterialTheme.typography.headlineSmall)
+    }
+    val language by Prefs.language.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Button(
+            onClick = {
+                viewModel.setLanguage("zh", context)
+            },
+            modifier = Modifier.padding(4.dp),
+            colors = if (language == "zh") ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            ) else ButtonDefaults.buttonColors()
+        ) {
+            Text("中文")
+        }
+        Button(
+            onClick = {
+                viewModel.setLanguage("en", context)
+            },
+            modifier = Modifier.padding(4.dp),
+            colors = if (language == "en") ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            ) else ButtonDefaults.buttonColors()
+        ) {
+            Text("English")
+        }
+    }
+}
+
+@Composable
+fun SettingsPanel(
+    viewModel: SettingsViewModel,
+
+    onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val selectedTab by viewModel.selectedSettingsTab.collectAsStateWithLifecycle()
+    val tabs = SettingsTab.entries
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        SecondaryScrollableTabRow(
+            selectedTabIndex = selectedTab.ordinal,
+            edgePadding = 0.dp,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                Tab(
+                    selected = selectedTab == tab,
+                    onClick = { viewModel.setSettingsTab(tab) },
+                    text = { Text(tab.label) },
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            when (selectedTab) {
+                SettingsTab.POWER ->
+                    PowerSettingsPanel(viewModel = viewModel)
+                SettingsTab.POWER_RAMP ->
+                    PowerRampSettingsPanel(viewModel = viewModel)
+                SettingsTab.FUNSCRIPT ->
+                    FunscriptSettingsPanel(viewModel = viewModel)
+                SettingsTab.REMOTE_ACCESS ->
+                    RemoteAccessSettingsPanel(
+                        viewModel = viewModel,
+                        onRequestPermissions = onRequestPermissions
+                    )
+                SettingsTab.CHARTS_METERS ->
+                    ChartsMetersSettingsPanel()
+                SettingsTab.LANGUAGES ->
+                    LanguagesSettingsPanel(viewModel = viewModel)
+                SettingsTab.MISC ->
+                    MiscSettingsPanel(viewModel = viewModel)
             }
         }
     }
 }
 
-
-
 @Preview
 @Composable
 fun SettingsPanelPreview() {
-    HowlTheme {
+    AppTheme {
         val viewModel: SettingsViewModel = viewModel()
-        val powerRampViewModel: PowerRampViewModel = viewModel()
         SettingsPanel(
             viewModel = viewModel,
-            powerRampViewModel = powerRampViewModel,
             onRequestPermissions = { _, _ -> },
             modifier = Modifier.fillMaxHeight()
         )

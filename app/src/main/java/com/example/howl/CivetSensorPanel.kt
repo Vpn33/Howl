@@ -2,6 +2,8 @@ package com.example.howl
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,8 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -89,8 +89,8 @@ fun CivetSensorPanel(
     
     Column(
         modifier = modifier
-            .padding(16.dp)
             .verticalScroll(rememberScrollState())
+            .padding(16.dp)
             .fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -115,11 +115,11 @@ fun CivetSensorPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.civet_sensor),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+//                Icon(
+//                    painter = painterResource(R.drawable.civet_sensor),
+//                    contentDescription = null,
+//                    tint = MaterialTheme.colorScheme.primary
+//                )
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.titleMedium,

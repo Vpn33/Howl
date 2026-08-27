@@ -1,26 +1,18 @@
 package com.example.howl
 
 class RecorderOutput : BaseOutput() {
-    override val pulseBatchSize = 4
+    override val type = OutputType.RECORDER
+    override val pulseDivider = 1
+    override val pulseBatchSize = 1
     override val sendSilenceWhenMuted = false
-    override var allowedFrequencyRange = 1..100
-    override var defaultFrequencyRange = 1..100
     override var ready = true
     private val recordBuffer: CircularBuffer<Pulse> = CircularBuffer(4800)
 
-    override fun sendPulses(
-        channelAPower: Int,
-        channelBPower: Int,
-        minFrequency: Double,
-        maxFrequency: Double,
-        pulses: List<Pulse>
-    ) {
-        // We use the recorder's pulses to feed our history chart and meters
-        PulseHistory.addPulsesToHistory(pulses)
+    override fun sendPulses(pulses: List<OutputPulse>) {
         val recordState = Player.recordState.value
         if (recordState.recordMode && !recordState.recording)
             return
-        recordBuffer.addAll(pulses, overwrite = true)
+        recordBuffer.addAll(pulses.map { it.toPulse() }, overwrite = true)
         updateDuration()
     }
 

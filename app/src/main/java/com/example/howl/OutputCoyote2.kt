@@ -1,181 +1,241 @@
 package com.example.howl
 
+import android.bluetooth.BluetoothGattCharacteristic
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.time.Duration.Companion.seconds
 
-// Internal state representing the stage we're at in our initial setup process
-enum class Coyote2SetupStage {
-    Initial,
-    RegisterForPowerUpdates,
-    Ready
-}
-
-class Coyote2Output : BaseOutput() {
-    override val pulseBatchSize = 2
+class Coyote2Output : BluetoothOutput("D-LAB ESTIM01") {
+    override val type = OutputType.COYOTE2
+    override val pulseDivider = 2
+    override val pulseBatchSize = 1
     override val sendSilenceWhenMuted = false
-    override var allowedFrequencyRange = 1..200
-    override var defaultFrequencyRange = 10..100
+    override var minFrequencyLimit: Int = 1
+    override var maxFrequencyLimit: Int = 200
+    override val defaultFrequencySubset: ClosedFloatingPointRange<Float>
+        get() = 0.05f..0.5f
     override var ready = false
-    var setupStage: Coyote2SetupStage = Coyote2SetupStage.Initial
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private var setupJob: Job? = null
     private var batteryPollJob: Job? = null
-    private var sendPulsesJob: Job? = null
+    private var notificationJob: Job? = null
+
     private var previousChannelAPower = -1
     private var previousChannelBPower = -1
+    private var sendChannelA = true  // alternates with each pulse
 
     companion object {
         const val TAG = "Coyote2Output"
-        const val DELAY_BETWEEN_OPS = 10L // delay needed between Bluetooth operations in milliseconds
-        const val INTERLEAVE_DELAY = 50L // delay used for interleaving left and right channel updates
-        val POWER_RANGE: IntRange = 0..200
-        //battery polling can fail if it's too close to other Bluetooth activity like sending pulses
-        //the unusual interval helps to avoid this happening multiple times in a row
-        const val BATTERY_POLL_INTERVAL_SECS = 60.02
-        val batteryServiceUUID: UUID = UUID.fromString("955A180A-0FE2-F5AA-A094-84B8D4F3E8AD")
-        val mainServiceUUID: UUID = UUID.fromString("955A180B-0FE2-F5AA-A094-84B8D4F3E8AD")
-        val batteryCharacteristicUUID: UUID = UUID.fromString("955A1500-0FE2-F5AA-A094-84B8D4F3E8AD")
-        val powerCharacteristicUUID: UUID = UUID.fromString("955A1504-0FE2-F5AA-A094-84B8D4F3E8AD")
-        val patternACharacteristicUUID: UUID = UUID.fromString("955A1506-0FE2-F5AA-A094-84B8D4F3E8AD")
-        val patternBCharacteristicUUID: UUID = UUID.fromString("955A1505-0FE2-F5AA-A094-84B8D4F3E8AD")
+
+        // Battery polling can fail if it's too close to other Bluetooth activity like sending pulses.
+        // The unusual interval helps to avoid this happening multiple times in a row.
+        val BATTERY_POLL_INTERVAL = 60.02.seconds
+
+        private val batteryServiceUUID: UUID = UUID.fromString("955A180A-0FE2-F5AA-A094-84B8D4F3E8AD")
+        private val mainServiceUUID: UUID = UUID.fromString("955A180B-0FE2-F5AA-A094-84B8D4F3E8AD")
+        private val batteryCharacteristicUUID: UUID = UUID.fromString("955A1500-0FE2-F5AA-A094-84B8D4F3E8AD")
+        private val powerCharacteristicUUID: UUID = UUID.fromString("955A1504-0FE2-F5AA-A094-84B8D4F3E8AD")
+        private val patternACharacteristicUUID: UUID = UUID.fromString("955A1506-0FE2-F5AA-A094-84B8D4F3E8AD")
+        private val patternBCharacteristicUUID: UUID = UUID.fromString("955A1505-0FE2-F5AA-A094-84B8D4F3E8AD")
     }
 
-    override fun initialise() {}
-    override fun end() {
+    override fun initialise() {
+        // Observe connection state to automatically trigger setup/teardown
+        setupJob = scope.launch {
+            handler.connectionState.collect { state ->
+                when (state) {
+                    ConnectionStatus.Connected -> startSetup()
+                    ConnectionStatus.Disconnected -> cleanup()
+                    else -> { /* Ignore Scanning, Connecting, Disconnecting */ }
+                }
+            }
+        }
+    }
+
+    override fun destroy() {
+        setupJob?.cancel()
+        cleanup()
+        scope.cancel()
+    }
+
+    private suspend fun startSetup() {
+        HLog.d(TAG, "Starting Coyote 2 setup...")
+
+        // 1. Subscribe to power updates (Retries up to 3 times if it fails)
+        val subResult = handler.enableNotifications(mainServiceUUID, powerCharacteristicUUID, important = true)
+        if (subResult.isFailure) {
+            HLog.e(TAG, "Failed to subscribe to power updates", subResult.exceptionOrNull())
+            handler.disconnect()
+            return
+        }
+
+        // 2. Start listening to continuous notifications via Flow
+        startNotificationListener()
+
+        // 3. Start battery polling
+        startBatteryPolling()
+
+        ready = true
+        HLog.d(TAG, "Coyote 2 setup complete.")
+    }
+
+    private fun cleanup() {
+        ready = false
         batteryPollJob?.cancel()
-        sendPulsesJob?.cancel()
+        batteryPollJob = null
+        notificationJob?.cancel()
+        notificationJob = null
+
+        // Reset state variables
+        previousChannelAPower = -1
+        previousChannelBPower = -1
+        sendChannelA = true
     }
 
-    override fun handleBluetoothEvent(event: BluetoothEvent) {
-        when (event.type) {
-            BluetoothEventType.Connected -> {
-                HLog.d(TAG, "Received connected event")
-                setupStage = Coyote2SetupStage.RegisterForPowerUpdates
-                BluetoothHandler.subscribeToCharacteristic(mainServiceUUID, powerCharacteristicUUID)
-            }
-            BluetoothEventType.Disconnected -> {
-                HLog.d(TAG, "Received disconnected event")
-                ready = false
-                setupStage = Coyote2SetupStage.Initial
-                batteryPollJob?.cancel()
-                batteryPollJob = null
-                sendPulsesJob?.cancel()
-                sendPulsesJob = null
-            }
-            BluetoothEventType.CharacteristicRead-> {
-                // Battery level message
-                if (event.serviceUuid == batteryServiceUUID && event.characteristicUuid == batteryCharacteristicUUID) {
-                    val batteryLevel = event.data?.first()?.toInt() ?: return
-                    HLog.d(TAG, "Fetched Coyote 2 battery level: $batteryLevel%")
-                    ConnectionManager.setBatteryLevel(batteryLevel)
+    private fun startNotificationListener() {
+        notificationJob?.cancel()
+        notificationJob = scope.launch {
+            handler.notifications.collect { notification ->
+                if (notification.serviceUuid == mainServiceUUID && notification.characteristicUuid == powerCharacteristicUUID) {
+                    handlePowerUpdate(notification.data)
                 }
-            }
-            BluetoothEventType.CharacteristicChanged -> {
-                // Power characteristic update
-                if(event.serviceUuid == mainServiceUUID && event.characteristicUuid == powerCharacteristicUUID) {
-                    val data = event.data ?: return
-                    handlePowerUpdate(data)
-                }
-            }
-            BluetoothEventType.CharacteristicWrite -> {}
-            BluetoothEventType.DescriptorWrite -> {
-                // Response to our subscription request
-                if (event.serviceUuid == mainServiceUUID && event.characteristicUuid == powerCharacteristicUUID) {
-                    if (event.success != true) {
-                        BluetoothHandler.disconnect()
-                        return
-                    }
-                    HLog.d(TAG, "Successfully subscribed for power events")
-                    setupStage = Coyote2SetupStage.Ready
-                    startBatteryPolling()
-                    ready = true
-                }
-            }
-            BluetoothEventType.Error -> {
-                HLog.d(TAG, "Bluetooth error received service:${event.serviceUuid} characteristic:${event.characteristicUuid} message:${event.errorMessage}")
             }
         }
     }
 
-    override fun start() {}
-    override fun stop() {}
+    override fun sendPulses(pulses: List<OutputPulse>) {
+        // To improve perceived responsiveness on the C2 we receive 20 pulses per second even though
+        // it is only capable of 10. We then interleave them, taking the channel A and channel B
+        // values from alternating pulses.
+        val pulse = pulses.last()
 
-    override fun sendPulses(
-        channelAPower: Int,
-        channelBPower: Int,
-        minFrequency: Double,
-        maxFrequency: Double,
-        pulses: List<Pulse>
-    ) {
-        if (pulses.size != pulseBatchSize) {
-            HLog.d(TAG, "Incorrect number of pulses received by sendPulses")
-            return
-        }
-        if (channelAPower !in POWER_RANGE || channelBPower !in POWER_RANGE) {
-            HLog.d(TAG, "!! Invalid power value passed to sendPulses !!")
-            return
-        }
-        if (sendPulsesJob?.isActive == true) {
-            HLog.d(TAG, "Skipping pulse update, previous send still active")
-            return
-        }
+        // We launch a coroutine to handle the BLE writes.
+        // The BluetoothHandler's internal Mutex guarantees that the power write (if needed)
+        // will finish before the waveform write begins.
+        val powerChanged = pulse.channelAPower != previousChannelAPower || pulse.channelBPower != previousChannelBPower
+        val isChannelA = sendChannelA
+        sendChannelA = !sendChannelA
 
-        val powerChanged = channelAPower != previousChannelAPower || channelBPower != previousChannelBPower
-        val frequencyRange = maxFrequency - minFrequency
+        scope.launch {
+            if (powerChanged) {
+                sendPowerLevels(pulse.channelAPower, pulse.channelBPower)
+            }
 
-        // To improve perceived responsiveness on the C2 we ask for 20 pulses per second even though
-        // it is only capable of 10. Then we interleave them at a 500ms interval, taking the channel
-        // A values from the first pulse in each set and the channel B values from the second.
-
-        // The theory is a bit like how interlacing can make a slow display seem smoother by updating
-        // half the lines at a time.
-
-        val pulseA = pulses[0]
-        val pulseB = pulses[1]
-        val (xA, yA) = frequencyHzToXY(minFrequency + frequencyRange * pulseA.freqA)
-        val (xB, yB) = frequencyHzToXY(minFrequency + frequencyRange * pulseB.freqB)
-        val zA = amplitudeToZ(pulseA.ampA)
-        val zB = amplitudeToZ(pulseB.ampB)
-        val waveformA = packWaveformData(xA, yA, zA)
-        val waveformB = packWaveformData(xB, yB, zB)
-
-        //Log.d(TAG, "Waveform parameters A($xA,$yA,$zA) B($xB,$yB,$zB)")
-
-        sendPulsesJob = scope.launch {
-            try {
-                if (powerChanged) {
-                    sendPowerLevels(channelAPower, channelBPower)
-                    delay(DELAY_BETWEEN_OPS)
-                }
-                sendWaveform(0, waveformA)
-                delay(INTERLEAVE_DELAY)
-                sendWaveform(1, waveformB)
-            } finally {
-                sendPulsesJob = null
+            if (isChannelA) {
+                // Send channel A data from this pulse
+                val (x, y) = frequencyHzToXY(pulse.freqAHz.toDouble())
+                val z = amplitudeToZ(pulse.ampA)
+                val waveform = packWaveformData(x, y, z)
+                sendWaveform(0, waveform)
+            } else {
+                // Send channel B data from this pulse
+                val (x, y) = frequencyHzToXY(pulse.freqBHz.toDouble())
+                val z = amplitudeToZ(pulse.ampB)
+                val waveform = packWaveformData(x, y, z)
+                sendWaveform(1, waveform)
             }
         }
     }
 
-    private fun pollBatteryLevel() {
-        HLog.d(TAG, "Polling battery level")
-        BluetoothHandler.pollCharacteristic(batteryServiceUUID, batteryCharacteristicUUID)
+    private suspend fun sendWaveform(channel: Int, waveform: ByteArray) {
+        val characteristic = if (channel == 0) patternACharacteristicUUID else patternBCharacteristicUUID
+        handler.writeCharacteristic(
+            serviceUuid = mainServiceUUID,
+            characteristicUuid = characteristic,
+            payload = waveform,
+            writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE,
+            important = false // Fail fast on pulse streams to avoid stalling the queue
+        )
+    }
+
+    private suspend fun sendPowerLevels(channelAPower: Int, channelBPower: Int) {
+        /*  The Coyote 2's power on each channel has a range of 0-2047
+            We instead use the app power level * 7 (for a max of 1400 at power level 200) as this
+            makes the power steps consistent with the DG app and with how the hardware switches on
+            the device work, which use steps of 7. */
+        val devicePowerA = (channelAPower * 7).coerceIn(0, 2047)
+        val devicePowerB = (channelBPower * 7).coerceIn(0, 2047)
+
+        // Pack the fields: A in bits 21..11, B in bits 10..0
+        val packed = (devicePowerA shl 11) or devicePowerB
+
+        // Convert to little-endian 3 byte array
+        val command = byteArrayOf(
+            (packed and 0xFF).toByte(),          // LSB
+            ((packed shr 8) and 0xFF).toByte(),  // Middle
+            ((packed shr 16) and 0xFF).toByte()  // MSB
+        )
+
+        handler.writeCharacteristic(
+            serviceUuid = mainServiceUUID,
+            characteristicUuid = powerCharacteristicUUID,
+            payload = command,
+            writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT,
+            important = false
+        )
+    }
+
+    private fun handlePowerUpdate(data: ByteArray) {
+        if (data.size != 3) return
+
+        // Reconstruct the packed 21-bit integer from little-endian bytes
+        val packed = (data[0].toInt() and 0xFF) or
+                ((data[1].toInt() and 0xFF) shl 8) or
+                ((data[2].toInt() and 0xFF) shl 16)
+
+        // Extract device power levels
+        val devicePowerA = (packed shr 11) and 0x7FF // upper 11 bits
+        val devicePowerB = packed and 0x7FF          // lower 11 bits
+
+        val channelAPower = devicePowerA / 7
+        val channelBPower = devicePowerB / 7
+
+        previousChannelAPower = channelAPower
+        previousChannelBPower = channelBPower
+
+        if (MainOptions.state.value.channelAPower != channelAPower || MainOptions.state.value.channelBPower != channelBPower) {
+            HLog.d(TAG,"Power level update from device A: $channelAPower B: $channelBPower")
+            MainOptions.setChannelPower(0, channelAPower)
+            MainOptions.setChannelPower(1, channelBPower)
+        }
     }
 
     private fun startBatteryPolling() {
-        batteryPollJob?.cancel() // Cancel existing job if any
+        batteryPollJob?.cancel()
         batteryPollJob = scope.launch {
-            pollBatteryLevel() // Do initial poll immediately
+            var first = true
             while (isActive) {
-                delay((BATTERY_POLL_INTERVAL_SECS * 1000).toLong())
-                pollBatteryLevel()
+                HLog.d(TAG, "Polling battery level")
+                val result = handler.readCharacteristic(
+                    serviceUuid = batteryServiceUUID,
+                    characteristicUuid = batteryCharacteristicUUID,
+                    important = first // Don't stall queue with retries if a background poll fails
+                )
+
+                result.onSuccess { data ->
+                    if (data.isNotEmpty()) {
+                        val batteryLevel = data[0].toInt() and 0xFF
+                        HLog.d(TAG, "Fetched Coyote 2 battery level: $batteryLevel%")
+                        handler.setBatteryLevel(batteryLevel)
+                    }
+                }.onFailure { e ->
+                    HLog.w(TAG, "Battery poll failed: ${e.message}")
+                }
+
+                first = false
+                delay(BATTERY_POLL_INTERVAL)
             }
         }
     }
@@ -197,63 +257,6 @@ class Coyote2Output : BaseOutput() {
         )
     }
 
-    private fun sendWaveform(channel: Int, waveform: ByteArray) {
-        val characteristic = if (channel == 0) patternACharacteristicUUID else patternBCharacteristicUUID
-        BluetoothHandler.sendToDevice(mainServiceUUID, characteristic, waveform)
-    }
-
-    private fun sendPowerLevels(channelAPower: Int, channelBPower: Int) {
-        /*  The Coyote 2's power on each channel has a range of 0-2047
-            We instead use the app power level * 7 (for a max of 1400 at power level 200) as this
-            makes the power steps consistent with the DG app and with how the hardware switches on
-            the device work, which use steps of 7. */
-        val devicePowerA = (channelAPower * 7).coerceIn(0, 2047)
-        val devicePowerB = (channelBPower * 7).coerceIn(0, 2047)
-        //HLog.d(TAG, "Sending new power levels $channelAPower $channelBPower [$devicePowerA $devicePowerB]")
-
-        // Pack the fields: A in bits 21..11, B in bits 10..0
-        val packed = (devicePowerA shl 11) or devicePowerB
-
-        // Convert to little-endian 3 byte array
-        val command = byteArrayOf(
-            (packed and 0xFF).toByte(),          // LSB
-            ((packed shr 8) and 0xFF).toByte(),  // Middle
-            ((packed shr 16) and 0xFF).toByte()  // MSB
-        )
-
-        BluetoothHandler.sendToDevice(mainServiceUUID, powerCharacteristicUUID, command)
-    }
-
-    private fun handlePowerUpdate(data: ByteArray) {
-        if (data.size != 3) return
-
-        //val commandHex = data.toHexString()
-
-        // Reconstruct the packed 21-bit integer from little-endian bytes
-        val packed = (data[0].toInt() and 0xFF) or
-                ((data[1].toInt() and 0xFF) shl 8) or
-                ((data[2].toInt() and 0xFF) shl 16)
-
-        // Extract device power levels
-        val devicePowerA = (packed shr 11) and 0x7FF // upper 11 bits
-        val devicePowerB = packed and 0x7FF          // lower 11 bits
-
-        val channelAPower = devicePowerA / 7
-        val channelBPower = devicePowerB / 7
-
-        //HLog.d(TAG, "Received power level update $channelAPower $channelBPower [$devicePowerA $devicePowerB]")
-        //HLog.d(TAG, "Power level update hex: $commandHex")
-
-        previousChannelAPower = channelAPower
-        previousChannelBPower = channelBPower
-
-        if (MainOptions.state.value.channelAPower != channelAPower || MainOptions.state.value.channelBPower != channelBPower) {
-            HLog.d(TAG,"Power level update from device A: $channelAPower B: $channelBPower")
-            MainOptions.setChannelPower(0, channelAPower)
-            MainOptions.setChannelPower(1, channelBPower)
-        }
-    }
-
     private fun frequencyHzToXY(frequencyHz: Double): Pair<Int, Int> {
         /* Converts a frequency in Hz to X and Y parameters suitable for the Coyote 2
             X is how many milliseconds in a row to send pulses (0-31) [feels like a single pulse]
@@ -265,10 +268,6 @@ class Coyote2Output : BaseOutput() {
             How to actually distribute the time between X and Y seems to involve some black magic.
             This method is loosely based on their formula (modified to work in Hz for our purposes)
         */
-
-        //The rounding method makes a big difference as it determines whether 55-100Hz use 2 pulses
-        //or 1. Testers preferred the roundToInt (2 pulse) version.
-        //val x = (sqrt(1.0/frequencyHz) * 15.0).toInt().coerceIn(1..31)
         val x = (sqrt(1.0/frequencyHz) * 15.0).roundToInt().coerceIn(1..31)
         val y = ((1000.0/frequencyHz).roundToInt() - x).coerceIn(0..1023)
         return Pair(x, y)

@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,14 +30,12 @@ import kotlin.random.Random
 
 abstract class Activity {
     val manager = ActivityManager()
-    val timerManager = TimerManager()
 
     open fun initialise() {
         // Default empty implementation
     }
     open fun runSimulation(deltaSimulationTime: Double) {
         manager.update(deltaSimulationTime)
-        timerManager.update(deltaSimulationTime)
     }
     abstract fun getPulse(): Pulse
 
@@ -47,20 +44,19 @@ abstract class Activity {
 }
 
 class LickActivity : Activity() {
-    enum class LickType(val displayNameResId: Int) {
-        UNIDIRECTIONAL(R.string.lick_type_unidirectional),
-        BIDIRECTIONAL(R.string.lick_type_bidirectional),
+    enum class LickType(val displayName: String) {
+        UNIDIRECTIONAL("Unidirectional"),
+        BIDIRECTIONAL("Bidirectional"),
     }
-    enum class AmpType(val displayNameResId: Int) {
-        CONSISTENT(R.string.amp_type_consistent),
-        LICK(R.string.amp_type_lick),
-        DIP(R.string.amp_type_dip),
-        RAMP(R.string.amp_type_ramp),
-        FLICKS(R.string.amp_type_flicks)
+    enum class AmpType(val displayName: String) {
+        CONSISTENT("Consistent"),
+        LICK("Lick"),
+        DIP("Dip"),
+        RAMP("Ramp"),
+        FLICKS("Flicks")
     }
-
     var waveManager: WaveManager = WaveManager()
-    val lickPositionRange = 0.0..1.0
+    val lickPositionRange = 0.0 .. 1.0
 
     private val _lickStartPoint = MutableStateFlow(randomInRange(lickPositionRange))
     val lickStartPoint: StateFlow<Double> = _lickStartPoint.asStateFlow()
@@ -194,9 +190,10 @@ class LickActivity : Activity() {
 
     private fun setManual(manual: Boolean) {
         _manual.value = manual
-        if (manual) {
+        if(manual) {
             waveManager.restart()
-        } else {
+        }
+        else {
             lickComplete()
         }
     }
@@ -215,8 +212,7 @@ class LickActivity : Activity() {
         }
         val position = waveManager.getPosition(waveName)
         val power = waveManager.getPosition(ampWaveName)
-        val lickPosition =
-            (lickEndPoint.value - lickStartPoint.value) * position + lickStartPoint.value
+        val lickPosition = (lickEndPoint.value - lickStartPoint.value) * position + lickStartPoint.value
         val amp = power * waveManager.currentAmplitude
 
         val freqA = lickPosition * 0.5 + 0.5
@@ -257,7 +253,7 @@ class LickActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.activity_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -268,7 +264,7 @@ class LickActivity : Activity() {
                     )
                 }
                 SliderWithLabel(
-                    label = stringResource(R.string.activity_lick_start_point),
+                    label = "Lick start point",
                     value = lickStartPoint.toFloat(),
                     onValueChange = {
                         _lickStartPoint.value = it.toDouble()
@@ -280,7 +276,7 @@ class LickActivity : Activity() {
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = stringResource(R.string.activity_lick_end_point),
+                    label = "Lick end point",
                     value = lickEndPoint.toFloat(),
                     onValueChange = {
                         _lickEndPoint.value = it.toDouble()
@@ -291,27 +287,19 @@ class LickActivity : Activity() {
                     valueDisplay = { String.format(Locale.US, "%03.2f", it) },
                     enabled = manual
                 )
-                val lickTypeTexts =
-                    LickType.entries.associateWith { stringResource(it.displayNameResId) }
-                val ampTypeTexts =
-                    AmpType.entries.associateWith { stringResource(it.displayNameResId) }
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = stringResource(R.string.activity_lick_type),
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    Text(text = "Lick type", style = MaterialTheme.typography.labelLarge)
                     OptionPicker(
                         currentValue = lickType,
                         onValueChange = {
                             _lickType.value = it
                         },
                         options = LickType.entries,
-                        getText = { lickTypeTexts[it] ?: it.name },
+                        getText = { it.displayName },
                         enabled = manual
                     )
                 }
@@ -320,23 +308,20 @@ class LickActivity : Activity() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = stringResource(R.string.activity_amp_type),
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    Text(text = "Amp type", style = MaterialTheme.typography.labelLarge)
                     OptionPicker(
                         currentValue = ampType,
                         onValueChange = {
                             _ampType.value = it
                         },
                         options = AmpType.entries,
-                        getText = { ampTypeTexts[it] ?: it.name },
+                        getText = { it.displayName },
                         enabled = manual
                     )
                 }
                 NiceSmootherControl(
                     smoother = waveManager.baseSpeed,
-                    targetLabel = stringResource(R.string.activity_average_speed),
+                    targetLabel = "Average speed",
                     targetRange = 0.1f..5.0f,
                     rateRange = 0.1f..1.0f,
                     enabled = manual
@@ -413,10 +398,11 @@ class PenetrationActivity : Activity() {
     private fun setManual(manual: Boolean) {
         Log.d("Activity", "setManual called")
         _manual.value = manual
-        if (manual) {
+        if(manual) {
             speedChange.pause()
             feelChange.pause()
-        } else {
+        }
+        else {
             speedChange.resume()
             feelChange.resume()
         }
@@ -426,16 +412,13 @@ class PenetrationActivity : Activity() {
         val (position, velocity) = waveManager.getPositionAndVelocity("penetration")
         val scaledVelocity = scaleVelocity(velocity, 0.1)
 
-        var ampFactor =
-            (waveManager.currentSpeed - penetrationSpeedRange.start) / (penetrationSpeedRange.endInclusive - penetrationSpeedRange.start)
+        var ampFactor = (waveManager.currentSpeed - penetrationSpeedRange.start) / (penetrationSpeedRange.endInclusive - penetrationSpeedRange.start)
         ampFactor = 0.8 + ampFactor * 0.2
 
         val freqBaseA = position * 0.7
         val freqBaseB = scaledVelocity * 0.5 + position * 0.4
-        val freqA =
-            calculateFeelAdjustment(freqBaseA.toFloat(), penetrationFeelExponent.value.toFloat())
-        val freqB =
-            calculateFeelAdjustment(freqBaseB.toFloat(), penetrationFeelExponent.value.toFloat())
+        val freqA = calculateFeelAdjustment(freqBaseA.toFloat(), penetrationFeelExponent.value.toFloat())
+        val freqB = calculateFeelAdjustment(freqBaseB.toFloat(), penetrationFeelExponent.value.toFloat())
 
         val ampA = position * ampFactor
         val ampB = (scaledVelocity * 0.6 + position * 0.4) * ampFactor
@@ -469,7 +452,7 @@ class PenetrationActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.activity_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -481,14 +464,14 @@ class PenetrationActivity : Activity() {
                 }
                 NiceSmootherControl(
                     smoother = waveManager.baseSpeed,
-                    targetLabel = stringResource(R.string.activity_target_speed),
+                    targetLabel = "Target speed",
                     targetRange = penetrationSpeedRange.toFloatRange,
                     rateRange = penetrationSpeedChangeRateRange.toFloatRange,
                     enabled = manual
                 )
                 NiceSmootherControl(
                     smoother = penetrationFeelExponent,
-                    targetLabel = stringResource(R.string.activity_target_feel_exponent),
+                    targetLabel = "Target feel exponent",
                     targetRange = penetrationFeelExponentRange.toFloatRange,
                     rateRange = penetrationFeelExponentChangeRateRange.toFloatRange,
                     enabled = manual
@@ -501,7 +484,7 @@ class PenetrationActivity : Activity() {
 class VibroActivity : Activity() {
     val vibeFrequencyRange = 0.0..1.0
     val vibePower = 0.9
-    val vibePositionRange = 0.0..1.0
+    val vibePositionRange = 0.0 .. 1.0
     val vibeMoveSpeedRange = 0.08..0.2
 
     private val _frequency = MutableStateFlow(randomInRange(vibeFrequencyRange))
@@ -550,7 +533,8 @@ class VibroActivity : Activity() {
     private fun targetPositionReached() {
         if (Random.nextDouble() < Prefs.activityVibeHoldProbability.value) {
             holdTimer.reset()
-        } else {
+        }
+        else {
             newTarget()
         }
     }
@@ -558,10 +542,11 @@ class VibroActivity : Activity() {
     private fun setManual(manual: Boolean) {
         _manual.value = manual
         holdTimer.cancel()
-        if (manual) {
+        if(manual) {
             position.setTarget(position.value)
             frequencyChange.cancel()
-        } else {
+        }
+        else {
             targetPositionReached()
             frequencyChange.reset()
         }
@@ -605,7 +590,7 @@ class VibroActivity : Activity() {
         val holdProbability by Prefs.activityVibeHoldProbability.collectAsStateWithLifecycle()
 
         SliderWithLabel(
-            label = stringResource(R.string.activity_hold_probability),
+            label = "Hold probability",
             value = holdProbability,
             onValueChange = { Prefs.activityVibeHoldProbability.value = it },
             onValueChangeFinished = { Prefs.activityVibeHoldProbability.save() },
@@ -614,7 +599,7 @@ class VibroActivity : Activity() {
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.activity_pulse_duty_cycle),
+            label = "Pulse duty cycle",
             value = pulseDutyCycle,
             onValueChange = { Prefs.activityVibePulseDutyCycle.value = it },
             onValueChangeFinished = { Prefs.activityVibePulseDutyCycle.save() },
@@ -623,7 +608,7 @@ class VibroActivity : Activity() {
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.activity_pulse_time),
+            label = "Pulse time",
             value = pulseTime,
             onValueChange = { Prefs.activityVibePulseTime.value = it },
             onValueChangeFinished = { Prefs.activityVibePulseTime.save() },
@@ -656,7 +641,7 @@ class VibroActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.activity_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -668,13 +653,13 @@ class VibroActivity : Activity() {
                 }
                 NiceSmootherControl(
                     smoother = position,
-                    targetLabel = stringResource(R.string.activity_target_position),
+                    targetLabel = "Target position",
                     targetRange = 0.0f..1.0f,
                     rateRange = 0.05f..0.5f,
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = stringResource(R.string.activity_frequency),
+                    label = "Frequency",
                     value = frequency.toFloat(),
                     onValueChange = {
                         _frequency.value = it.toDouble()
@@ -772,10 +757,10 @@ class MilkerActivity : Activity() {
     }
 
     override fun getPulse(): Pulse {
-        var ampA = 0.0
-        var ampB = 0.0
-        var freqA = 0.0
-        var freqB = 0.0
+        var ampA: Double
+        var ampB: Double
+        var freqA: Double
+        var freqB: Double
 
         when (currentStage) {
             MilkerStage.Womp -> {
@@ -834,7 +819,7 @@ class ChaosActivity : Activity() {
         super.runSimulation(deltaSimulationTime)
         val cycleTime = Prefs.activityChaosCycleTime.value
         cycleTimeCounter += deltaSimulationTime
-        if (cycleTimeCounter > cycleTime) {
+        if(cycleTimeCounter > cycleTime) {
             randomise()
             cycleTimeCounter -= cycleTime
         }
@@ -854,7 +839,7 @@ class ChaosActivity : Activity() {
         val cycleTimeRange = 0.1f..5.0f
 
         SliderWithLabel(
-            label = stringResource(R.string.activity_cycle_time),
+            label = "Cycle time",
             value = cycleTime,
             onValueChange = {
                 Prefs.activityChaosCycleTime.value = it
@@ -865,9 +850,7 @@ class ChaosActivity : Activity() {
             valueRange = cycleTimeRange.start..cycleTimeRange.endInclusive,
             steps = calculateSliderSteps(cycleTimeRange, 0.1f),
             valueDisplay = { String.format(Locale.US, "%03.2f", it) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         )
     }
 }
@@ -960,10 +943,11 @@ class LuxuryHJActivity : Activity() {
 
     private fun setManual(manual: Boolean) {
         _manual.value = manual
-        if (manual) {
+        if(manual) {
             speedChangeTimer.pause()
             bonusTimer.cancel()
-        } else {
+        }
+        else {
             speedChangeTimer.resume()
         }
     }
@@ -990,10 +974,11 @@ class LuxuryHJActivity : Activity() {
             val ampBonus = bonusWaveManager.getPosition("bonus")
             val freqBonus = (ampBonus * (bonusEndFreq - bonusStartFreq)) + bonusStartFreq
 
-            if (bonusChannel == 0) {
+            if(bonusChannel == 0) {
                 ampA = ampBonus * bonusWeight + (ampA * (1.0 - bonusWeight))
                 freqA = freqBonus * bonusWeight + (freqA * (1.0 - bonusWeight))
-            } else if (bonusChannel == 1) {
+            }
+            else if(bonusChannel == 1) {
                 ampB = ampBonus * bonusWeight + (ampB * (1.0 - bonusWeight))
                 freqB = freqBonus * bonusWeight + (freqB * (1.0 - bonusWeight))
             }
@@ -1015,7 +1000,7 @@ class LuxuryHJActivity : Activity() {
         val jitterRange = 0.0f..0.5f
 
         SliderWithLabel(
-            label = stringResource(R.string.activity_bonus_pattern_probability),
+            label = "Bonus pattern probability",
             value = bonusProbability,
             onValueChange = { Prefs.activityLuxuryHJBonusProbability.value = it },
             onValueChangeFinished = { Prefs.activityLuxuryHJBonusProbability.save() },
@@ -1024,19 +1009,19 @@ class LuxuryHJActivity : Activity() {
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.activity_amplitude_jitter),
+            label = "Amplitude jitter",
             value = amplitudeJitter,
             onValueChange = {
                 Prefs.activityLuxuryHJAmplitudeJitter.value = it
                 updateJitter()
-            },
+                            },
             onValueChangeFinished = { Prefs.activityLuxuryHJAmplitudeJitter.save() },
             valueRange = jitterRange,
             steps = calculateSliderSteps(jitterRange, 0.05f),
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = stringResource(R.string.activity_timing_jitter),
+            label = "Timing jitter",
             value = timingJitter,
             onValueChange = {
                 Prefs.activityLuxuryHJTimingJitter.value = it
@@ -1070,7 +1055,7 @@ class LuxuryHJActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.activity_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -1082,7 +1067,7 @@ class LuxuryHJActivity : Activity() {
                 }
                 NiceSmootherControl(
                     smoother = hjWaveManager.baseSpeed,
-                    targetLabel = stringResource(R.string.activity_target_stroke_speed),
+                    targetLabel = "Target stroke speed",
                     targetRange = hjSpeedRange.toFloatRange,
                     rateRange = hjSpeedChangeRateRange.toFloatRange,
                     enabled = manual
@@ -1096,14 +1081,14 @@ class LuxuryHJActivity : Activity() {
                         modifier = Modifier.weight(1f),
                         enabled = manual
                     ) {
-                        Text(stringResource(R.string.activity_bonus_a))
+                        Text("Bonus A")
                     }
                     Button(
                         onClick = { startBonus(1) },
                         modifier = Modifier.weight(1f),
                         enabled = manual
                     ) {
-                        Text(stringResource(R.string.activity_bonus_b))
+                        Text("Bonus B")
                     }
                 }
             }
@@ -1132,10 +1117,11 @@ class OppositesActivity : Activity() {
         newRandomAmplitudeTarget(ampA)
         newRandomFrequencyTarget(freqA)
         speedChange()
-        speedChangeTimer.start()
         manager.register(ampA)
         manager.register(freqA)
         manager.register(overallSpeed)
+        manager.register(speedChangeTimer)
+        speedChangeTimer.start()
     }
 
     private fun speedChange() {
@@ -1205,29 +1191,18 @@ class PowerCalibrationActivity : Activity() {
     }
 
     override val permanentSettings: @Composable () -> Unit = {
-        val calibrationPowerBalance by Prefs.calibrationPowerBalance.collectAsStateWithLifecycle()
-
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_power_calibration), style = MaterialTheme.typography.headlineSmall)
+            Text(text = "Power calibration", style = MaterialTheme.typography.headlineSmall)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_power_calibration_tips), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Use the main power controls to set both channels to the same numbered power level (e.g. both 20). Then adjust your output's power balance slider until the sensation you feel on both channels is equal.\n", style = MaterialTheme.typography.bodyMedium)
         }
-        SliderWithLabel(
-            label = stringResource(R.string.activity_power_calibration_power_balance),
-            value = calibrationPowerBalance,
-            onValueChange = { Prefs.calibrationPowerBalance.value = it },
-            onValueChangeFinished = { Prefs.calibrationPowerBalance.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
     }
 }
 
@@ -1338,51 +1313,24 @@ class FrequencyCalibrationActivity : Activity() {
     }
 
     override val permanentSettings: @Composable () -> Unit = {
-        val calibrationFrequencyBalanceA by Prefs.calibrationFrequencyBalanceA.collectAsStateWithLifecycle()
-        val calibrationFrequencyBalanceB by Prefs.calibrationFrequencyBalanceB.collectAsStateWithLifecycle()
-
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_frequency_calibration), style = MaterialTheme.typography.headlineSmall)
+            Text(text = "Frequency calibration", style = MaterialTheme.typography.headlineSmall)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_frequency_tips_adjust), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Adjust your output's frequency balance sliders to change the relative power of high and low frequencies on each channel. For example, you might wish to make high and low frequencies feel equally powerful. But this is personal preference.", style = MaterialTheme.typography.bodyMedium)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_frequency_tips_there), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "This adjustment is frequency range dependent. Using a different frequency range to what you calibrated with will cause the balance to shift.", style = MaterialTheme.typography.bodyMedium)
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = stringResource(R.string.activity_frequency_tips_this), style = MaterialTheme.typography.bodyMedium)
-        }
-        SliderWithLabel(
-            label = stringResource(R.string.cpt_frequency_balance_a),
-            value = calibrationFrequencyBalanceA,
-            onValueChange = { Prefs.calibrationFrequencyBalanceA.value = it },
-            onValueChangeFinished = { Prefs.calibrationFrequencyBalanceA.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
-        SliderWithLabel(
-            label = stringResource(R.string.cpt_frequency_balance_b),
-            value = calibrationFrequencyBalanceB,
-            onValueChange = { Prefs.calibrationFrequencyBalanceB.value = it },
-            onValueChangeFinished = { Prefs.calibrationFrequencyBalanceB.save() },
-            valueRange = 0.0f..1.0f,
-            steps = 99,
-            valueDisplay = { String.format(Locale.US, "%03.2f", it) }
-        )
     }
 }
 
@@ -1427,22 +1375,28 @@ class PositionalCalibrationActivity : Activity() {
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_positional_calibration), style = MaterialTheme.typography.headlineSmall)
+            Text(text = "Positional calibration", style = MaterialTheme.typography.headlineSmall)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_positional_tips), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Important: Both channels must have equal feeling power levels (do the power calibration first).", style = MaterialTheme.typography.bodyMedium)
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(R.string.activity_positional_desc), style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Howl uses positional effects whenever you play funscript files, and in several activities. Adjust the slider until you feel the slow strokes evenly throughout. If the top and bottom feel stronger than the middle, reduce the slider. If the middle feels stronger, increase the slider.", style = MaterialTheme.typography.bodyMedium)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "This is a global calibration and cannot currently be set per-device.", style = MaterialTheme.typography.bodyMedium)
         }
         SliderWithLabel(
-            label = stringResource(R.string.cpt_positional_effect_curve),
+            label = "Positional effect curve",
             value = calibrationPositionalEffectCurve,
             onValueChange = { Prefs.calibrationPositionalEffectCurve.value = it },
             onValueChangeFinished = { Prefs.calibrationPositionalEffectCurve.save() },
@@ -1462,11 +1416,11 @@ class BJActivity : Activity() {
     val fullLickSpeedRange = 0.3..1.0
     val tipLickSpeedRange = 0.5..3.0
 
-    enum class BJStage(val displayNameResId: Int) {
-        FullLick(R.string.bj_stage_full_lick),
-        TipLick(R.string.bj_stage_tip_lick),
-        Suck(R.string.bj_stage_suck),
-        Deepthroat(R.string.bj_stage_deepthroat),
+    enum class BJStage(val displayName: String) {
+        FullLick("Full licks"),
+        TipLick("Tip licks"),
+        Suck("Suck"),
+        Deepthroat("Deepthroat"),
     }
 
     val deepthroatFrequencyConverter = CyclicalWave(
@@ -1600,23 +1554,24 @@ class BJActivity : Activity() {
 
     private fun setManual(manual: Boolean) {
         _manual.value = manual
-        if (manual) {
+        if(manual) {
             speedChangeTimer.pause()
             primaryStageTimer.cancel()
             secondaryStageTimer.cancel()
-        } else {
+        }
+        else {
             speedChangeTimer.resume()
             nextStage()
         }
     }
 
     override fun getPulse(): Pulse {
-        var ampA = 0.0
-        var ampB = 0.0
-        var freqA = 0.0
-        var freqB = 0.0
+        var ampA: Double
+        var ampB: Double
+        var freqA: Double
+        var freqB: Double
 
-        when (_currentStage.value) {
+        when(_currentStage.value) {
             BJStage.FullLick -> {
                 val (position, velocity) = waveManager.getPositionAndVelocity("unidirectional")
                 val scaledVelocity = scaleVelocity(velocity, 0.1)
@@ -1627,7 +1582,6 @@ class BJActivity : Activity() {
                 freqA = position.scaleBetween(lickFrequencyRange) - 0.1
                 freqB = position.scaleBetween(lickFrequencyRange)
             }
-
             BJStage.TipLick -> {
                 val (position, velocity) = waveManager.getPositionAndVelocity("bidirectional")
                 val lickPosition = position.scaleBetween(0.6..1.0)
@@ -1639,7 +1593,6 @@ class BJActivity : Activity() {
                 freqA = position.scaleBetween(lickFrequencyRange) - 0.1
                 freqB = position.scaleBetween(lickFrequencyRange)
             }
-
             BJStage.Suck -> {
                 val position = waveManager.getPosition("position")
                 val baseAmp = waveManager.currentAmplitude
@@ -1650,7 +1603,6 @@ class BJActivity : Activity() {
                 freqA = lerp(0.7, 0.3, smoothstep(position))
                 freqB = lerp(0.9, 0.3, smoothstep(position))
             }
-
             BJStage.Deepthroat -> {
                 val position = waveManager.getPosition("position")
                 val baseAmp = waveManager.currentAmplitude
@@ -1694,7 +1646,7 @@ class BJActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.activity_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -1709,20 +1661,20 @@ class BJActivity : Activity() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = stringResource(R.string.bj_stage), style = MaterialTheme.typography.labelLarge)
+                    Text(text = "Stage", style = MaterialTheme.typography.labelLarge)
                     OptionPicker(
                         currentValue = currentStage,
                         onValueChange = {
                             setStage(it, manual = true)
                         },
                         options = BJStage.entries,
-                        getText = { stringResource(it.displayNameResId) },
+                        getText = { it.displayName },
                         enabled = manual
                     )
                 }
                 NiceSmootherControl(
                     smoother = waveManager.baseSpeed,
-                    targetLabel = stringResource(R.string.bj_target_speed),
+                    targetLabel = "Target speed",
                     targetRange = 0.1f..3.0f,
                     rateRange = 0.03f..0.3f,
                     enabled = manual
@@ -1743,7 +1695,7 @@ class FastSlowActivity : Activity() {
     val waveShapeChangeProbability = 0.2
     val minSpeed = 0.15
     val maxSpeed = 5.0
-    val speedChangeRateRange = 0.1..0.3
+    val speedChangeRateRange =  0.1..0.3
     val frequencyRange = 0.0..1.0
 
     val possibleWaves: List<CyclicalWave> = listOf(
@@ -1807,7 +1759,7 @@ class FastSlowActivity : Activity() {
         val targetSpeed = if (accelerating) maxSpeed else minSpeed
         val speedChangeRate = randomInRange(speedChangeRateRange)
         waveManager.setSpeed(startSpeed)
-        waveManager.setTargetSpeed(targetSpeed, speedChangeRate, { nextIteration() })
+        waveManager.setTargetSpeed(targetSpeed, speedChangeRate, { nextIteration() } )
         waveManager2.setSpeed(targetSpeed)
         waveManager2.setTargetSpeed(startSpeed, speedChangeRate)
 
@@ -1830,9 +1782,9 @@ class FastSlowActivity : Activity() {
         var freqA = invPhase.scaleBetween(frequencyRange)
         var freqB = phase.scaleBetween(frequencyRange)
 
-        if (switch)
+        if(switch)
             ampA = ampB.also { ampB = ampA }
-        if (freqSwitch)
+        if(freqSwitch)
             freqA = freqB.also { freqB = freqA }
 
         return Pulse(
@@ -1844,10 +1796,10 @@ class FastSlowActivity : Activity() {
     }
 }
 
-enum class SimplexPreset(val displayNameResId: Int) {
-    STANDARD(R.string.simplex_preset_standard),
-    PRO(R.string.simplex_preset_pro),
-    TURBO(R.string.simplex_preset_turbo)
+enum class SimplexPreset(val displayName: String) {
+    STANDARD("Standard"),
+    PRO("Pro"),
+    TURBO("Turbo")
 }
 
 class SimplexActivity : Activity() {
@@ -1900,7 +1852,6 @@ class SimplexActivity : Activity() {
                 ampRadius = 0.3
                 freqRadius = 0.2
             }
-
             SimplexPreset.PRO -> {
                 ampTimeSpeedRange = 0.2..0.8
                 ampRotationSpeedRange = PI * 0.5..PI * 4.0
@@ -1908,7 +1859,6 @@ class SimplexActivity : Activity() {
                 ampRadius = 0.4
                 freqRadius = 0.3
             }
-
             SimplexPreset.TURBO -> {
                 ampTimeSpeedRange = 0.1..0.5
                 ampRotationSpeedRange = PI * 3..PI * 6.0
@@ -1926,10 +1876,7 @@ class SimplexActivity : Activity() {
     }
 
     private fun ampRotationSpeedChange() {
-        ampRotationSpeed.setTarget(
-            randomInRange(ampRotationSpeedRange),
-            randomInRange(changeRateRange)
-        )
+        ampRotationSpeed.setTarget(randomInRange(ampRotationSpeedRange), randomInRange(changeRateRange))
     }
 
     override fun runSimulation(deltaSimulationTime: Double) {
@@ -1967,19 +1914,12 @@ class SimplexActivity : Activity() {
     override val permanentSettings: @Composable () -> Unit = {
         val preset by Prefs.activitySimplexPreset.collectAsStateWithLifecycle()
 
-        // 转换枚举值为字符串
-        val presetTexts =
-            SimplexPreset.entries.associateWith { stringResource(it.displayNameResId) }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = stringResource(R.string.simplex_preset),
-                style = MaterialTheme.typography.labelLarge
-            )
+            Text(text = "Preset", style = MaterialTheme.typography.labelLarge)
             OptionPicker(
                 currentValue = preset,
                 onValueChange = {
@@ -1988,7 +1928,7 @@ class SimplexActivity : Activity() {
                     presetChanged(it)
                 },
                 options = SimplexPreset.entries,
-                getText = { presetTexts[it] ?: it.name }
+                getText = { it.displayName }
             )
         }
     }
@@ -2055,7 +1995,7 @@ class RelentlessActivity : Activity() {
         // Decay phase
         if (splitDecay) {
             val splitRatio = randomInRange(0.3..0.7)
-            val midX = currentX + decayProportion * splitRatio
+            val midX = currentX + decayProportion  * splitRatio
             val midY = peak * randomInRange(0.2..0.8)
             points.add(WavePoint(midX, midY))
         }
@@ -2134,15 +2074,15 @@ class OverflowingActivity : Activity() {
         val points = mutableListOf<WavePoint>()
         var currentTime = 0.0
 
-        points.add(WavePoint(currentTime, 0.0))
+        points.add(WavePoint(currentTime,0.0))
         currentTime = (1.0 - highPowerPortion) / 2.0
-        points.add(WavePoint(currentTime, lowPower))
+        points.add(WavePoint(currentTime,lowPower))
 
         repeat(numLaps) {
             currentTime += lapIncrement
-            points.add(WavePoint(currentTime, power))
+            points.add(WavePoint(currentTime,power))
             currentTime += lapIncrement
-            points.add(WavePoint(currentTime, lowPower))
+            points.add(WavePoint(currentTime,lowPower))
         }
 
         return WaveShape(
@@ -2242,8 +2182,8 @@ class SuccubusActivity : Activity() {
 
     override fun initialise() {
         waveManagers.forEach { wm ->
-            wm.addWave(randomWave(randomInRange(wavePointsRange)), name = "amp")
-            wm.addWave(randomWave(randomInRange(wavePointsRange)), name = "freq")
+            wm.addWave(randomWave(randomInRange(wavePointsRange)), name="amp")
+            wm.addWave(randomWave(randomInRange(wavePointsRange)), name="freq")
             wm.setSpeed(randomInRange(speedRange, speedBias))
             manager.register(wm)
         }
@@ -2297,24 +2237,24 @@ class SuccubusActivity : Activity() {
 
     fun proportionChange() {
         //Log.d("Activity", "Proportion change called")
-        if (Random.nextDouble() < proportionChangeProbability)
+        if(Random.nextDouble() < proportionChangeProbability)
             ampProportionA.setTarget(randomInRange(proportionRange), proportionChangeRate)
-        if (Random.nextDouble() < proportionChangeProbability)
+        if(Random.nextDouble() < proportionChangeProbability)
             ampProportionB.setTarget(randomInRange(proportionRange), proportionChangeRate)
-        if (Random.nextDouble() < proportionChangeProbability)
+        if(Random.nextDouble() < proportionChangeProbability)
             freqProportionA.setTarget(randomInRange(proportionRange), proportionChangeRate)
-        if (Random.nextDouble() < proportionChangeProbability)
+        if(Random.nextDouble() < proportionChangeProbability)
             freqProportionB.setTarget(randomInRange(proportionRange), proportionChangeRate)
     }
 
     fun shapeChange() {
         //Log.d("Activity", "Shape change called")
         waveManagers.forEach { wm ->
-            if (Random.nextDouble() < waveShapeChangeProbability) {
-                wm.addWave(randomWave(randomInRange(wavePointsRange)), name = "amp")
+            if(Random.nextDouble() < waveShapeChangeProbability) {
+                wm.addWave(randomWave(randomInRange(wavePointsRange)), name="amp")
             }
-            if (Random.nextDouble() < waveShapeChangeProbability) {
-                wm.addWave(randomWave(randomInRange(wavePointsRange)), name = "freq")
+            if(Random.nextDouble() < waveShapeChangeProbability) {
+                wm.addWave(randomWave(randomInRange(wavePointsRange)), name="freq")
             }
         }
     }
@@ -2322,7 +2262,7 @@ class SuccubusActivity : Activity() {
     fun speedChange() {
         //Log.d("Activity", "Speed change called")
         waveManagers.forEach { wm ->
-            if (Random.nextDouble() < speedChangeProbability) {
+            if(Random.nextDouble() < speedChangeProbability) {
                 val newSpeed = randomInRange(speedRange, speedBias)
                 val changeRate = randomInRange(speedChangeRateRange)
                 wm.setTargetSpeed(newSpeed, changeRate)
@@ -2467,7 +2407,7 @@ class SineTimeActivity : Activity() {
                 )
                 {
                     Text(
-                        text = stringResource(R.string.sine_time_manual_control),
+                        text = "Manual control",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Switch(
@@ -2479,14 +2419,14 @@ class SineTimeActivity : Activity() {
                 }
                 NiceSmootherControl(
                     smoother = sineMag,
-                    targetLabel = stringResource(R.string.sine_time_sine_magnitude),
+                    targetLabel = "Sine magnitude",
                     targetRange = 0.0f..0.4f,
                     targetSteps = 39,
                     adjustableRate = false,
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = stringResource(R.string.sine_time_sine_speed),
+                    label = "Sine speed",
                     value = sineSpeed.toFloat(),
                     onValueChange = { _sineSpeed.value = it.toDouble() },
                     onValueChangeFinished = { },
@@ -2497,14 +2437,14 @@ class SineTimeActivity : Activity() {
                 )
                 NiceSmootherControl(
                     smoother = offset,
-                    targetLabel = stringResource(R.string.sine_time_sine_offset),
+                    targetLabel = "Sine offset",
                     targetRange = (-PI..PI).toFloatRange,
                     targetSteps = 39,
                     adjustableRate = false,
                     enabled = manual
                 )
                 SliderWithLabel(
-                    label = stringResource(R.string.sine_time_frequency_change),
+                    label = "Frequency change",
                     value = freqChange.toFloat(),
                     onValueChange = { _freqChange.value = it.toDouble() },
                     onValueChangeFinished = { },
