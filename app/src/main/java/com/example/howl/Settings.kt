@@ -1,6 +1,8 @@
 package com.example.howl
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -33,6 +39,7 @@ import com.example.howl.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -69,13 +76,31 @@ class SettingsViewModel : ViewModel() {
     fun resetFunscript() {
         Prefs.resetByPrefix("funscript_")
     }
+    fun setLanguage(language: String, context: Context) {
+        // 保存语言设置到Prefs
+        Prefs.language.value = language
+        // 阻塞等待保存完成
+        runBlocking {
+            Prefs.save(pref = Prefs.language)
+        }
+
+        // 重启应用以应用语言设置
+        val packageManager = context.packageManager
+        val intent = packageManager.getLaunchIntentForPackage(context.packageName)
+        val componentName = intent?.component
+        val restartIntent = Intent.makeRestartActivityTask(componentName)
+        context.startActivity(restartIntent)
+        System.exit(0)
+    }
 }
 
 enum class SettingsTab(val label: String) {
     POWER("Power"),
+    POWER_RAMP("PowerRamp"),
     FUNSCRIPT("Funscript"),
     REMOTE_ACCESS("Remote access"),
     CHARTS_METERS("Charts & meters"),
+    LANGUAGES("Languages"),
     MISC("Misc"),
 }
 
@@ -160,6 +185,14 @@ fun PowerSettingsPanel(
         )
     }
 }
+@Composable
+fun PowerRampSettingsPanel(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val powerRampViewModel: PowerRampViewModel = viewModel()
+    PowerRampPanel(powerRampViewModel)
+}
 
 @Composable
 fun FunscriptSettingsPanel(
@@ -179,13 +212,30 @@ fun FunscriptSettingsPanel(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Advanced parameters for tuning Howl's funscript algorithm. Most users should stick with the default values.",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column {
+                Text(
+                    text = "Advanced parameters for tuning Howl's funscript algorithm.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "用于调整 Howl 脚本算法的高级参数",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "Most users should stick with the default values.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "大多数用户应坚持使用默认值",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         SliderWithLabel(
             label = "Scaling coefficient",
+            subtitle = "缩放系数 (0.5 - 1.0)",
             value = funscriptVolume,
             onValueChange = { Prefs.funscriptVolume.value = it },
             onValueChangeFinished = { Prefs.funscriptVolume.save() },
@@ -195,6 +245,7 @@ fun FunscriptSettingsPanel(
         )
         SliderWithLabel(
             label = "Positional effect strength",
+            subtitle = "位置效应强度 (0 - 1.0)",
             value = funscriptPositionalEffectStrength,
             onValueChange = { Prefs.funscriptPositionalEffectStrength.value = it },
             onValueChangeFinished = { Prefs.funscriptPositionalEffectStrength.save() },
@@ -204,6 +255,7 @@ fun FunscriptSettingsPanel(
         )
         SliderWithLabel(
             label = "Amplitude calculation window",
+            subtitle = "振幅计算窗口 (0 - 0.5)",
             value = funscriptSmoothingSigma,
             onValueChange = { Prefs.funscriptSmoothingSigma.value = it },
             onValueChangeFinished = { Prefs.funscriptSmoothingSigma.save() },
@@ -213,6 +265,7 @@ fun FunscriptSettingsPanel(
         )
         SliderWithLabel(
             label = "Frequency energy proportion",
+            subtitle = "频率能量比例 (0 - 1.0)",
             value = funscriptFreqEnergyProportion,
             onValueChange = { Prefs.funscriptFreqEnergyProportion.value = it },
             onValueChangeFinished = { Prefs.funscriptFreqEnergyProportion.save() },
@@ -222,6 +275,7 @@ fun FunscriptSettingsPanel(
         )
         SliderWithLabel(
             label = "Frequency directional shift",
+            subtitle = "频率方向偏移 (0 - 0.5)",
             value = funscriptDirectionalFreqShift,
             onValueChange = { Prefs.funscriptDirectionalFreqShift.value = it },
             onValueChangeFinished = { Prefs.funscriptDirectionalFreqShift.save() },
@@ -231,6 +285,7 @@ fun FunscriptSettingsPanel(
         )
         SwitchWithLabel(
             label = "Flip frequency directional shift",
+            subtitle = "翻转频率方向偏移",
             checked = funscriptFlipDirectionalFreqShift,
             onCheckedChange = {
                 Prefs.funscriptFlipDirectionalFreqShift.value = it
@@ -239,6 +294,7 @@ fun FunscriptSettingsPanel(
         )
         SwitchWithLabel(
             label = "Normalise axes (when loading)",
+            subtitle = "归一化轴（加载时）",
             checked = funscriptNormaliseAxes,
             onCheckedChange = {
                 Prefs.funscriptNormaliseAxes.value = it
@@ -359,6 +415,7 @@ fun MiscSettingsPanel(
     modifier: Modifier = Modifier
 ) {
     val miscShowDebugLog by Prefs.miscShowDebugLog.collectAsStateWithLifecycle()
+    val miscMaxPlaybackDurationHours by Prefs.miscMaxPlaybackDurationHours.collectAsStateWithLifecycle()
     var showResetDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier) {
@@ -383,6 +440,18 @@ fun MiscSettingsPanel(
                 Prefs.miscShowDebugLog.value = it
                 Prefs.miscShowDebugLog.save()
             }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SliderWithLabel(
+            label = "Max playback duration (hours)",
+            value = miscMaxPlaybackDurationHours.toFloat(),
+            onValueChange = { Prefs.miscMaxPlaybackDurationHours.value = it.toInt() },
+            onValueChangeFinished = { Prefs.miscMaxPlaybackDurationHours.save() },
+            valueRange = 1f..24f,
+            steps = 22,
+            valueDisplay = { "${it.toInt()}h" }
         )
 
         Row(
@@ -418,8 +487,55 @@ fun MiscSettingsPanel(
 }
 
 @Composable
+fun LanguagesSettingsPanel(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+// Language settings
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(text = stringResource(R.string.settings_language), style = MaterialTheme.typography.headlineSmall)
+    }
+    val language by Prefs.language.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Button(
+            onClick = {
+                viewModel.setLanguage("zh", context)
+            },
+            modifier = Modifier.padding(4.dp),
+            colors = if (language == "zh") ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            ) else ButtonDefaults.buttonColors()
+        ) {
+            Text("中文")
+        }
+        Button(
+            onClick = {
+                viewModel.setLanguage("en", context)
+            },
+            modifier = Modifier.padding(4.dp),
+            colors = if (language == "en") ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            ) else ButtonDefaults.buttonColors()
+        ) {
+            Text("English")
+        }
+    }
+}
+
+@Composable
 fun SettingsPanel(
     viewModel: SettingsViewModel,
+
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -443,11 +559,14 @@ fun SettingsPanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             when (selectedTab) {
                 SettingsTab.POWER ->
                     PowerSettingsPanel(viewModel = viewModel)
+                SettingsTab.POWER_RAMP ->
+                    PowerRampSettingsPanel(viewModel = viewModel)
                 SettingsTab.FUNSCRIPT ->
                     FunscriptSettingsPanel(viewModel = viewModel)
                 SettingsTab.REMOTE_ACCESS ->
@@ -457,6 +576,8 @@ fun SettingsPanel(
                     )
                 SettingsTab.CHARTS_METERS ->
                     ChartsMetersSettingsPanel()
+                SettingsTab.LANGUAGES ->
+                    LanguagesSettingsPanel(viewModel = viewModel)
                 SettingsTab.MISC ->
                     MiscSettingsPanel(viewModel = viewModel)
             }

@@ -1,10 +1,13 @@
 package com.example.howl
+
 import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -45,7 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-data class MainOptionsState (
+data class MainOptionsState(
     val channelAPower: Int = 0,
     val channelBPower: Int = 0,
     val globalMute: Boolean = false,
@@ -60,18 +63,44 @@ object MainOptions {
     private var autoIncrementPowerCounterA: Long = 0L
     private var autoIncrementPowerCounterB: Long = 0L
 
+    // PowerRampViewModel instance - will be set by HowlActivity
+    var powerRampViewModel: PowerRampViewModel? = null
+
     fun setChannelPower(channel: Int, power: Int) {
+        setChannelPower(channel, power, true)
+    }
+
+    fun setChannelPower(channel: Int, power: Int, sync: Boolean) {
+        // 如果开启了电源强度同步
+        if (Prefs.powerSyncEnabled.value) {
+            if (sync) {
+                setChannelPower(-1, power, false)
+                return
+            }
+        }
         when (channel) {
             0 -> {
                 val limit = Prefs.powerLimitA.value
                 val newPower = power.coerceIn(0..limit)
                 _state.update { it.copy(channelAPower = newPower) }
             }
+
             1 -> {
                 val limit = Prefs.powerLimitB.value
                 val newPower = power.coerceIn(0..limit)
                 _state.update { it.copy(channelBPower = newPower) }
             }
+
+            -1 -> {
+                val limitA = Prefs.powerLimitA.value
+                val newPowerA = power.coerceIn(0..limitA)
+                _state.update { it.copy(channelAPower = newPowerA) }
+
+                val limitB = Prefs.powerLimitB.value
+                val newPowerB = power.coerceIn(0..limitB)
+                _state.update { it.copy(channelBPower = newPowerB) }
+            }
+
             else -> {}
         }
     }
@@ -81,29 +110,51 @@ object MainOptions {
     }
 
     fun incrementChannelPower(channel: Int, step: Int = 0) {
+        incrementChannelPower(channel, step, true)
+    }
+
+    fun incrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         if (channel == -1) {
             // Apply to both channels
-            incrementChannelPower(0, step)
-            incrementChannelPower(1, step)
+            incrementChannelPower(0, step, false)
+            incrementChannelPower(1, step, false)
             return
         }
 
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
-        setChannelPower(channel, current + stepSize)
+        setChannelPower(channel, current + stepSize, false)
+
+        // 如果开启了电源强度同步
+        if (Prefs.powerSyncEnabled.value) {
+            if (sync) {
+                incrementChannelPower(if (channel == 0) 1 else 0, step, false)
+            }
+        }
     }
 
     fun decrementChannelPower(channel: Int, step: Int = 0) {
+        decrementChannelPower(channel, step, true)
+    }
+
+    fun decrementChannelPower(channel: Int, step: Int = 0, sync: Boolean) {
         if (channel == -1) {
             // Apply to both channels
-            decrementChannelPower(0, step)
-            decrementChannelPower(1, step)
+            decrementChannelPower(0, step, false)
+            decrementChannelPower(1, step, false)
             return
         }
 
         val current = getChannelPower(channel)
         val stepSize = if (step == 0) getChannelPowerStep(channel) else step
-        setChannelPower(channel, current - stepSize)
+        setChannelPower(channel, current - stepSize, false)
+
+        // 如果开启了电源强度同步
+        if (Prefs.powerSyncEnabled.value) {
+            if (sync) {
+                decrementChannelPower(if (channel == 0) 1 else 0, step, false)
+            }
+        }
     }
 
     fun getChannelPower(channel: Int): Int {
@@ -130,24 +181,31 @@ object MainOptions {
         val options = state.value
 
         if (options.autoIncreasePower && !options.globalMute) {
-            // Using milliseconds internally avoids an annoying issue where the channel updates
-            // can desynchronise from each other over time due to floating point errors
-            val elapsedMs = (elapsed * 1000).toLong()
-            if (options.channelAPower > 0)
-                autoIncrementPowerCounterA += elapsedMs
-            if (options.channelBPower > 0)
-                autoIncrementPowerCounterB += elapsedMs
+            // Check if power ramp is enabled
+            val powerRampEnabled = Prefs.powerRampEnabled.value
+            if (powerRampEnabled) {
+                // Delegate to PowerRampViewModel
+                powerRampViewModel?.processPowerRamp(elapsed, options)
+            } else {
+                // Using milliseconds internally avoids an annoying issue where the channel updates
+                // can desynchronise from each other over time due to floating point errors
+                val elapsedMs = (elapsed * 1000).toLong()
+                if (options.channelAPower > 0)
+                    autoIncrementPowerCounterA += elapsedMs
+                if (options.channelBPower > 0)
+                    autoIncrementPowerCounterB += elapsedMs
 
-            val autoIncrementDelayA = (Prefs.powerAutoIncrementDelayA.value * 1000).toLong()
-            val autoIncrementDelayB = (Prefs.powerAutoIncrementDelayB.value * 1000).toLong()
-            //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
-            if (autoIncrementPowerCounterA >= autoIncrementDelayA) {
-                autoIncrementPowerCounterA = 0L
-                incrementChannelPower(0, 1)
-            }
-            if (autoIncrementPowerCounterB >= autoIncrementDelayB) {
-                autoIncrementPowerCounterB = 0L
-                incrementChannelPower(1, 1)
+                val autoIncrementDelayA = (Prefs.powerAutoIncrementDelayA.value * 1000).toLong()
+                val autoIncrementDelayB = (Prefs.powerAutoIncrementDelayB.value * 1000).toLong()
+                //Log.d("MainControls", "Auto increment calculation $autoIncrementPowerCounterA / $autoIncrementDelayA      $autoIncrementPowerCounterB / $autoIncrementDelayB")
+                if (autoIncrementPowerCounterA >= autoIncrementDelayA) {
+                    autoIncrementPowerCounterA = 0L
+                    incrementChannelPower(0, 1)
+                }
+                if (autoIncrementPowerCounterB >= autoIncrementDelayB) {
+                    autoIncrementPowerCounterB = 0L
+                    incrementChannelPower(1, 1)
+                }
             }
         }
     }
@@ -159,17 +217,19 @@ object MainOptions {
     }
 
     fun setGlobalMute(muted: Boolean) {
-        _state.update { it.copy(globalMute = muted)}
+        _state.update { it.copy(globalMute = muted) }
     }
 
     fun setAutoIncreasePower(autoIncrease: Boolean) {
         autoIncrementPowerCounterA = 0L
         autoIncrementPowerCounterB = 0L
-        _state.update { it.copy(autoIncreasePower = autoIncrease)}
+        // Reset power ramp variables via PowerRampViewModel
+        powerRampViewModel?.resetPowerRamp()
+        _state.update { it.copy(autoIncreasePower = autoIncrease) }
     }
 
     fun setSwapChannels(swap: Boolean) {
-        _state.update { it.copy(swapChannels = swap)}
+        _state.update { it.copy(swapChannels = swap) }
     }
 }
 
@@ -226,14 +286,12 @@ fun MainOptionsPanel(
 
     Column(
         modifier = modifier
-            // Removed horizontal padding here to allow the top row to overhang
             .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // 8.dp outer padding + 8.dp inner panel padding = 16.dp total alignment
-                .padding(horizontal = 8.dp)
                 .height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -245,6 +303,17 @@ fun MainOptionsPanel(
                 viewModel = viewModel,
             )
 
+            // Center: Power meters (grouped together)
+            if (showPowerMeter) {
+                Row(
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    PowerLevelMeters()
+                }
+            } else {
+                Spacer(modifier = Modifier.width(12.dp + 8.dp + 12.dp))
+            }
+
             // Right side: Channel B controls
             PowerLevelPanel(
                 channelIndex = 1,
@@ -254,16 +323,15 @@ fun MainOptionsPanel(
             )
         }
 
-        // Wrap the remaining controls in a Column to restore standard 16.dp padding
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp)
-        ) {
+        // Wrap the remaining controls in a Column (outer Column already provides 16.dp horizontal padding)
+        Column {
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
-                    modifier = Modifier.weight(1.0f)
+                    modifier = Modifier
+                        .weight(1.0f)
                         .height(toolbarButtonHeight),
                     contentPadding = PaddingValues(2.dp),
                     onClick = {
@@ -273,7 +341,10 @@ fun MainOptionsPanel(
                         containerColor = if (muted) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
                 ) {
-                    Icon(painter = painterResource(R.drawable.mute), contentDescription = "Mute output")
+                    Icon(
+                        painter = painterResource(R.drawable.mute),
+                        contentDescription = "Mute output"
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -286,7 +357,10 @@ fun MainOptionsPanel(
                         containerColor = if (autoIncreasePower) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
                 ) {
-                    Icon(painter = painterResource(R.drawable.auto_increase), contentDescription = "Auto increase power")
+                    Icon(
+                        painter = painterResource(R.drawable.auto_increase),
+                        contentDescription = "Auto increase power"
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -299,7 +373,10 @@ fun MainOptionsPanel(
                         containerColor = if (pulseChartMode != PulseChartMode.Off) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
                 ) {
-                    Icon(painter = painterResource(R.drawable.chart), contentDescription = "Pulse chart")
+                    Icon(
+                        painter = painterResource(R.drawable.chart),
+                        contentDescription = "Pulse chart"
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -312,7 +389,10 @@ fun MainOptionsPanel(
                         containerColor = if (swapChannels) activeButtonColour else ButtonDefaults.buttonColors().containerColor
                     )
                 ) {
-                    Icon(painter = painterResource(R.drawable.swap), contentDescription = "Swap channels")
+                    Icon(
+                        painter = painterResource(R.drawable.swap),
+                        contentDescription = "Swap channels"
+                    )
                 }
             }
 
@@ -332,115 +412,9 @@ fun PowerLevelPanel(
     channelIndex: Int,
     channelLabel: String,
     power: Int,
-    viewModel: MainOptionsViewModel,
-    modifier: Modifier = Modifier
+    viewModel: MainOptionsViewModel
 ) {
-    // Read state locally so only this composable recomposes when pulse data or meter visibility changes
-    val lastPulse by PulseHistory.lastPulseWithPlayerState.collectAsStateWithLifecycle(initialValue = Pulse())
-    val showPowerMeter by Prefs.miscShowPowerMeter.collectAsStateWithLifecycle()
-
-    val meterAmplitude = if (showPowerMeter) {
-        if (channelIndex == 0) lastPulse.ampA else lastPulse.ampB
-    } else {
-        0f
-    }
-
-    val meterFrequency = if (channelIndex == 0) lastPulse.freqA else lastPulse.freqB
-
-    // 1. Smooth the incoming amplitude
-    val animatedAmplitude by animateFloatAsState(
-        targetValue = meterAmplitude,
-        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
-        label = "amplitudeAnimation"
-    )
-
-    // 2. Smooth the incoming frequency (for colour transitions)
-    val animatedFrequency by animateFloatAsState(
-        targetValue = meterFrequency,
-        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
-        label = "frequencyAnimation"
-    )
-
-    val isDarkTheme = isSystemInDarkTheme()
-    val powerBarStartColor = if (isDarkTheme) Color(0xFFFF0000) else Color(0xFFFF0000)
-    val powerBarEndColor = if (isDarkTheme) Color(0xFFFFFF00) else Color(0xFFFFDF00)
-    val topGradiantAlpha = if (isDarkTheme) 0.45f else 0.75f
-    val bottomGradiantAlpha = if (isDarkTheme) 0.25f else 0.55f
-    val leadingEdgeAlpha = if (isDarkTheme) 0.8f else 1.0f
-
-    // Use the *animated* frequency to interpolate colour
-    val baseMeterColor = lerp(
-        powerBarStartColor,
-        powerBarEndColor,
-        animatedFrequency.coerceIn(0f, 1f)
-    )
-
-    val topGradientColor = Color(
-        red = baseMeterColor.red,
-        green = baseMeterColor.green,
-        blue = baseMeterColor.blue,
-        alpha = topGradiantAlpha
-    )
-
-    val bottomGradientColor = Color(
-        red = baseMeterColor.red,
-        green = baseMeterColor.green,
-        blue = baseMeterColor.blue,
-        alpha = bottomGradiantAlpha
-    )
-
-    val leadingEdgeColor = Color(
-        red = baseMeterColor.red,
-        green = baseMeterColor.green,
-        blue = baseMeterColor.blue,
-        alpha = leadingEdgeAlpha
-    )
-
-    val topIndicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp))
-            .drawBehind {
-                // Fixed faint line at the top to give users a reference point for 100%
-                drawLine(
-                    color = topIndicatorColor,
-                    start = Offset(0f, 0.5.dp.toPx()),
-                    end   = Offset(size.width, 0.5.dp.toPx()),
-                    strokeWidth = 1.dp.toPx()
-                )
-
-                val powerLevel = animatedAmplitude.coerceIn(0f, 1f)
-                if (powerLevel > 0f) {
-                    val barHeight = size.height * powerLevel
-                    val startY = size.height - barHeight
-
-                    val brush = Brush.verticalGradient(
-                        colors = listOf(
-                            topGradientColor,
-                            bottomGradientColor
-                        ),
-                        startY = startY,
-                        endY = size.height
-                    )
-
-                    drawRect(
-                        brush = brush,
-                        topLeft = Offset(0f, startY),
-                        size = Size(size.width, barHeight)
-                    )
-
-                    drawLine(
-                        color = leadingEdgeColor,
-                        start = Offset(0f, startY),
-                        end = Offset(size.width, startY),
-                        strokeWidth = 3.dp.toPx()
-                    )
-                }
-            }
-            // Added 8.dp horizontal padding so the content pushes the edges of the background outward
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-    ) {
+    Column {
         Text(
             text = "$power",
             style = MaterialTheme.typography.displayLarge,
@@ -459,7 +433,10 @@ fun PowerLevelPanel(
                         painter = painterResource(R.drawable.minus),
                         contentDescription = "Lower power",
                     )
-                    Text(text = channelLabel, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Text(
+                        text = channelLabel,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -473,10 +450,78 @@ fun PowerLevelPanel(
                         painter = painterResource(R.drawable.plus),
                         contentDescription = "Increase power",
                     )
-                    Text(text = channelLabel, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Text(
+                        text = channelLabel,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PowerLevelMeter(
+    amplitudeProvider: () -> Float,
+    frequencyProvider: () -> Float,
+) {
+    val startColor = Color(0xFFFF0000)
+    val endColor = Color(0xFFFFFF00)
+
+    val amplitude by animateFloatAsState(
+        targetValue = amplitudeProvider(),
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "meterAmp"
+    )
+    val frequency by animateFloatAsState(
+        targetValue = frequencyProvider(),
+        animationSpec = tween(durationMillis = 25, easing = LinearEasing),
+        label = "meterFreq"
+    )
+
+    Box(
+        modifier = Modifier
+            .width(12.dp)
+            .fillMaxHeight()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            .padding(1.dp)
+            .drawBehind {
+                val powerLevel = amplitude.coerceIn(0f, 1f)
+                if (powerLevel > 0f) {
+                    val barHeight = size.height * powerLevel
+                    val barColor = lerp(
+                        startColor,
+                        endColor,
+                        frequency.coerceIn(0f, 1f)
+                    )
+                    drawRect(
+                        color = barColor,
+                        topLeft = Offset(0f, size.height - barHeight),
+                        size = Size(size.width, barHeight)
+                    )
+                }
+            }
+    )
+}
+
+@Composable
+fun PowerLevelMeters() {
+    val lastPulse by PulseHistory.lastPulseWithPlayerState.collectAsStateWithLifecycle(initialValue = Pulse())
+
+    Row {
+        PowerLevelMeter(
+            amplitudeProvider = { lastPulse.ampA },
+            frequencyProvider = { lastPulse.freqA },
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        PowerLevelMeter(
+            amplitudeProvider = { lastPulse.ampB },
+            frequencyProvider = { lastPulse.freqB },
+        )
     }
 }
 

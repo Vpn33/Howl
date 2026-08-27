@@ -87,11 +87,19 @@ fun SliderWithLabel(
     steps: Int,
     valueDisplay: (Float) -> String,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    subtitle: String = ""
 ) {
     Column( modifier = modifier) {
         if (label != "") {
             Text(text = label, style = MaterialTheme.typography.labelLarge)
+        }
+        if (subtitle != "") {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),//.padding(4.dp),
@@ -120,14 +128,24 @@ fun SwitchWithLabel(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    subtitle: String = ""
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
+            if (subtitle != "") {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
@@ -707,12 +725,12 @@ private fun meterTypeForAxis(axisId: String): MeterType = when (axisId) {
 }
 
 private fun friendlyAxisName(axisId: String): String = when (axisId) {
-    "L0" -> "Stroke"
-    "L1" -> "Surge"
-    "L2" -> "Sway"
-    "R0" -> "Twist"
-    "R1" -> "Roll"
-    "R2" -> "Pitch"
+    "L0" -> "L0\nStroke\n冲程"
+    "L1" -> "L1\nSurge\n纵移"
+    "L2" -> "L2\nSway\n横移"
+    "R0" -> "R0\nTwist\n扭转"
+    "R1" -> "R1\nRoll\n侧倾"
+    "R2" -> "R2\nPitch\n俯仰"
     else -> axisId
 }
 

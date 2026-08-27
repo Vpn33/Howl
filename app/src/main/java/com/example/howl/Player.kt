@@ -675,7 +675,9 @@ fun CombinedPanel(
     var showAdvancedSettings by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

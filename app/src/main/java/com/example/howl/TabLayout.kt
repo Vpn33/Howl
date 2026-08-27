@@ -4,9 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
@@ -16,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class TabLayoutViewModel : ViewModel() {
-    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Settings")
+    private val fixedTabs = listOf("Player", "Generator", "Activity", "Manual", "Wave", "Civet Sensor", "Opossum", "Settings")
     private val debugTab = "Debug"
 
     private val _tabIndex = MutableStateFlow(0)
@@ -60,8 +60,11 @@ fun TabLayout(
     generatorViewModel: GeneratorViewModel,
     activityHostViewModel: ActivityHostViewModel,
     manualViewModel: ManualViewModel,
+    waveViewModel: WaveViewModel,
+    civetSensorViewModel: CivetSensorViewModel,
+    opossumViewModel: OpossumViewModel,
     onRequestPermissions: (Array<String>, (Boolean) -> Unit) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val tabIndex by tabLayoutViewModel.tabIndex.collectAsState()
     val visibleTabs by tabLayoutViewModel.visibleTabs.collectAsState()
@@ -81,12 +84,6 @@ fun TabLayout(
     }
 
     val currentTab = visibleTabs.getOrNull(selectedTabIndex)
-    val contentScrollState = rememberScrollState()
-
-    // Reset scroll position when switching tabs.
-    LaunchedEffect(currentTab) {
-        contentScrollState.scrollTo(0)
-    }
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -114,6 +111,9 @@ fun TabLayout(
                             "Generator" -> Icon(painterResource(R.drawable.wave), contentDescription = null)
                             "Activity" -> Icon(painterResource(R.drawable.rocket), contentDescription = null)
                             "Manual" -> Icon(painterResource(R.drawable.joystick), contentDescription = null)
+                            "Wave" -> Icon(painterResource(R.drawable.waveform), contentDescription = null)
+                            "Civet Sensor" -> Icon(painterResource(R.drawable.civet_sensor), contentDescription = null)
+                            "Opossum" -> Icon(painterResource(R.drawable.opossum), contentDescription = null)
                             "Settings" -> Icon(painterResource(R.drawable.settings), contentDescription = null)
                             "Debug" -> Icon(painterResource(R.drawable.debug), contentDescription = null)
                         }
@@ -132,7 +132,7 @@ fun TabLayout(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(contentScrollState)
+                .fillMaxHeight()
         ) {
             currentTab?.let { tab ->
                 when (tab) {
@@ -140,6 +140,9 @@ fun TabLayout(
                     "Generator" -> GeneratorPanel(viewModel = generatorViewModel)
                     "Activity" -> ActivityHostPanel(viewModel = activityHostViewModel)
                     "Manual" -> ManualPanel(viewModel = manualViewModel)
+                    "Wave" ->  WavePanel(viewModel = waveViewModel)
+                    "Civet Sensor" -> CivetSensorPanel(civetViewModel = civetSensorViewModel)
+                    "Opossum" -> OpossumPanel(opossumViewModel = opossumViewModel)
                     "Settings" -> SettingsPanel(
                         viewModel = settingsViewModel,
                         onRequestPermissions = onRequestPermissions
@@ -161,6 +164,10 @@ fun TabLayoutPreview() {
         val generatorViewModel: GeneratorViewModel = viewModel()
         val activityHostViewModel: ActivityHostViewModel = viewModel()
         val manualViewModel: ManualViewModel = viewModel()
+        val waveViewModel: WaveViewModel = viewModel()
+        val civetSensorViewModel: CivetSensorViewModel = viewModel()
+        val opossumViewModel: OpossumViewModel = viewModel()
+
         TabLayout (
             tabLayoutViewModel = viewModel,
             playerViewModel = playerViewModel,
@@ -168,8 +175,11 @@ fun TabLayoutPreview() {
             generatorViewModel = generatorViewModel,
             activityHostViewModel = activityHostViewModel,
             manualViewModel = manualViewModel,
+            waveViewModel = waveViewModel,
+            civetSensorViewModel =  civetSensorViewModel,
+            opossumViewModel= opossumViewModel,
             onRequestPermissions = { _, _ -> },
-            modifier = Modifier.fillMaxHeight()
+            modifier = Modifier.fillMaxHeight(),
         )
     }
 }

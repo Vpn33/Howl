@@ -33,10 +33,6 @@ class PlayerService : Service() {
         const val NOTIFICATION_ID = 1
         const val TAG = "PlayerService"
         const val MAIN_LOOP_INTERVAL_NANOS = (MAIN_LOOP_INTERVAL_SECS * 1_000_000_000).toLong()
-
-        // Failsafe limit on service runtime so that we can terminate to save battery life if the
-        // user just leaves the player running.
-        val MAX_PLAYBACK_DURATION = 5.hours
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -120,7 +116,7 @@ class PlayerService : Service() {
                 val startTime = System.nanoTime()
                 var nextTickNanos = startTime
                 var lastAdjustedTime: Double? = null
-                val maxDurationNanos = MAX_PLAYBACK_DURATION.inWholeNanoseconds
+                val maxDurationNanos = Prefs.miscMaxPlaybackDurationHours.value.hours.inWholeNanoseconds
                 while (isActive) {
                     nextTickNanos += MAIN_LOOP_INTERVAL_NANOS
                     //val startTime = System.nanoTime()
@@ -201,7 +197,7 @@ class PlayerService : Service() {
                     val now = System.nanoTime()
 
                     if (now - startTime >= maxDurationNanos) {
-                        HLog.w(TAG, "Maximum playback duration of $MAX_PLAYBACK_DURATION reached. Stopping player.")
+                        HLog.w(TAG, "Maximum playback duration of ${Prefs.miscMaxPlaybackDurationHours.value}h reached. Stopping player.")
                         Player.stopPlayer()
                         break
                     }

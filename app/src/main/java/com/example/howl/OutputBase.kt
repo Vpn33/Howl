@@ -127,6 +127,12 @@ enum class OutputType(
         description = "An experimental audio output technique for stereostim devices. It's inspired by how pulse based units work, but uses bursts of multiple pulses rather than individual ones.",
         warning = "WARNING: Multipulse output is at an early testing stage, so it's only for experienced stereostim users. Please test what settings on the 'Device' tab feel best, and submit feedback to the developer.",
         factory = ::MultiPulseOutput
+    ),
+    OPOSSUM(
+        displayName = "Opossum",
+        description = "Opossum pulse-based device with activity playback and player sync support.",
+        warning = null,
+        factory = ::OutputOpossum
     );
 
     fun create(): Output = factory()
@@ -182,6 +188,9 @@ interface Output {
 
     val settingsUI: (@Composable () -> Unit)?
         get() = null
+
+    val hasCalibrationAndTweaks: Boolean
+        get() = true
 }
 
 abstract class BaseOutput : Output {

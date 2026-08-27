@@ -635,7 +635,7 @@ object RemoteControlServer {
         if (wsServer != null) return
         HLog.v(TAG,"Starting websocket server")
 
-        wsServer = embeddedServer(CIO, port = port, watchPaths = emptyList()) {
+        wsServer = embeddedServer(CIO, port = port, watchPaths = emptyList(), host = "0.0.0.0") {
             install(WebSockets) {
                 pingPeriod = 5.seconds
                 timeout = 5.seconds

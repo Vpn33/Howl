@@ -243,7 +243,7 @@ fun AddOutputDialog(
         when (type) {
             OutputType.RECORDER -> false // Never show recorder
             OutputType.AUDIO_CONTINUOUS, OutputType.AUDIO_WAVELET, OutputType.AUDIO_MULTIPULSE -> !hasAudioOutput // Only show if no audio output exists
-            else -> true // Coyote 2, Coyote 3 always available
+            else -> true // Coyote 2, Coyote 3, Opossum always available
         }
     }
 
@@ -491,10 +491,12 @@ fun OutputSettingsPopup(
     val tweaks by output.tweaks.collectAsStateWithLifecycle()
 
     val hasSettingsUI = output.settingsUI != null
-    val availableTabs = remember(hasSettingsUI) {
+    val availableTabs = remember(hasSettingsUI, output.hasCalibrationAndTweaks) {
         buildList {
-            add(OutputSettingsTab.CALIBRATION)
-            add(OutputSettingsTab.TWEAKS)
+            if (output.hasCalibrationAndTweaks) {
+                add(OutputSettingsTab.CALIBRATION)
+                add(OutputSettingsTab.TWEAKS)
+            }
             if (hasSettingsUI) {
                 add(OutputSettingsTab.OUTPUT_SETTINGS)
             }

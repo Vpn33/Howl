@@ -277,7 +277,9 @@ fun ManualPanel(
     val isPlaying = playerState.isPlaying && playerState.activePulseSource == Manual
 
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

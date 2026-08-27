@@ -69,8 +69,15 @@ fun HowlAppScreen(
     generatorViewModel: GeneratorViewModel = viewModel(),
     activityHostViewModel: ActivityHostViewModel = viewModel(),
     manualViewModel: ManualViewModel = viewModel(),
+    powerRampViewModel: PowerRampViewModel = viewModel(),
+    waveViewModel: WaveViewModel = viewModel(),
+    civetSensorViewModel: CivetSensorViewModel = viewModel(),
+    opossumViewModel: OpossumViewModel = viewModel(),
     settingsViewModel: SettingsViewModel = viewModel(),
 ) {
+    // Wire cross-viewModel references
+    civetSensorViewModel.setOpossumViewModel(opossumViewModel)
+
     val playerState by playerViewModel.playerState.collectAsStateWithLifecycle()
 
     // Permission launcher
@@ -113,6 +120,11 @@ fun HowlAppScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    // Provide PowerRampViewModel to MainOptions for runtime power ramp processing
+    LaunchedEffect(powerRampViewModel) {
+        MainOptions.powerRampViewModel = powerRampViewModel
+    }
+
     Scaffold { innerPadding ->
         val containerModifier = Modifier
             .fillMaxSize()
@@ -145,6 +157,9 @@ fun HowlAppScreen(
                     generatorViewModel = generatorViewModel,
                     activityHostViewModel = activityHostViewModel,
                     manualViewModel = manualViewModel,
+                    waveViewModel = waveViewModel,
+                    civetSensorViewModel = civetSensorViewModel,
+                    opossumViewModel = opossumViewModel,
                     onRequestPermissions = { permissions, onResult ->
                         checkAndRequestPermissions(permissions, onResult)
                     },
@@ -168,6 +183,9 @@ fun HowlAppScreen(
                     generatorViewModel = generatorViewModel,
                     activityHostViewModel = activityHostViewModel,
                     manualViewModel = manualViewModel,
+                    waveViewModel = waveViewModel,
+                    civetSensorViewModel = civetSensorViewModel,
+                    opossumViewModel = opossumViewModel,
                     onRequestPermissions = { permissions, onResult ->
                         checkAndRequestPermissions(permissions, onResult)
                     },
