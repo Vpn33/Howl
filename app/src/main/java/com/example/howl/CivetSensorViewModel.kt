@@ -904,9 +904,10 @@ class CivetSensorViewModel : ViewModel() {
                 opossumViewModel?.let { vm ->
                     vm.setChannels(opossumBaseA, opossumBaseB)
                 }
-                _opossumMapped.update { opossumBaseA }
+                _opossumMapped.update { opossumBaseA + opossumDelta }
             }
-            return
+        } else {
+            // Not cooling down, continue to normal operation
         }
 
         // Normal operation
