@@ -34,9 +34,26 @@ data class FunscriptAxisData(
 )
 
 @Serializable
-data class Funscript(
-    val actions: List<Action>,
+data class FunscriptEventMetadata(
+    val title: String? = null,
+    val duration: Double? = null,
+    val durationTime: String? = null,
+    val loop: Boolean? = null
+)
+
+@Serializable
+data class FunscriptEvent(
+    val id: String,
+    val metadata: FunscriptEventMetadata? = null,
+    val actions: List<Action> = emptyList(),
     val axes: List<FunscriptAxisData>? = null
+)
+
+@Serializable
+data class Funscript(
+    val actions: List<Action> = emptyList(),
+    val axes: List<FunscriptAxisData>? = null,
+    val events: List<FunscriptEvent>? = null
 )
 
 
@@ -227,6 +244,17 @@ class FunscriptPulseSource : PulseSource {
     override var latencyCompensation: Boolean = false
 
     private val axes = mutableMapOf<String, FunscriptAxis>()
+    private var events: List<FunscriptEvent> = emptyList()
+    private var baseDisplayName: String = ""
+    private var currentEventTitle: String? = null
+    private var _playingEventId: String? = null
+
+    val hasEvents: Boolean get() = events.isNotEmpty()
+
+    private fun updateDisplayName() {
+        _displayName.value = currentEventTitle?.let { "$baseDisplayName # $it" }
+            ?: baseDisplayName
+    }
 
     /** Sorted list of axis IDs present in the loaded funscript (e.g. ["L0", "R0", "R2"]). */
     val axisIds: List<String>
@@ -445,15 +473,11 @@ class FunscriptPulseSource : PulseSource {
         val funscript = jsonConfig.decodeFromString<Funscript>(content)
         val normalise = Prefs.funscriptNormaliseAxes.value
 
-        // Main axis L0 must be valid, so we let it throw if it's invalid.
+        // Main axis L0 from top-level actions (if present).
         val l0NormType = if (normalise) NormalisationType.FULL_RANGE else NormalisationType.OFF
-        val mainAxis = try {
-            FunscriptAxis.create("L0", funscript.actions, l0NormType)
-        } catch (e: BadFileException) {
-            throw e
+        if (funscript.actions.isNotEmpty()) {
+            axes["L0"] = FunscriptAxis.create("L0", funscript.actions, l0NormType)
         }
-
-        axes["L0"] = mainAxis
 
         // Process additional axes if they exist
         funscript.axes?.forEach { axisData ->
@@ -482,16 +506,72 @@ class FunscriptPulseSource : PulseSource {
 
         // Update display info with axis count and IDs
         val axisIds = axes.keys.sorted()
-        _displayInfo.value = "${axes.size} axis funscript"
-        //_displayInfo.value = "${axes.size} ${if (axes.size == 1) "axis" else "axes"} funscript"
+        events = funscript.events ?: emptyList()
 
-        HLog.i("Funscript", "Processed ${axes.size} ${if (axes.size == 1) "axis" else "axes"}.")
+        // Events-based funscript: no top-level actions, so auto-load the first event to provide L0.
+        if (funscript.actions.isEmpty() && events.isNotEmpty()) {
+            triggerEvent(events.first().id)
+        }
+
+        _displayInfo.value = if (events.isNotEmpty()) {
+            "${axes.size} axis, ${events.size} event funscript"
+        } else {
+            "${axes.size} axis funscript"
+        }
+
+        HLog.i("Funscript", "Processed ${axes.size} ${if (axes.size == 1) "axis" else "axes"}${if (events.isNotEmpty()) ", ${events.size} events" else ""}.")
+    }
+
+    fun triggerEvent(id: String): Boolean {
+        val event = events.find { it.id == id } ?: return false
+
+        // 如果正在播放相同的事件，则跳过
+        if (_playingEventId != null && _playingEventId == id) {
+            HLog.d("Funscript", "Skipping duplicate trigger for event '$id'")
+            return false
+        }
+
+        val normalise = Prefs.funscriptNormaliseAxes.value
+        val l0NormType = if (normalise) NormalisationType.FULL_RANGE else NormalisationType.OFF
+
+        val eventAxis = try {
+            FunscriptAxis.create("L0", event.actions, l0NormType)
+        } catch (e: BadFileException) {
+            HLog.w("Funscript", "Failed to load event '$id': ${e.message}")
+            return false
+        }
+
+        axes["L0"] = eventAxis
+
+        // 事件自带的 axes 覆盖同 ID 的顶层 axes；未包含的顶层 axes 保持不变
+        event.axes?.forEach { axisData ->
+            if (axisData.id == "L0") return@forEach
+            if (!SUPPORTED_AXES.contains(axisData.id)) return@forEach
+            val normType = if (normalise && axisData.id in BALANCED_AXES) NormalisationType.BALANCED else NormalisationType.OFF
+            val axis = FunscriptAxis.createOrNull(axisData.id, axisData.actions, normType)
+            if (axis != null) axes[axisData.id] = axis
+        }
+
+        shouldLoop = event.metadata?.loop ?: true
+        duration = axes.values.maxOfOrNull { it.getDuration() ?: 0.0 }
+
+        // 标题后追加当前事件的 metadata.title，便于识别当前触发的事件
+        currentEventTitle = event.metadata?.title ?: event.id
+        updateDisplayName()
+
+        HLog.i("Funscript", "Triggered event '$id' (loop=$shouldLoop, ${event.actions.size} actions${if (event.axes != null) ", ${event.axes.size} axes" else ""})")
+        _playingEventId = id
+        return true
     }
 
     private fun clear() {
         // Clears any previously loaded funscript
         readyToPlay = false
         axes.clear()
+        events = emptyList()
+        baseDisplayName = ""
+        currentEventTitle = null
+        _playingEventId = null
         _displayName.value = ""
         _displayInfo.value = ""
     }
@@ -516,7 +596,8 @@ class FunscriptPulseSource : PulseSource {
             }
         }
 
-        _displayName.value = uri.getName(context)
+        baseDisplayName = uri.getName(context)
+        updateDisplayName()
         duration = axes.values.maxOfOrNull { it.getDuration() ?: 0.0 }
         readyToPlay = true
         return duration
@@ -535,11 +616,17 @@ class FunscriptPulseSource : PulseSource {
             throw BadFileException("Funscript decoding failed")
         }
 
-        _displayName.value = title
+        baseDisplayName = title
+        updateDisplayName()
         duration = axes.values.maxOfOrNull { it.getDuration() ?: 0.0 }
         latencyCompensation = true
         readyToPlay = true
-        shouldLoop = loop
+        // events 型 funscript 的 loop 由 event.metadata.loop 决定（triggerEvent 已设置），
+        // 顶层 actions 型 funscript 没有 loop 概念，由调用方通过参数决定
+        if (!hasEvents) {
+            shouldLoop = loop
+        }
+        HLog.i("Funscript", "loadFromString: hasEvents=$hasEvents, shouldLoop=$shouldLoop, duration=$duration, eventsCount=${events.size}, apiLoopParam=$loop")
         return duration
     }
 }

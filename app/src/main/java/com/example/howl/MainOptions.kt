@@ -43,10 +43,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.howl.ui.theme.AppTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class MainOptionsState(
     val channelAPower: Int = 0,
@@ -66,6 +75,74 @@ object MainOptions {
     // PowerRampViewModel instance - will be set by HowlActivity
     var powerRampViewModel: PowerRampViewModel? = null
 
+    // ---- 电源强度平滑 ----
+    private val smoothScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var smoothJobA: Job? = null
+    private var smoothJobB: Job? = null
+
+    private fun cancelSmooth(channel: Int) {
+        when (channel) {
+            0 -> { smoothJobA?.cancel(); smoothJobA = null }
+            1 -> { smoothJobB?.cancel(); smoothJobB = null }
+            -1 -> { cancelSmooth(0); cancelSmooth(1) }
+        }
+    }
+
+    // 按通道直接写入电源强度（不带平滑）
+    public fun updateChannelPower(channel: Int, power: Int) {
+        when (channel) {
+            0 -> {
+                val limit = Prefs.powerLimitA.value
+                _state.update { it.copy(channelAPower = power.coerceIn(0..limit)) }
+            }
+            1 -> {
+                val limit = Prefs.powerLimitB.value
+                _state.update { it.copy(channelBPower = power.coerceIn(0..limit)) }
+            }
+        }
+    }
+
+    /**
+     * 电源强度平滑逻辑：
+     * - 目标为 0 时直接归零，不受平滑影响
+     * - |目标 - 当前| > 瞬时变化最大值 且对应方向开关开启时，按平滑时间渐变
+     * - 平滑过程中新的 setChannelPower 调用会以当前显示值为起点重新平滑到新目标
+     */
+    private fun applyChannelPower(channel: Int, newPower: Int) {
+        if (newPower <= 0) {
+            cancelSmooth(channel)
+            updateChannelPower(channel, 0)
+            return
+        }
+        val current = getChannelPower(channel)
+        val diff = newPower - current
+        val maxJump = Prefs.powerSmoothMaxJump.value
+        val smoothEnabled = if (diff >= 0) Prefs.powerSmoothUpEnabled.value else Prefs.powerSmoothDownEnabled.value
+        if (abs(diff) <= maxJump || !smoothEnabled) {
+            cancelSmooth(channel)
+            updateChannelPower(channel, newPower)
+            return
+        }
+        // 启动/重定向平滑：从当前值渐变到新目标
+        cancelSmooth(channel)
+        val from = current
+        val durationMs = (Prefs.powerSmoothDurationSec.value * 1000L).coerceAtLeast(200L)
+        val job = smoothScope.launch {
+            val startTime = System.currentTimeMillis()
+            while (isActive) {
+                val t = (System.currentTimeMillis() - startTime).toFloat() / durationMs
+                if (t >= 1f) break
+                updateChannelPower(channel, (from + (newPower - from) * t).roundToInt())
+                delay(20)
+            }
+            updateChannelPower(channel, newPower)
+        }
+        when (channel) {
+            0 -> smoothJobA = job
+            1 -> smoothJobB = job
+        }
+    }
+
     fun setChannelPower(channel: Int, power: Int) {
         setChannelPower(channel, power, true)
     }
@@ -79,33 +156,18 @@ object MainOptions {
             }
         }
         when (channel) {
-            0 -> {
-                val limit = Prefs.powerLimitA.value
-                val newPower = power.coerceIn(0..limit)
-                _state.update { it.copy(channelAPower = newPower) }
-            }
-
-            1 -> {
-                val limit = Prefs.powerLimitB.value
-                val newPower = power.coerceIn(0..limit)
-                _state.update { it.copy(channelBPower = newPower) }
-            }
-
+            0 -> applyChannelPower(0, power)
+            1 -> applyChannelPower(1, power)
             -1 -> {
-                val limitA = Prefs.powerLimitA.value
-                val newPowerA = power.coerceIn(0..limitA)
-                _state.update { it.copy(channelAPower = newPowerA) }
-
-                val limitB = Prefs.powerLimitB.value
-                val newPowerB = power.coerceIn(0..limitB)
-                _state.update { it.copy(channelBPower = newPowerB) }
+                applyChannelPower(0, power)
+                applyChannelPower(1, power)
             }
-
             else -> {}
         }
     }
 
     fun zeroPower() {
+        cancelSmooth(-1)
         _state.update { it.copy(channelAPower = 0, channelBPower = 0) }
     }
 

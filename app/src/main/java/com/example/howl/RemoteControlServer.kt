@@ -132,6 +132,11 @@ data class LoadActivityRequest(
 )
 
 @Serializable
+data class TriggerEventRequest(
+    val id: String,
+)
+
+@Serializable
 data class ActivityInfo(
     val name: String,
     val display_name: String
@@ -228,6 +233,7 @@ class RequestHandler {
                 "set_auto_increase" -> handleSetAutoIncrease(json.decodeFromJsonElement(SetAutoIncreaseRequest.serializer(), params))
                 "available_activities" -> handleAvailableActivities()
                 "load_activity" -> handleLoadActivity(json.decodeFromJsonElement(LoadActivityRequest.serializer(), params))
+                "event" -> handleTriggerEvent(json.decodeFromJsonElement(TriggerEventRequest.serializer(), params))
                 else -> HandlerResult(HttpStatusCode.NotFound, ErrorResponse(ErrorBody("Unknown endpoint: $endpoint")))
             }
         } catch (e: SerializationException) {
@@ -300,7 +306,7 @@ class RequestHandler {
         )
         try {
             val pulseSource = FunscriptPulseSource()
-            pulseSource.loadFromString(request.funscript, request.title)
+            pulseSource.loadFromString(request.funscript, request.title, request.loop)
             withContext(Dispatchers.Main) {
                 Player.switchPulseSource(pulseSource)
                 if (request.play) Player.startPlayer()
@@ -500,6 +506,28 @@ class RequestHandler {
             return HandlerResult(HttpStatusCode.BadRequest, ErrorResponse(ErrorBody("Unknown activity: ${request.name}")))
         }
     }
+
+    private suspend fun handleTriggerEvent(request: TriggerEventRequest): HandlerResult {
+        HLog.i(TAG, "Handling command event(id='${request.id}')")
+        return withContext(Dispatchers.Main) {
+            val activeSource = Player.playerState.value.activePulseSource
+            if (activeSource !is FunscriptPulseSource) {
+                return@withContext HandlerResult(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse(ErrorBody("No funscript loaded"))
+                )
+            }
+            if (!activeSource.triggerEvent(request.id)) {
+                return@withContext HandlerResult(
+                    HttpStatusCode.NotFound,
+                    ErrorResponse(ErrorBody("Event not found: ${request.id}"))
+                )
+            }
+            Player.seek(0.0)
+            Player.startPlayer()
+            HandlerResult(HttpStatusCode.OK, buildStatusResponse())
+        }
+    }
 }
 
 // --- Remote Control Server ---
@@ -623,6 +651,10 @@ object RemoteControlServer {
                     }
                     post("/load_activity") {
                         val result = requestHandler.handleRequest("load_activity", call.receive<JsonElement>())
+                        call.respond(result.status, result.body)
+                    }
+                    post("/event") {
+                        val result = requestHandler.handleRequest("event", call.receive<JsonElement>())
                         call.respond(result.status, result.body)
                     }
                 }

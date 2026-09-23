@@ -139,6 +139,7 @@ class PlayerService : Service() {
                     val duration = currentSource.duration
                     if (duration != null && duration > 0 && currentPosition > duration) {
                         // We have passed the end of the playback source
+                        HLog.i("PlayerService", "End of source reached: pos=$currentPosition, dur=$duration, seekable=${currentSource.seekable}, shouldLoop=${currentSource.shouldLoop}")
                         if (currentSource.seekable && currentSource.shouldLoop) {
                             Player.seek(0.0)
                             lastAdjustedTime = null

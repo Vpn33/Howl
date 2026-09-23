@@ -220,11 +220,17 @@ object Prefs {
 
     val powerSyncEnabled = register("power_sync_enabled", false, BooleanAdapter)
     val powerRampEnabled = register("power_ramp_enabled", false, BooleanAdapter)
+
+    // 电源强度平滑 (setChannelPower 平滑渐变)
+    val powerSmoothUpEnabled = register("power_smooth_up_enabled", true, BooleanAdapter)
+    val powerSmoothDownEnabled = register("power_smooth_down_enabled", true, BooleanAdapter)
+    val powerSmoothMaxJump = register("power_smooth_max_jump", 10, IntAdapter)
+    val powerSmoothDurationSec = register("power_smooth_duration_sec", 3, IntAdapter)
     val powerRampChannelMode = register("power_ramp_channel_mode", "AB_SYNC", StringAdapter)
-    val powerRampIntensityARangeStart = register("power_ramp_intensity_a_start", -40, IntAdapter)
-    val powerRampIntensityARangeEnd = register("power_ramp_intensity_a_end", 40, IntAdapter)
-    val powerRampIntensityBRangeStart = register("power_ramp_intensity_b_start", -10, IntAdapter)
-    val powerRampIntensityBRangeEnd = register("power_ramp_intensity_b_end", 10, IntAdapter)
+    val powerRampIntensityARangeStart = register("power_ramp_intensity_a_start", 0, IntAdapter)
+    val powerRampIntensityARangeEnd = register("power_ramp_intensity_a_end", 20, IntAdapter)
+    val powerRampIntensityBRangeStart = register("power_ramp_intensity_b_start", 0, IntAdapter)
+    val powerRampIntensityBRangeEnd = register("power_ramp_intensity_b_end", 20, IntAdapter)
 
     // 电源强度爬坡模式
     val powerRampSpeedModeA = register("power_ramp_speed_mode_a", "FIXED", StringAdapter)

@@ -658,13 +658,20 @@ class PowerRampViewModel : ViewModel() {
                 } else {
                     if (cycleMode == "LOOP" || repeatComplete) {
                         // 如果有坡底随机时间的话 要重置成变化前的记录值
-                        if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
-                            MainOptions.setChannelPower(0, powerRampRecordA - powerRampNadirRecordA)
-                            MainOptions.setChannelPower(1, powerRampRecordB - powerRampNadirRecordB)
+                        // 在 LOOP 模式下，需要取消平滑过程并直接设置实际值，避免电源强度越来越低
+                        val targetA = if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
+                            powerRampRecordA - powerRampNadirRecordA
                         } else {
-                            MainOptions.setChannelPower(0, powerRampRecordA)
-                            MainOptions.setChannelPower(1, powerRampRecordB)
+                            powerRampRecordA
                         }
+                        val targetB = if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
+                            powerRampRecordB - powerRampNadirRecordB
+                        } else {
+                            powerRampRecordB
+                        }
+                        // LOOP 模式下直接设置实际值，取消平滑过程
+                        MainOptions.updateChannelPower(0, targetA)
+                        MainOptions.updateChannelPower(1, targetB)
                         // 循环模式：重置强度重新开始爬坡
                         if (_state.value.powerRampNadirChangeModeA == "RANDOM") {
                             val minNadir = _state.value.powerRampNadirIntensityARangeStart
@@ -727,12 +734,14 @@ class PowerRampViewModel : ViewModel() {
                     } else {
                         // 如果是循环模式或者 往复完成一圈后
                         if (cycleMode == "LOOP" || repeatComplete) {
-                            // 如果有坡底随机时间的话 要重置成变化前的记录值
-                            if (powerRampNadirRecordA != 0) {
-                                MainOptions.setChannelPower(0, powerRampRecordA - powerRampNadirRecordA)
+                            // LOOP 模式下需要取消平滑过程并直接设置实际值，避免电源强度越来越低
+                            val targetA = if (powerRampNadirRecordA != 0) {
+                                powerRampRecordA - powerRampNadirRecordA
                             } else {
-                                MainOptions.setChannelPower(0, powerRampRecordA)
+                                powerRampRecordA
                             }
+                            // LOOP 模式下直接设置实际值，取消平滑过程
+                            MainOptions.updateChannelPower(0, targetA)
                             // 循环模式：重置强度重新开始爬坡
                             if (_state.value.powerRampNadirChangeModeA == "RANDOM") {
                                 val minNadir = _state.value.powerRampNadirIntensityARangeStart
@@ -782,12 +791,14 @@ class PowerRampViewModel : ViewModel() {
                     } else {
                         val cycleMode = _state.value.powerRampCycleModeB
                         if (cycleMode == "LOOP" || repeatComplete) {
-                            // 如果有坡底随机时间的话 要重置成变化前的记录值
-                            if (powerRampNadirRecordB != 0) {
-                                MainOptions.setChannelPower(1, powerRampRecordB - powerRampNadirRecordB)
+                            // LOOP 模式下需要取消平滑过程并直接设置实际值，避免电源强度越来越低
+                            val targetB = if (powerRampNadirRecordB != 0) {
+                                powerRampRecordB - powerRampNadirRecordB
                             } else {
-                                MainOptions.setChannelPower(1, powerRampRecordB)
+                                powerRampRecordB
                             }
+                            // LOOP 模式下直接设置实际值，取消平滑过程
+                            MainOptions.updateChannelPower(1, targetB)
                             // 循环模式：重置强度重新开始爬坡
                             if (_state.value.powerRampNadirChangeModeB == "RANDOM") {
                                 val minNadir = _state.value.powerRampNadirIntensityBRangeStart
@@ -889,6 +900,10 @@ fun PowerRampPanel(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val powerSyncEnabled by Prefs.powerSyncEnabled.collectAsStateWithLifecycle()
     val powerRampEnabled by Prefs.powerRampEnabled.collectAsStateWithLifecycle()
+    val powerSmoothUpEnabled by Prefs.powerSmoothUpEnabled.collectAsStateWithLifecycle()
+    val powerSmoothDownEnabled by Prefs.powerSmoothDownEnabled.collectAsStateWithLifecycle()
+    val powerSmoothMaxJump by Prefs.powerSmoothMaxJump.collectAsStateWithLifecycle()
+    val powerSmoothDurationSec by Prefs.powerSmoothDurationSec.collectAsStateWithLifecycle()
 
     Row(
         modifier = Modifier
@@ -899,6 +914,55 @@ fun PowerRampPanel(
     ) {
         Text(text = "电源强度自动选项", style = MaterialTheme.typography.headlineSmall)
     }
+
+    // ---- 电源强度平滑 ----
+    SwitchWithLabel(
+        label = "平滑增加电源强度",
+        subtitle = "强度上调超过瞬时变化最大值时，按平滑时间渐变增加",
+        checked = powerSmoothUpEnabled,
+        onCheckedChange = {
+            Prefs.powerSmoothUpEnabled.value = it
+            Prefs.powerSmoothUpEnabled.save()
+        }
+    )
+
+    SwitchWithLabel(
+        label = "平滑减少电源强度",
+        subtitle = "强度下调超过瞬时变化最大值时，按平滑时间渐变减少",
+        checked = powerSmoothDownEnabled,
+        onCheckedChange = {
+            Prefs.powerSmoothDownEnabled.value = it
+            Prefs.powerSmoothDownEnabled.save()
+        }
+    )
+
+    SliderWithLabel(
+        label = "瞬时变化最大值",
+        subtitle = "目标强度与当前强度的差值超过该值时触发平滑",
+        value = powerSmoothMaxJump.toFloat(),
+        onValueChange = {
+            Prefs.powerSmoothMaxJump.value = it.roundToInt()
+            Prefs.powerSmoothMaxJump.save()
+        },
+        onValueChangeFinished = {},
+        valueRange = 0.0f..100.0f,
+        steps = 99,
+        valueDisplay = { it.roundToInt().toString() }
+    )
+
+    SliderWithLabel(
+        label = "平滑时间(秒)",
+        subtitle = "渐变从当前强度到目标强度所需的时间，目标为 0 时直接归零",
+        value = powerSmoothDurationSec.toFloat(),
+        onValueChange = {
+            Prefs.powerSmoothDurationSec.value = it.roundToInt()
+            Prefs.powerSmoothDurationSec.save()
+        },
+        onValueChangeFinished = {},
+        valueRange = 1.0f..60.0f,
+        steps = 58,
+        valueDisplay = { it.roundToInt().toString() }
+    )
 
     SwitchWithLabel(
         label = "电源强度同步",
@@ -953,8 +1017,8 @@ fun PowerRampPanel(
                         onValueChange = { newRange ->
                             viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                         },
-                        valueRange = -50.0f..50.0f,
-                        steps = 99
+                        valueRange = 0f..200.0f,
+                        steps = 200
                     )
                     Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
@@ -1075,8 +1139,8 @@ fun PowerRampPanel(
                             onValueChange = { newRange ->
                                 viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                             },
-                            valueRange = -50.0f..50.0f,
-                            steps = 99
+                            valueRange = 0f..200.0f,
+                            steps = 200
                         )
                         Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }
@@ -1184,8 +1248,8 @@ fun PowerRampPanel(
                         onValueChange = { newRange ->
                             viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                         },
-                        valueRange = -50.0f..50.0f,
-                        steps = 99
+                        valueRange = 0f..200f,
+                        steps = 200
                     )
                     Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
@@ -1326,8 +1390,8 @@ fun PowerRampPanel(
                             onValueChange = { newRange ->
                                 viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                             },
-                            valueRange = -50.0f..50.0f,
-                            steps = 99
+                            valueRange = 0f..200.0f,
+                            steps = 200
                         )
                         Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }
@@ -1432,8 +1496,8 @@ fun PowerRampPanel(
                         onValueChange = { newRange ->
                             viewModel.setPowerRampIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                         },
-                        valueRange = -50.0f..50.0f,
-                        steps = 99
+                        valueRange = 0f..200f,
+                        steps = 200
                     )
                     Text(text = "${state.powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
@@ -1553,8 +1617,8 @@ fun PowerRampPanel(
                             onValueChange = { newRange ->
                                 viewModel.setPowerRampNadirIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                             },
-                            valueRange = -50.0f..50.0f,
-                            steps = 99
+                            valueRange = 0f..200.0f,
+                            steps = 200
                         )
                         Text(text = "${state.powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }
@@ -1660,8 +1724,8 @@ fun PowerRampPanel(
                         onValueChange = { newRange ->
                             viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                         },
-                        valueRange = -50.0f..50.0f,
-                        steps = 99
+                        valueRange = 0f..200f,
+                        steps = 200
                     )
                     Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                 }
@@ -1760,8 +1824,8 @@ fun PowerRampPanel(
                             onValueChange = { newRange ->
                                 viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                             },
-                            valueRange = -50.0f..50.0f,
-                            steps = 99
+                            valueRange = 0f..200.0f,
+                            steps = 200
                         )
                         Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }
@@ -1867,7 +1931,7 @@ fun PowerRampPanel(
                         onValueChange = { newRange ->
                             viewModel.setPowerRampIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                         },
-                        valueRange = -50.0f..50.0f,
+                        valueRange = 0f..200f,
                         steps = 99
                     )
                     Text(text = "${state.powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
@@ -1964,8 +2028,8 @@ fun PowerRampPanel(
                             onValueChange = { newRange ->
                                 viewModel.setPowerRampNadirIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
                             },
-                            valueRange = -50.0f..50.0f,
-                            steps = 99
+                            valueRange = 0f..200.0f,
+                            steps = 200
                         )
                         Text(text = "${state.powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
                     }

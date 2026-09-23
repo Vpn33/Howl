@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -557,6 +558,9 @@ fun PlayerPanel(
         }
     )
 
+    // Funscript loop state
+    var funscriptLoopEnabled by remember { mutableStateOf(false) }
+
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
@@ -570,19 +574,16 @@ fun PlayerPanel(
             // File Name Display
             Text(
                 text = displayName,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 10.dp).wrapContentWidth()
             )
 
             if (displayInfo.isNotEmpty()) {
                 Text(
                     text = displayInfo,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleSmall,
                     //modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.wrapContentWidth()
                 )
             }
 
@@ -631,6 +632,27 @@ fun PlayerPanel(
                         painter = painterResource(R.drawable.folder_open),
                         contentDescription = "Open file"
                     )
+                }
+
+                // Loop button (only show for Funscript)
+                if (activeSource is FunscriptPulseSource) {
+                    Button(
+                        onClick = {
+                            funscriptLoopEnabled = !funscriptLoopEnabled
+                            activeSource.shouldLoop = funscriptLoopEnabled
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (funscriptLoopEnabled)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Text(
+                            text = if (funscriptLoopEnabled) "Loop ON" else "Loop OFF",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
