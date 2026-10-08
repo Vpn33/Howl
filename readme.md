@@ -276,3 +276,10 @@ All original code is released under the MIT License. There is an additional stip
 
    Repeat mode:
    ![Image](https://github.com/user-attachments/assets/37649ff4-693c-4f0c-82d5-ae8e8224716b)
+
+   Civet Sensor Tab:
+   <img width="270" height="510" alt="image" src="https://github.com/user-attachments/assets/0eb79aa5-5772-4f69-af1e-235d46c4cdf9" />
+   <img width="270" height="510" alt="image" src="https://github.com/user-attachments/assets/29ed0d80-28bc-420a-a943-318ec98c2477" />
+
+   Opossum Tab:
+   <img width="270" height="510" alt="image" src="https://github.com/user-attachments/assets/b28f51f8-d9b7-4b61-b07a-fa29960f7be4" />
