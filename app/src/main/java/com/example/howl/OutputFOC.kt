@@ -497,7 +497,7 @@ class FOCOutput : BaseOutput(), ConnectableOutput {
         }
     }
 
-    fun resetSettings() {
+    override fun resetSettings() {
         val current = _settings.value
         val defaults = FocSettings()
         // Reset general settings while preserving IP address and calibration values
