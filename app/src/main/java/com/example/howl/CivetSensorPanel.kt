@@ -63,7 +63,6 @@ fun CivetSensorPanel(
     val connectionState by civetViewModel.connectionStatus.collectAsStateWithLifecycle()
     val pressureRange by civetViewModel.pressureRange.collectAsStateWithLifecycle()
     val powerRange by civetViewModel.powerRange.collectAsStateWithLifecycle()
-    val smoothingTime by civetViewModel.smoothingTime.collectAsStateWithLifecycle()
     val screenRotation by civetViewModel.screenRotation.collectAsStateWithLifecycle()
     val powerMappingEnabled by civetViewModel.powerMappingEnabled.collectAsStateWithLifecycle()
     val batteryLevel by civetViewModel.batteryLevel.collectAsStateWithLifecycle()
@@ -75,12 +74,15 @@ fun CivetSensorPanel(
     val opossumMappingEnabled by civetViewModel.opossumMappingEnabled.collectAsStateWithLifecycle()
     val opossumIntensityRange by civetViewModel.opossumIntensityRange.collectAsStateWithLifecycle()
     val opossumMapped by civetViewModel.opossumMapped.collectAsStateWithLifecycle()
+    val powerIntensityType by civetViewModel.powerIntensityType.collectAsStateWithLifecycle()
     
     var statusText by remember { mutableStateOf("Disconnected") }
     var mappedPower by remember { mutableStateOf(0) }
+    var isConnected by remember { mutableStateOf(false) }
     
     LaunchedEffect(connectionState, batteryLevel) {
         statusText = civetViewModel.getStatusText()
+        isConnected = connectionState == CivetSensorConnectionStatus.Connected
     }
     
     LaunchedEffect(displayPressure, pressureRange, powerRange, opossumIntensityRange, opossumMappingEnabled) {
@@ -239,6 +241,73 @@ fun CivetSensorPanel(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
+                )
+            }
+        }
+        
+        // Power intensity type selector card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Power Intensity Type",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { civetViewModel.setPowerIntensityType(PowerIntensityType.TriggerMode) },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isConnected
+                    ) {
+                        Text(
+                            text = "Trigger Mode",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (powerIntensityType == PowerIntensityType.TriggerMode) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    OutlinedButton(
+                        onClick = { civetViewModel.setPowerIntensityType(PowerIntensityType.MappingMode) },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isConnected
+                    ) {
+                        Text(
+                            text = "Mapping Mode",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (powerIntensityType == PowerIntensityType.MappingMode) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                Text(
+                    text = when (powerIntensityType) {
+                        PowerIntensityType.TriggerMode -> "Only trigger output changes at pressure extremes"
+                        PowerIntensityType.MappingMode -> "Map pressure values proportionally to output intensity"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -598,45 +667,6 @@ fun CivetSensorPanel(
                         text = "60",
                         modifier = Modifier.widthIn(45.dp),
                         style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
-        
-        // Smoothing time slider
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Smoothing Time (s)",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = String.format("%.1f s", smoothingTime),
-                        modifier = Modifier.widthIn(45.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    Slider(
-                        modifier = Modifier.weight(1f),
-                        value = (smoothingTime * 10f).roundToInt().toFloat(),
-                        onValueChange = { civetViewModel.setSmoothingTime(it / 10f) },
-                        onValueChangeFinished = { },
-                        valueRange = 0f..600f,
-                        steps = 599
                     )
                 }
             }

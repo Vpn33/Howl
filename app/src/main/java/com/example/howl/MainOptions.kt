@@ -118,7 +118,7 @@ object MainOptions {
         val diff = newPower - current
         val maxJump = Prefs.powerSmoothMaxJump.value
         val smoothEnabled = if (diff >= 0) Prefs.powerSmoothUpEnabled.value else Prefs.powerSmoothDownEnabled.value
-        if (abs(diff) <= maxJump || !smoothEnabled) {
+        if (abs(diff) < maxJump || !smoothEnabled) {
             cancelSmooth(channel)
             updateChannelPower(channel, newPower)
             return

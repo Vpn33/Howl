@@ -39,6 +39,11 @@ enum class CivetSensorConnectionStatus {
     Error
 }
 
+enum class PowerIntensityType {
+    TriggerMode,  // 触发模式：只有达到最大值/最小值时才改变输出
+    MappingMode   // 映射模式：压力值按比例映射到输出强度
+}
+
 class CivetSensorViewModel : ViewModel() {
 
     private val CIVET_DEVICE_NAME = "47L124000"
@@ -60,8 +65,6 @@ class CivetSensorViewModel : ViewModel() {
             list.drop(1) + pressure
         }
     }
-
-    private val smoothingAlpha = 0.3f
 
     private val _pressureRange = MutableStateFlow(0f..99f)
     val pressureRange: StateFlow<ClosedFloatingPointRange<Float>> = _pressureRange.asStateFlow()
@@ -89,10 +92,6 @@ class CivetSensorViewModel : ViewModel() {
 
     private val _denialToZero = MutableStateFlow(false)
     val denialToZero: StateFlow<Boolean> = _denialToZero.asStateFlow()
-
-    private val _smoothingTime = MutableStateFlow(1.0f)
-    val smoothingTime: StateFlow<Float> = _smoothingTime.asStateFlow()
-
     private val _screenRotation = MutableStateFlow(1)
     val screenRotation: StateFlow<Int> = _screenRotation.asStateFlow()
 
@@ -117,6 +116,41 @@ class CivetSensorViewModel : ViewModel() {
     private var denialsTriggered = false
     private var cooldownJob: Job? = null
     private var isCoolingDown = false
+
+    private val _powerIntensityType = MutableStateFlow(PowerIntensityType.TriggerMode)
+    val powerIntensityType: StateFlow<PowerIntensityType> = _powerIntensityType.asStateFlow()
+
+    // 存储触发前的原始强度值（仅在 Trigger Mode 中使用）
+    private var triggeredStoredPowerA = 0
+    private var triggeredStoredPowerB = 0
+    private var triggeredStoredOpossumA = 0
+    private var triggeredStoredOpossumB = 0
+
+    fun setPowerIntensityType(type: PowerIntensityType) {
+        _powerIntensityType.value = type
+        if (type == PowerIntensityType.TriggerMode) {
+            // 切换到触发模式时，禁用映射功能并保存当前强度
+            _powerMappingEnabled.value = false
+            _opossumMappingEnabled.value = false
+            stopCooldown()
+            
+            // 保存当前的 Power 和 Opossum 强度值
+            triggeredStoredPowerA = basePowerA
+            triggeredStoredPowerB = basePowerB
+            triggeredStoredOpossumA = opossumBaseA
+            triggeredStoredOpossumB = opossumBaseB
+        } else {
+            // 切换回映射模式时，重置存储的值
+            triggeredStoredPowerA = 0
+            triggeredStoredPowerB = 0
+            triggeredStoredOpossumA = 0
+            triggeredStoredOpossumB = 0
+            
+            // 恢复映射功能
+            _powerMappingEnabled.value = true
+            _opossumMappingEnabled.value = true
+        }
+    }
 
     private var bluetoothGatt: BluetoothGatt? = null
     private var bluetoothDevice: BluetoothDevice? = null
@@ -144,6 +178,34 @@ class CivetSensorViewModel : ViewModel() {
 
     fun initialize(context: Context) {
         this.contextRef = context
+        
+        // 初始化 basePowerA/B（在触发模式下，用户调整后会自动切换到 Mapping Mode）
+        MainOptions.getChannelPower(0).let { 
+            basePowerA = it
+            _targetPowerA.update { it }
+            _currentAppliedPowerA.update { it }
+        }
+        MainOptions.getChannelPower(1).let { 
+            basePowerB = it
+            _targetPowerB.update { it }
+            _currentAppliedPowerB.update { it }
+        }
+    }
+
+    fun setChannelAPower(power: Int) {
+        // 当用户在触发模式下调整 channel power 时，同步更新 basePowerA/B
+        basePowerA = power
+        _targetPowerA.update { power }
+        _currentAppliedPowerA.update { power }
+        MainOptions.setChannelPower(0, power)
+    }
+
+    fun setChannelBPower(power: Int) {
+        // 当用户在触发模式下调整 channel power 时，同步更新 basePowerB/B
+        basePowerB = power
+        _targetPowerB.update { power }
+        _currentAppliedPowerB.update { power }
+        MainOptions.setChannelPower(1, power)
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -155,7 +217,6 @@ class CivetSensorViewModel : ViewModel() {
     @SuppressLint("MissingPermission")
     fun disconnect() {
         stopPressureReporting()
-        stopSmoothingLoop()
         _targetPowerA.update { 0 }
         _targetPowerB.update { 0 }
         _currentAppliedPowerA.update { 0 }
@@ -461,12 +522,7 @@ class CivetSensorViewModel : ViewModel() {
                 if (data.size >= 10) {
                     val pressure = parsePressureValue(data)
                     _rawPressure.update { pressure }
-                    _displayPressure.update { current ->
-                        val smoothed = smoothingAlpha * pressure + (1f - smoothingAlpha) * current
-                        val result = if (kotlin.math.abs(smoothed) < 0.05f) 0f else smoothed
-                        addPressureToHistory(result)
-                        result
-                    }
+                    _displayPressure.update { pressure }
                     applyMappedPower()
                 }
             }
@@ -581,10 +637,6 @@ class CivetSensorViewModel : ViewModel() {
         _opossumIntensityRange.value = range
     }
 
-    fun setSmoothingTime(time: Float) {
-        _smoothingTime.value = time
-    }
-
     fun setDenialToZero(enabled: Boolean) {
         _denialToZero.value = enabled
     }
@@ -626,7 +678,8 @@ class CivetSensorViewModel : ViewModel() {
         val opossumDelta = if (maxPressure > 0f) {
             val intensityRange = _opossumIntensityRange.value
             val t = (pressure / maxPressure).coerceIn(0f, 1f)
-            val mapped = intensityRange.start + t * (intensityRange.endInclusive - intensityRange.start)
+            val mapped =
+                intensityRange.start + t * (intensityRange.endInclusive - intensityRange.start)
             mapped.coerceIn(0f, 200f).toInt()
         } else 0
         opossumBaseA = (a - opossumDelta).coerceIn(0, 200)
@@ -647,7 +700,6 @@ class CivetSensorViewModel : ViewModel() {
             _currentAppliedPowerB.update { basePowerB }
             MainOptions.setChannelPower(0, basePowerA)
             MainOptions.setChannelPower(1, basePowerB)
-            stopSmoothingLoop()
             stopCooldown()
         }
     }
@@ -656,12 +708,7 @@ class CivetSensorViewModel : ViewModel() {
         val coerced = pressure.coerceIn(0f, 99.9f)
         _testPressure.value = coerced
         _rawPressure.update { coerced }
-        _displayPressure.update {
-            val smoothed = smoothingAlpha * coerced + (1f - smoothingAlpha) * it
-            val result = if (kotlin.math.abs(smoothed) < 0.05f) 0f else smoothed
-            addPressureToHistory(result)
-            result
-        }
+        _displayPressure.update { coerced }
         applyMappedPower()
     }
 
@@ -679,7 +726,12 @@ class CivetSensorViewModel : ViewModel() {
         stopCooldown()
     }
 
-    private fun startCooldown() {
+    private fun incrementDenialCount() {
+        _denialsCount.update { it + 1 }
+        HLog.d("CivetSensor", "Denial count: ${_denialsCount.value}")
+    }
+
+    private fun startCooldown(pressure: Float = 0f, pRange: ClosedFloatingPointRange<Float>? = null) {
         stopCooldown()
         val cooldownSeconds = _cooldownTime.value
         if (cooldownSeconds <= 0f) return
@@ -698,8 +750,29 @@ class CivetSensorViewModel : ViewModel() {
             isCoolingDown = false
             _cooldownRemaining.value = 0
             cooldownJob = null
-            HLog.d("CivetSensor", "Cooldown finished, reapplying mapped power")
-            applyMappedPower()
+            HLog.d("CivetSensor", "Cooldown finished, checking pressure...")
+            
+            // 冷却结束后，检查压力是否已经恢复到最小值以下
+            val currentPressure = _rawPressure.value
+            val pRange = _pressureRange.value
+            val minPressure = pRange.start
+            val maxPressure = pRange.endInclusive
+            
+            if (currentPressure <= maxPressure || currentPressure <= minPressure) {
+                HLog.d("CivetSensor", "Trigger mode: RECOVERED at pressure=$currentPressure, count=${_denialsCount.value}")
+                
+                // 恢复到触发前存储的 Power 强度
+                MainOptions.setChannelPower(0, triggeredStoredPowerA)
+                MainOptions.setChannelPower(1, triggeredStoredPowerB)
+                _currentAppliedPowerA.update { triggeredStoredPowerA }
+                _currentAppliedPowerB.update { triggeredStoredPowerB }
+                
+                // 恢复到触发前存储的 Opossum 强度
+                opossumViewModel?.let { vm ->
+                    vm.setChannels(triggeredStoredOpossumA, triggeredStoredOpossumB)
+                }
+                _opossumMapped.update { 0 }
+            }
         }
     }
 
@@ -708,6 +781,7 @@ class CivetSensorViewModel : ViewModel() {
         cooldownJob = null
         isCoolingDown = false
         _cooldownRemaining.value = 0
+        denialsTriggered = false
     }
 
     fun togglePowerMapping() {
@@ -728,7 +802,6 @@ class CivetSensorViewModel : ViewModel() {
         return delta.roundToInt().coerceIn(0, 200)
     }
 
-    private var smoothingJob: Job? = null
     private val _currentAppliedPowerA = MutableStateFlow(0)
     private val _currentAppliedPowerB = MutableStateFlow(0)
     private val _targetPowerA = MutableStateFlow(0)
@@ -740,76 +813,86 @@ class CivetSensorViewModel : ViewModel() {
 
     private fun isPowerSyncEnabled(): Boolean = Prefs.powerSyncEnabled.value
 
-    private fun startSmoothingLoop() {
-        stopSmoothingLoop()
-        smoothingJob = viewModelScope.launch {
-            val stepMs = 50L
-            while (isActive) {
-                val smoothTime = _smoothingTime.value.coerceAtLeast(0.05f)
-                val totalSteps = (smoothTime * 1000f / stepMs).coerceAtLeast(1f)
-                val fraction = 1f / totalSteps
-
-                // Channel A
-                val currentA = _currentAppliedPowerA.value
-                val targetA = _targetPowerA.value
-                if (currentA != targetA) {
-                    val diffA = targetA - currentA
-                    stepAccumulatorA += diffA * fraction
-                    val stepA = stepAccumulatorA.toInt()
-                    if (stepA != 0) {
-                        stepAccumulatorA -= stepA
-                        var nextA = currentA + stepA
-                        if ((stepA > 0 && nextA > targetA) || (stepA < 0 && nextA < targetA)) {
-                            nextA = targetA
-                            stepAccumulatorA = 0f
-                        }
-                        _currentAppliedPowerA.update { nextA }
-                        MainOptions.setChannelPower(0, nextA)
-                    }
-                }
-
-                // Channel B
-                val currentB = _currentAppliedPowerB.value
-                val targetB = _targetPowerB.value
-                if (currentB != targetB) {
-                    val diffB = targetB - currentB
-                    stepAccumulatorB += diffB * fraction
-                    val stepB = stepAccumulatorB.toInt()
-                    if (stepB != 0) {
-                        stepAccumulatorB -= stepB
-                        var nextB = currentB + stepB
-                        if ((stepB > 0 && nextB > targetB) || (stepB < 0 && nextB < targetB)) {
-                            nextB = targetB
-                            stepAccumulatorB = 0f
-                        }
-                        _currentAppliedPowerB.update { nextB }
-                        MainOptions.setChannelPower(1, nextB)
-                    }
-                }
-
-                delay(stepMs)
-            }
-        }
-    }
-
-    private fun stopSmoothingLoop() {
-        smoothingJob?.cancel()
-        smoothingJob = null
-    }
-
     fun applyMappedPower() {
+        val powerIntensityType = _powerIntensityType.value
         val opossumMapping = _opossumMappingEnabled.value
         val powerMapping = _powerMappingEnabled.value
-
-        if (!powerMapping && !opossumMapping) {
-            stopSmoothingLoop()
-            stopCooldown()
-            return
-        }
 
         val pressure = _rawPressure.value
         val pRange = _pressureRange.value
         val maxPressure = pRange.endInclusive
+
+        // 触发模式：只处理最大值和最小值的触发逻辑
+        if (powerIntensityType == PowerIntensityType.TriggerMode) {
+            val pressure = _rawPressure.value
+            val pRange = _pressureRange.value
+            val maxPressure = pRange.endInclusive
+            
+            // 压力达到最大值，触发 denial（停止输出）
+            if (pressure >= maxPressure && !isCoolingDown) {
+                HLog.d("CivetSensor", "Trigger mode: DENIAL TRIGGERED at pressure=$pressure, max=${maxPressure}")
+                
+                // 在调用 startCooldown 之前获取当前的 MainOptions power 值
+                val currentPowerA = MainOptions.getChannelPower(0)
+                val currentPowerB = MainOptions.getChannelPower(1)
+                
+                triggeredStoredPowerA = currentPowerA
+                triggeredStoredPowerB = currentPowerB
+                triggeredStoredOpossumA = opossumBaseA
+                triggeredStoredOpossumB = opossumBaseB
+                HLog.d("CivetSensor", "Trigger mode: Stored values - Power(A=$triggeredStoredPowerA, B=$triggeredStoredPowerB), Opossum(A=$triggeredStoredOpossumA, B=$triggeredStoredOpossumB)")
+                
+                // 停止 Power 输出
+                MainOptions.setChannelPower(0, 0)
+                MainOptions.setChannelPower(1, 0)
+                _currentAppliedPowerA.update { 0 }
+                _currentAppliedPowerB.update { 0 }
+                
+                // 停止 Opossum 输出
+                opossumViewModel?.let { vm ->
+                    vm.setChannels(0, 0)
+                }
+                _opossumMapped.update { 0 }
+                
+                // 增加 denial 计数并启动冷却
+                incrementDenialCount()
+                HLog.d("CivetSensor", "Trigger mode: Cooldown starting - count=${_denialsCount.value}, time=${_cooldownTime.value}s")
+                startCooldown(pressure, pRange)
+                return
+            }
+            
+            // 冷却期间，保持停止状态（不做任何操作）
+            if (isCoolingDown) {
+                HLog.d("CivetSensor", "Trigger mode: COOLING DOWN ${_cooldownRemaining.value}s, count=${_denialsCount.value}")
+                return
+            }
+            
+            // 冷却完成且压力恢复到最小值以下，恢复输出
+            if (pressure <= pRange.start) {
+                HLog.d("CivetSensor", "Trigger mode: RECOVERED at pressure=$pressure, min=${pRange.start}, count=${_denialsCount.value}")
+                
+                // 恢复到触发前存储的 Power 强度
+                MainOptions.setChannelPower(0, triggeredStoredPowerA)
+                MainOptions.setChannelPower(1, triggeredStoredPowerB)
+                _currentAppliedPowerA.update { triggeredStoredPowerA }
+                _currentAppliedPowerB.update { triggeredStoredPowerB }
+                
+                // 恢复到触发前存储的 Opossum 强度
+                opossumViewModel?.let { vm ->
+                    vm.setChannels(triggeredStoredOpossumA, triggeredStoredOpossumB)
+                }
+                _opossumMapped.update { 0 }
+            }
+            
+            return
+        }
+
+        // 映射模式：原有的逻辑
+        if (!powerMapping && !opossumMapping) {
+            stopCooldown()
+            return
+        }
+
 
         // Calculate mapped delta for Opossum (to be added to base)
         val opossumDelta = if (opossumMapping) {
@@ -837,7 +920,7 @@ class CivetSensorViewModel : ViewModel() {
             if (denialsLimit == 0 || currentCount < denialsLimit) {
                 val denialPowerA = if (_denialToZero.value) 0 else basePowerA
                 val denialPowerB = if (_denialToZero.value) 0 else
-                    if (isPowerSyncEnabled()) basePowerA else basePowerB
+                if (isPowerSyncEnabled()) basePowerA else basePowerB
 
                 if (powerMapping) {
                     _targetPowerA.update { denialPowerA }
@@ -859,33 +942,16 @@ class CivetSensorViewModel : ViewModel() {
 
                 _denialsCount.update { it + 1 }
                 denialsTriggered = true
-                startCooldown()
+                startCooldown(pressure, pRange)
                 HLog.d(
                     "CivetSensor",
                     "Denial triggered: count=${_denialsCount.value}, limit=$denialsLimit, cooldown=${_cooldownTime.value}s"
                 )
                 return
-            } else {
-                if (powerMapping) {
-                    _powerMappingEnabled.value = false
-                    _targetPowerA.update { basePowerA }
-                    _targetPowerB.update { basePowerB }
-                    _currentAppliedPowerA.update { basePowerA }
-                    _currentAppliedPowerB.update { basePowerB }
-                    MainOptions.setChannelPower(0, basePowerA)
-                    MainOptions.setChannelPower(1, basePowerB)
-                    stopSmoothingLoop()
-                }
-                if (opossumMapping) {
-                    _opossumMappingEnabled.value = false
-                    opossumViewModel?.let { vm ->
-                        vm.setChannels(opossumBaseA, opossumBaseB)
-                    }
-                    _opossumMapped.update { 0 }
-                }
-                HLog.d("CivetSensor", "Denials limit reached, mapping stopped")
-                return
             }
+        } else if (denialsTriggered && isCoolingDown) {
+            // Cooling down: do nothing, waiting for cooldown to finish
+            return
         } else if (pressure < maxPressure && !isCoolingDown) {
             denialsTriggered = false
         }
@@ -914,9 +980,6 @@ class CivetSensorViewModel : ViewModel() {
         if (powerMapping) {
             _targetPowerA.update { powerTargetA }
             _targetPowerB.update { powerTargetB }
-            if (smoothingJob?.isActive != true) {
-                startSmoothingLoop()
-            }
         }
 
         if (opossumMapping) {
@@ -946,7 +1009,6 @@ class CivetSensorViewModel : ViewModel() {
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     override fun onCleared() {
         super.onCleared()
-        stopSmoothingLoop()
         stopCooldown()
         stopPressureReporting()
         bluetoothGatt?.disconnect()
