@@ -82,6 +82,9 @@ class CivetSensorViewModel : ViewModel() {
     private val _opossumMappingEnabled = MutableStateFlow(false)
     val opossumMappingEnabled: StateFlow<Boolean> = _opossumMappingEnabled.asStateFlow()
 
+    private val _autoApplyOnConnect = MutableStateFlow(false)
+    val autoApplyOnConnect: StateFlow<Boolean> = _autoApplyOnConnect.asStateFlow()
+
     private var opossumViewModel: OpossumViewModel? = null
 
     private val _opossumMapped = MutableStateFlow(0)
@@ -346,6 +349,12 @@ class CivetSensorViewModel : ViewModel() {
 
             subscribeToNotifyCharacteristic(gatt)
             subscribeToBatteryCharacteristic(gatt)
+
+            // 如果 autoApplyOnConnect 为 true，连接时自动应用 mapping 设置
+            if (_autoApplyOnConnect.value) {
+                applyPowerMapping()
+                applyOpossumMapping()
+            }
 
             Handler(Looper.getMainLooper()).postDelayed({
                 if (_connectionStatus.value == CivetSensorConnectionStatus.Connected) {
@@ -648,15 +657,18 @@ class CivetSensorViewModel : ViewModel() {
     fun setOpossumMappingEnabled(enabled: Boolean) {
         _opossumMappingEnabled.value = enabled
         if (enabled) {
-            opossumViewModel?.let { vm ->
-                opossumBaseA = vm.channelAAmp.value
-                opossumBaseB = vm.channelBAmp.value
-                vm.onManualChannelChange = { a, b ->
-                    updateOpossumBaseFromManual(a, b)
+            // 只有在未连接或 autoApplyOnConnect 为 true 时才立即应用
+            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _autoApplyOnConnect.value) {
+                opossumViewModel?.let { vm ->
+                    opossumBaseA = vm.channelAAmp.value
+                    opossumBaseB = vm.channelBAmp.value
+                    vm.onManualChannelChange = { a, b ->
+                        updateOpossumBaseFromManual(a, b)
+                    }
                 }
+                resetDenialsCount()
+                applyMappedPower()
             }
-            resetDenialsCount()
-            applyMappedPower()
         } else {
             opossumViewModel?.let { vm ->
                 vm.onManualChannelChange = null
@@ -666,6 +678,10 @@ class CivetSensorViewModel : ViewModel() {
             }
             _opossumMapped.update { 0 }
         }
+    }
+
+    fun setAutoApplyOnConnect(enabled: Boolean) {
+        _autoApplyOnConnect.value = enabled
     }
 
     /**
@@ -689,10 +705,13 @@ class CivetSensorViewModel : ViewModel() {
     fun setPowerMappingEnabled(enabled: Boolean) {
         _powerMappingEnabled.value = enabled
         if (enabled) {
-            basePowerA = MainOptions.getChannelPower(0)
-            basePowerB = if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
-            resetDenialsCount()
-            applyMappedPower()
+            // 只有在未连接或 autoApplyOnConnect 为 true 时才立即应用
+            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _autoApplyOnConnect.value) {
+                basePowerA = MainOptions.getChannelPower(0)
+                basePowerB = if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
+                resetDenialsCount()
+                applyMappedPower()
+            }
         } else {
             _targetPowerA.update { basePowerA }
             _targetPowerB.update { basePowerB }
@@ -814,6 +833,10 @@ class CivetSensorViewModel : ViewModel() {
     private fun isPowerSyncEnabled(): Boolean = Prefs.powerSyncEnabled.value
 
     fun applyMappedPower() {
+        // 如果 autoApplyOnConnect 为 true 再进行处理
+        if (!_autoApplyOnConnect.value) {
+            return
+        }
         val powerIntensityType = _powerIntensityType.value
         val opossumMapping = _opossumMappingEnabled.value
         val powerMapping = _powerMappingEnabled.value
@@ -987,6 +1010,35 @@ class CivetSensorViewModel : ViewModel() {
                 vm.setChannels(opossumTargetA, opossumTargetB)
             }
             _opossumMapped.update { opossumDelta }
+        }
+    }
+
+    /**
+     * 连接时应用 Power Mapping 设置
+     */
+    private fun applyPowerMapping() {
+        if (_powerMappingEnabled.value) {
+            basePowerA = MainOptions.getChannelPower(0)
+            basePowerB = if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
+            resetDenialsCount()
+            applyMappedPower()
+        }
+    }
+
+    /**
+     * 连接时应用 Opossum Mapping 设置
+     */
+    private fun applyOpossumMapping() {
+        if (_opossumMappingEnabled.value) {
+            opossumViewModel?.let { vm ->
+                opossumBaseA = vm.channelAAmp.value
+                opossumBaseB = vm.channelBAmp.value
+                vm.onManualChannelChange = { a, b ->
+                    updateOpossumBaseFromManual(a, b)
+                }
+            }
+            resetDenialsCount()
+            applyMappedPower()
         }
     }
 

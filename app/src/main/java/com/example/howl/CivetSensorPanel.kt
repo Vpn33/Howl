@@ -75,6 +75,7 @@ fun CivetSensorPanel(
     val opossumIntensityRange by civetViewModel.opossumIntensityRange.collectAsStateWithLifecycle()
     val opossumMapped by civetViewModel.opossumMapped.collectAsStateWithLifecycle()
     val powerIntensityType by civetViewModel.powerIntensityType.collectAsStateWithLifecycle()
+    val autoApplyOnConnect by civetViewModel.autoApplyOnConnect.collectAsStateWithLifecycle()
     
     var statusText by remember { mutableStateOf("Disconnected") }
     var mappedPower by remember { mutableStateOf(0) }
@@ -202,7 +203,8 @@ fun CivetSensorPanel(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // Zero and Flip Screen buttons
                         OutlinedButton(
                             onClick = { civetViewModel.resetBaseline() }
                         ) {
@@ -212,6 +214,21 @@ fun CivetSensorPanel(
                             onClick = { civetViewModel.flipScreenRotation() }
                         ) {
                             Text(text = "Flip Screen")
+                        }
+                        
+                        // Civet Sensor Enabled
+                        OutlinedButton(
+                            onClick = { civetViewModel.setAutoApplyOnConnect(!autoApplyOnConnect) },
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                painter = if (autoApplyOnConnect) 
+                                    painterResource(R.drawable.pause) else
+                                    painterResource(R.drawable.play),
+                                contentDescription = "Civet Sensor Enabled",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.height(16.dp)
+                            )
                         }
                     }
                 }
