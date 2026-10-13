@@ -93,7 +93,7 @@ class CivetSensorViewModel : ViewModel() {
     private var opossumBaseA = 0
     private var opossumBaseB = 0
 
-    private val _denialToZero = MutableStateFlow(false)
+    private val _denialToZero = MutableStateFlow(true)
     val denialToZero: StateFlow<Boolean> = _denialToZero.asStateFlow()
     private val _screenRotation = MutableStateFlow(1)
     val screenRotation: StateFlow<Int> = _screenRotation.asStateFlow()
