@@ -77,6 +77,10 @@ fun CivetSensorPanel(
     val powerIntensityType by civetViewModel.powerIntensityType.collectAsStateWithLifecycle()
     val autoApplyOnConnect by civetViewModel.autoApplyOnConnect.collectAsStateWithLifecycle()
     
+    val isTriggerMode = remember(powerIntensityType) {
+        powerIntensityType == PowerIntensityType.TriggerMode
+    }
+    
     var statusText by remember { mutableStateOf("Disconnected") }
     var mappedPower by remember { mutableStateOf(0) }
     var isConnected by remember { mutableStateOf(false) }
@@ -418,143 +422,145 @@ fun CivetSensorPanel(
             }
         }
         
-        // Power intensity range slider
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        // Power intensity range slider - Only show in Mapping Mode
+        if (!isTriggerMode) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                )
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "Power Intensity Range",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (powerMappingEnabled) "ON" else "OFF",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (powerMappingEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Power Intensity Range",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Switch(
-                            checked = powerMappingEnabled,
-                            onCheckedChange = { civetViewModel.setPowerMappingEnabled(it) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (powerMappingEnabled) "ON" else "OFF",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (powerMappingEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Switch(
+                                checked = powerMappingEnabled,
+                                onCheckedChange = { civetViewModel.setPowerMappingEnabled(it) }
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = String.format("%.0f", powerRange.start),
+                            modifier = Modifier.widthIn(45.dp),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = powerRange,
+                            steps = 198,
+                            valueRange = 0f..200f,
+                            onValueChange = { newRange ->
+                                val minSeparation = 1f
+                                if (newRange.endInclusive - newRange.start >= minSeparation) {
+                                    civetViewModel.setPowerRange(newRange)
+                                }
+                            },
+                            onValueChangeFinished = { }
+                        )
+                        Text(
+                            text = String.format("%.0f", powerRange.endInclusive),
+                            modifier = Modifier.widthIn(45.dp),
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = String.format("%.0f", powerRange.start),
-                        modifier = Modifier.widthIn(45.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    RangeSlider(
-                        modifier = Modifier.weight(1f),
-                        value = powerRange,
-                        steps = 198,
-                        valueRange = 0f..200f,
-                        onValueChange = { newRange ->
-                            val minSeparation = 1f
-                            if (newRange.endInclusive - newRange.start >= minSeparation) {
-                                civetViewModel.setPowerRange(newRange)
-                            }
-                        },
-                        onValueChangeFinished = { }
-                    )
-                    Text(
-                        text = String.format("%.0f", powerRange.endInclusive),
-                        modifier = Modifier.widthIn(45.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
             }
-        }
-        
-        // Opossum intensity range slider
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            // Opossum intensity range slider
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                )
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "Opossum Intensity Range",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (opossumMappingEnabled) "ON" else "OFF",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (opossumMappingEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Opossum Intensity Range",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.tertiary
                         )
-                        Switch(
-                            checked = opossumMappingEnabled,
-                            onCheckedChange = { civetViewModel.setOpossumMappingEnabled(it) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = if (opossumMappingEnabled) "ON" else "OFF",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (opossumMappingEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Switch(
+                                checked = opossumMappingEnabled,
+                                onCheckedChange = { civetViewModel.setOpossumMappingEnabled(it) }
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = String.format("%.0f", opossumIntensityRange.start),
+                            modifier = Modifier.widthIn(45.dp),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        RangeSlider(
+                            modifier = Modifier.weight(1f),
+                            value = opossumIntensityRange,
+                            steps = 198,
+                            valueRange = 0f..200f,
+                            onValueChange = { newRange ->
+                                val minSeparation = 1f
+                                if (newRange.endInclusive - newRange.start >= minSeparation) {
+                                    civetViewModel.setOpossumIntensityRange(newRange)
+                                }
+                            },
+                            onValueChangeFinished = { }
+                        )
+                        Text(
+                            text = String.format("%.0f", opossumIntensityRange.endInclusive),
+                            modifier = Modifier.widthIn(45.dp),
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = String.format("%.0f", opossumIntensityRange.start),
-                        modifier = Modifier.widthIn(45.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    RangeSlider(
-                        modifier = Modifier.weight(1f),
-                        value = opossumIntensityRange,
-                        steps = 198,
-                        valueRange = 0f..200f,
-                        onValueChange = { newRange ->
-                            val minSeparation = 1f
-                            if (newRange.endInclusive - newRange.start >= minSeparation) {
-                                civetViewModel.setOpossumIntensityRange(newRange)
-                            }
-                        },
-                        onValueChangeFinished = { }
-                    )
-                    Text(
-                        text = String.format("%.0f", opossumIntensityRange.endInclusive),
-                        modifier = Modifier.widthIn(45.dp),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
             }
         }
+
 
         // Denials and cooldown
         Card(

@@ -133,10 +133,8 @@ class CivetSensorViewModel : ViewModel() {
         _powerIntensityType.value = type
         if (type == PowerIntensityType.TriggerMode) {
             // 切换到触发模式时，禁用映射功能并保存当前强度
-            _powerMappingEnabled.value = false
-            _opossumMappingEnabled.value = false
             stopCooldown()
-            
+
             // 保存当前的 Power 和 Opossum 强度值
             triggeredStoredPowerA = basePowerA
             triggeredStoredPowerB = basePowerB
@@ -148,11 +146,17 @@ class CivetSensorViewModel : ViewModel() {
             triggeredStoredPowerB = 0
             triggeredStoredOpossumA = 0
             triggeredStoredOpossumB = 0
-            
-            // 恢复映射功能
-            _powerMappingEnabled.value = true
-            _opossumMappingEnabled.value = true
+
+
         }
+        // 如果开启了要触发一次
+        if (_autoApplyOnConnect.value) {
+            applyMappedPower();
+        }
+    }
+
+    fun getIsTriggerMode(): Boolean {
+        return _powerIntensityType.value == PowerIntensityType.TriggerMode
     }
 
     private var bluetoothGatt: BluetoothGatt? = null
@@ -181,14 +185,14 @@ class CivetSensorViewModel : ViewModel() {
 
     fun initialize(context: Context) {
         this.contextRef = context
-        
+
         // 初始化 basePowerA/B（在触发模式下，用户调整后会自动切换到 Mapping Mode）
-        MainOptions.getChannelPower(0).let { 
+        MainOptions.getChannelPower(0).let {
             basePowerA = it
             _targetPowerA.update { it }
             _currentAppliedPowerA.update { it }
         }
-        MainOptions.getChannelPower(1).let { 
+        MainOptions.getChannelPower(1).let {
             basePowerB = it
             _targetPowerB.update { it }
             _currentAppliedPowerB.update { it }
@@ -708,7 +712,8 @@ class CivetSensorViewModel : ViewModel() {
             // 只有在未连接或 autoApplyOnConnect 为 true 时才立即应用
             if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _autoApplyOnConnect.value) {
                 basePowerA = MainOptions.getChannelPower(0)
-                basePowerB = if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
+                basePowerB =
+                    if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
                 resetDenialsCount()
                 applyMappedPower()
             }
@@ -750,7 +755,10 @@ class CivetSensorViewModel : ViewModel() {
         HLog.d("CivetSensor", "Denial count: ${_denialsCount.value}")
     }
 
-    private fun startCooldown(pressure: Float = 0f, pRange: ClosedFloatingPointRange<Float>? = null) {
+    private fun startCooldown(
+        pressure: Float = 0f,
+        pRange: ClosedFloatingPointRange<Float>? = null
+    ) {
         stopCooldown()
         val cooldownSeconds = _cooldownTime.value
         if (cooldownSeconds <= 0f) return
@@ -770,22 +778,25 @@ class CivetSensorViewModel : ViewModel() {
             _cooldownRemaining.value = 0
             cooldownJob = null
             HLog.d("CivetSensor", "Cooldown finished, checking pressure...")
-            
+
             // 冷却结束后，检查压力是否已经恢复到最小值以下
             val currentPressure = _rawPressure.value
             val pRange = _pressureRange.value
             val minPressure = pRange.start
             val maxPressure = pRange.endInclusive
-            
+
             if (currentPressure <= maxPressure || currentPressure <= minPressure) {
-                HLog.d("CivetSensor", "Trigger mode: RECOVERED at pressure=$currentPressure, count=${_denialsCount.value}")
-                
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: RECOVERED at pressure=$currentPressure, count=${_denialsCount.value}"
+                )
+
                 // 恢复到触发前存储的 Power 强度
                 MainOptions.setChannelPower(0, triggeredStoredPowerA)
                 MainOptions.setChannelPower(1, triggeredStoredPowerB)
                 _currentAppliedPowerA.update { triggeredStoredPowerA }
                 _currentAppliedPowerB.update { triggeredStoredPowerB }
-                
+
                 // 恢复到触发前存储的 Opossum 强度
                 opossumViewModel?.let { vm ->
                     vm.setChannels(triggeredStoredOpossumA, triggeredStoredOpossumB)
@@ -850,63 +861,77 @@ class CivetSensorViewModel : ViewModel() {
             val pressure = _rawPressure.value
             val pRange = _pressureRange.value
             val maxPressure = pRange.endInclusive
-            
+
             // 压力达到最大值，触发 denial（停止输出）
             if (pressure >= maxPressure && !isCoolingDown) {
-                HLog.d("CivetSensor", "Trigger mode: DENIAL TRIGGERED at pressure=$pressure, max=${maxPressure}")
-                
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: DENIAL TRIGGERED at pressure=$pressure, max=${maxPressure}"
+                )
+
                 // 在调用 startCooldown 之前获取当前的 MainOptions power 值
                 val currentPowerA = MainOptions.getChannelPower(0)
                 val currentPowerB = MainOptions.getChannelPower(1)
-                
+
                 triggeredStoredPowerA = currentPowerA
                 triggeredStoredPowerB = currentPowerB
                 triggeredStoredOpossumA = opossumBaseA
                 triggeredStoredOpossumB = opossumBaseB
-                HLog.d("CivetSensor", "Trigger mode: Stored values - Power(A=$triggeredStoredPowerA, B=$triggeredStoredPowerB), Opossum(A=$triggeredStoredOpossumA, B=$triggeredStoredOpossumB)")
-                
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: Stored values - Power(A=$triggeredStoredPowerA, B=$triggeredStoredPowerB), Opossum(A=$triggeredStoredOpossumA, B=$triggeredStoredOpossumB)"
+                )
+
                 // 停止 Power 输出
                 MainOptions.setChannelPower(0, 0)
                 MainOptions.setChannelPower(1, 0)
                 _currentAppliedPowerA.update { 0 }
                 _currentAppliedPowerB.update { 0 }
-                
+
                 // 停止 Opossum 输出
                 opossumViewModel?.let { vm ->
                     vm.setChannels(0, 0)
                 }
                 _opossumMapped.update { 0 }
-                
+
                 // 增加 denial 计数并启动冷却
                 incrementDenialCount()
-                HLog.d("CivetSensor", "Trigger mode: Cooldown starting - count=${_denialsCount.value}, time=${_cooldownTime.value}s")
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: Cooldown starting - count=${_denialsCount.value}, time=${_cooldownTime.value}s"
+                )
                 startCooldown(pressure, pRange)
                 return
             }
-            
+
             // 冷却期间，保持停止状态（不做任何操作）
             if (isCoolingDown) {
-                HLog.d("CivetSensor", "Trigger mode: COOLING DOWN ${_cooldownRemaining.value}s, count=${_denialsCount.value}")
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: COOLING DOWN ${_cooldownRemaining.value}s, count=${_denialsCount.value}"
+                )
                 return
             }
-            
+
             // 冷却完成且压力恢复到最小值以下，恢复输出
             if (pressure <= pRange.start) {
-                HLog.d("CivetSensor", "Trigger mode: RECOVERED at pressure=$pressure, min=${pRange.start}, count=${_denialsCount.value}")
-                
+                HLog.d(
+                    "CivetSensor",
+                    "Trigger mode: RECOVERED at pressure=$pressure, min=${pRange.start}, count=${_denialsCount.value}"
+                )
+
                 // 恢复到触发前存储的 Power 强度
                 MainOptions.setChannelPower(0, triggeredStoredPowerA)
                 MainOptions.setChannelPower(1, triggeredStoredPowerB)
                 _currentAppliedPowerA.update { triggeredStoredPowerA }
                 _currentAppliedPowerB.update { triggeredStoredPowerB }
-                
+
                 // 恢复到触发前存储的 Opossum 强度
                 opossumViewModel?.let { vm ->
                     vm.setChannels(triggeredStoredOpossumA, triggeredStoredOpossumB)
                 }
                 _opossumMapped.update { 0 }
             }
-            
             return
         }
 
@@ -933,7 +958,7 @@ class CivetSensorViewModel : ViewModel() {
         val powerDelta = if (powerMapping) calculateMappedPower() else 0
         val powerTargetA = (basePowerA + powerDelta).coerceIn(0, 200)
         val powerTargetB = if (isPowerSyncEnabled()) powerTargetA
-            else (basePowerB + powerDelta).coerceIn(0, 200)
+        else (basePowerB + powerDelta).coerceIn(0, 200)
 
         // Handle denial trigger (shared between both mappings)
         if (pressure >= maxPressure && !denialsTriggered) {
@@ -943,7 +968,7 @@ class CivetSensorViewModel : ViewModel() {
             if (denialsLimit == 0 || currentCount < denialsLimit) {
                 val denialPowerA = if (_denialToZero.value) 0 else basePowerA
                 val denialPowerB = if (_denialToZero.value) 0 else
-                if (isPowerSyncEnabled()) basePowerA else basePowerB
+                    if (isPowerSyncEnabled()) basePowerA else basePowerB
 
                 if (powerMapping) {
                     _targetPowerA.update { denialPowerA }
@@ -1003,6 +1028,10 @@ class CivetSensorViewModel : ViewModel() {
         if (powerMapping) {
             _targetPowerA.update { powerTargetA }
             _targetPowerB.update { powerTargetB }
+            _currentAppliedPowerA.update { powerTargetA }
+            _currentAppliedPowerB.update { powerTargetB }
+            MainOptions.setChannelPower(0, powerTargetA)
+            MainOptions.setChannelPower(1, powerTargetB)
         }
 
         if (opossumMapping) {
@@ -1011,6 +1040,7 @@ class CivetSensorViewModel : ViewModel() {
             }
             _opossumMapped.update { opossumDelta }
         }
+
     }
 
     /**
