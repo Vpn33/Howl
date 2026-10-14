@@ -2,18 +2,16 @@ package com.example.howl
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -75,7 +73,7 @@ fun CivetSensorPanel(
     val opossumIntensityRange by civetViewModel.opossumIntensityRange.collectAsStateWithLifecycle()
     val opossumMapped by civetViewModel.opossumMapped.collectAsStateWithLifecycle()
     val powerIntensityType by civetViewModel.powerIntensityType.collectAsStateWithLifecycle()
-    val autoApplyOnConnect by civetViewModel.autoApplyOnConnect.collectAsStateWithLifecycle()
+    val civetSensorEnable by civetViewModel.civetSensorEnable.collectAsStateWithLifecycle()
     
     val isTriggerMode = remember(powerIntensityType) {
         powerIntensityType == PowerIntensityType.TriggerMode
@@ -217,16 +215,16 @@ fun CivetSensorPanel(
                         OutlinedButton(
                             onClick = { civetViewModel.flipScreenRotation() }
                         ) {
-                            Text(text = "Flip Screen")
+                            Text(text = "Flip")
                         }
                         
                         // Civet Sensor Enabled
                         OutlinedButton(
-                            onClick = { civetViewModel.setAutoApplyOnConnect(!autoApplyOnConnect) },
+                            onClick = { civetViewModel.setAutoApplyOnConnect(!civetSensorEnable) },
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
                             Icon(
-                                painter = if (autoApplyOnConnect) 
+                                painter = if (civetSensorEnable)
                                     painterResource(R.drawable.pause) else
                                     painterResource(R.drawable.play),
                                 contentDescription = "Civet Sensor Enabled",
@@ -242,19 +240,20 @@ fun CivetSensorPanel(
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
-                Text(
-                    text = buildString {
-                        append("Mapped Power: $mappedPower")
-                        if (opossumMappingEnabled) {
-                            append("  ·  Opossum: $opossumMapped")
-                        }
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                if(powerIntensityType == PowerIntensityType.MappingMode){
+                    Text(
+                        text = buildString {
+                            append("Mapped Power: $mappedPower")
+                            if (opossumMappingEnabled) {
+                                append("  ·  Opossum: $opossumMapped")
+                            }
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 PressureChart(
                     pressureHistory = pressureHistory,

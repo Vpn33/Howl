@@ -22,13 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.UUID
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 enum class CivetSensorConnectionStatus {
@@ -82,8 +78,8 @@ class CivetSensorViewModel : ViewModel() {
     private val _opossumMappingEnabled = MutableStateFlow(false)
     val opossumMappingEnabled: StateFlow<Boolean> = _opossumMappingEnabled.asStateFlow()
 
-    private val _autoApplyOnConnect = MutableStateFlow(false)
-    val autoApplyOnConnect: StateFlow<Boolean> = _autoApplyOnConnect.asStateFlow()
+    private val _civetSensorEnable = MutableStateFlow(false)
+    val civetSensorEnable: StateFlow<Boolean> = _civetSensorEnable.asStateFlow()
 
     private var opossumViewModel: OpossumViewModel? = null
 
@@ -150,7 +146,7 @@ class CivetSensorViewModel : ViewModel() {
 
         }
         // 如果开启了要触发一次
-        if (_autoApplyOnConnect.value) {
+        if (_civetSensorEnable.value) {
             applyMappedPower();
         }
     }
@@ -355,7 +351,7 @@ class CivetSensorViewModel : ViewModel() {
             subscribeToBatteryCharacteristic(gatt)
 
             // 如果 autoApplyOnConnect 为 true，连接时自动应用 mapping 设置
-            if (_autoApplyOnConnect.value) {
+            if (_civetSensorEnable.value) {
                 applyPowerMapping()
                 applyOpossumMapping()
             }
@@ -662,7 +658,7 @@ class CivetSensorViewModel : ViewModel() {
         _opossumMappingEnabled.value = enabled
         if (enabled) {
             // 只有在未连接或 autoApplyOnConnect 为 true 时才立即应用
-            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _autoApplyOnConnect.value) {
+            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _civetSensorEnable.value) {
                 opossumViewModel?.let { vm ->
                     opossumBaseA = vm.channelAAmp.value
                     opossumBaseB = vm.channelBAmp.value
@@ -685,7 +681,7 @@ class CivetSensorViewModel : ViewModel() {
     }
 
     fun setAutoApplyOnConnect(enabled: Boolean) {
-        _autoApplyOnConnect.value = enabled
+        _civetSensorEnable.value = enabled
     }
 
     /**
@@ -710,7 +706,7 @@ class CivetSensorViewModel : ViewModel() {
         _powerMappingEnabled.value = enabled
         if (enabled) {
             // 只有在未连接或 autoApplyOnConnect 为 true 时才立即应用
-            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _autoApplyOnConnect.value) {
+            if (_connectionStatus.value != CivetSensorConnectionStatus.Connected || _civetSensorEnable.value) {
                 basePowerA = MainOptions.getChannelPower(0)
                 basePowerB =
                     if (isPowerSyncEnabled()) basePowerA else MainOptions.getChannelPower(1)
@@ -845,7 +841,7 @@ class CivetSensorViewModel : ViewModel() {
 
     fun applyMappedPower() {
         // 如果 autoApplyOnConnect 为 true 再进行处理
-        if (!_autoApplyOnConnect.value) {
+        if (!_civetSensorEnable.value) {
             return
         }
         val powerIntensityType = _powerIntensityType.value
