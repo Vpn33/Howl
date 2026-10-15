@@ -532,6 +532,7 @@ class CivetSensorViewModel : ViewModel() {
                     val pressure = parsePressureValue(data)
                     _rawPressure.update { pressure }
                     _displayPressure.update { pressure }
+                    addPressureToHistory(pressure)
                     applyMappedPower()
                 }
             }
@@ -729,6 +730,7 @@ class CivetSensorViewModel : ViewModel() {
         _testPressure.value = coerced
         _rawPressure.update { coerced }
         _displayPressure.update { coerced }
+        addPressureToHistory(coerced)
         applyMappedPower()
     }
 
