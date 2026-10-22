@@ -16,7 +16,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class BadFileException (message: String) : Exception(message)
+class BadFileException(message: String) : Exception(message)
 
 enum class NormalisationType {
     // FULL_RANGE expands the axis to fill 0.0 to 1.0 (used for L0).
@@ -51,10 +51,21 @@ data class Channel(
 
 @Serializable
 data class Funscript(
-    val actions: List<Action>,
+    val actions: List<Action> = emptyList(),
     val axes: List<FunscriptAxisData>? = null,
     val channels: Map<String, Channel>? = null,
-    val events: List<FunscriptEvent>? = null
+    val events: List<FunscriptEvent>? = null,
+    val metadata: FunscriptMetadata? = null
+)
+
+@Serializable
+data class FunscriptMetadata(
+    val title: String? = null,
+    val duration: Double? = null,
+    val durationTime: String? = null,
+    val topic_tags: List<String>? = null,
+    val topic_creator: String? = null,
+    val topic_date: String? = null
 )
 
 @Serializable
@@ -68,10 +79,17 @@ data class FunscriptEvent(
 
 data class PositionVelocity(val position: Double, val velocity: Double)
 
-class FunscriptAxis(val id: String, private val timePositionData: TreeMap<Double, PositionVelocity>) {
+class FunscriptAxis(
+    val id: String,
+    private val timePositionData: TreeMap<Double, PositionVelocity>
+) {
 
     companion object {
-        fun create(id: String, actions: List<Action>, normalisationType: NormalisationType = NormalisationType.OFF): FunscriptAxis {
+        fun create(
+            id: String,
+            actions: List<Action>,
+            normalisationType: NormalisationType = NormalisationType.OFF
+        ): FunscriptAxis {
             // Filter duplicate timestamps, sort chronologically, clamp all positions to valid range
             val uniqueActions = actions
                 .distinctBy { it.at }
@@ -93,6 +111,7 @@ class FunscriptAxis(val id: String, private val timePositionData: TreeMap<Double
                     minPos = rawMin
                     maxPos = rawMax
                 }
+
                 NormalisationType.BALANCED -> {
                     val distMin = 50.0 - rawMin
                     val distMax = rawMax - 50.0
@@ -100,6 +119,7 @@ class FunscriptAxis(val id: String, private val timePositionData: TreeMap<Double
                     minPos = 50.0 - maxDist
                     maxPos = 50.0 + maxDist
                 }
+
                 NormalisationType.OFF -> {
                     minPos = 0.0
                     maxPos = 100.0
@@ -175,7 +195,11 @@ class FunscriptAxis(val id: String, private val timePositionData: TreeMap<Double
             return FunscriptAxis(id, data)
         }
 
-        fun createOrNull(id: String, actions: List<Action>, normalisationType: NormalisationType = NormalisationType.OFF): FunscriptAxis? {
+        fun createOrNull(
+            id: String,
+            actions: List<Action>,
+            normalisationType: NormalisationType = NormalisationType.OFF
+        ): FunscriptAxis? {
             return try {
                 create(id, actions, normalisationType)
             } catch (e: BadFileException) {
@@ -281,16 +305,21 @@ class FunscriptPulseSource : PulseSource {
     companion object {
         // Approximate maximum speed of a stroker device (used for normalisation)
         private const val MAX_SPEED = 5.0
+
         // Arbitrarily chosen maximum acceleration magnitude (used for normalisation)
         private const val MAX_MAGNITUDE = 80.0
+
         // Funscript axes found in multi-axis scripts that our app can utilise
         private val SUPPORTED_ADDITIONAL_AXES = setOf("L1", "L2", "R0", "R1", "R2")
+
         // Axes that should be balanced around the central position when normalising
         private val BALANCED_AXES = setOf("L1", "L2", "R0", "R1", "R2")
+
         // Axis groupings for the energy calculation
         // currently all handled the same anyway, but in theory that could change in future
         private val LINEAR_AXES = listOf("L0", "L1", "L2")
         private val ROTATION_AXES = listOf("R0", "R1", "R2")
+
         // Maps axis names from version 2.0 funscripts into our 1.1 style identifiers
         private val AXIS_NAME_MAP = mapOf(
             "surge" to "L1",
@@ -299,13 +328,18 @@ class FunscriptPulseSource : PulseSource {
             "roll" to "R1",
             "pitch" to "R2"
         )
+
         // Backward-looking smoothing window shape: the window extends this many
         // sigmas into the past, and energy is sampled this many times per sigma
         private const val WINDOW_WIDTH_SIGMAS = 3.0
         private const val SAMPLES_PER_SIGMA = 4
     }
 
-    private fun calculateBaseFrequencies(time: Double, position: Double, amplitude: Double): Pair<Double, Double> {
+    private fun calculateBaseFrequencies(
+        time: Double,
+        position: Double,
+        amplitude: Double
+    ): Pair<Double, Double> {
         /*
         Calculates our base frequencies from the common L0 (up/down) axis that all funscripts
         contain. Our invented algorithm for this primarily uses a blend of position and total energy (amplitude).
@@ -314,7 +348,11 @@ class FunscriptPulseSource : PulseSource {
         */
 
         // Get L0 velocity
-        val (_, l0Vel, _) = axes["L0"]?.getPositionVelocityAccelerationAtTime(time) ?: Triple(0.0, 0.0, 0.0)
+        val (_, l0Vel, _) = axes["L0"]?.getPositionVelocityAccelerationAtTime(time) ?: Triple(
+            0.0,
+            0.0,
+            0.0
+        )
         val normL0Vel = (l0Vel / MAX_SPEED).coerceIn(-1.0, 1.0)
         val absNormL0Vel = abs(normL0Vel)
 
@@ -339,7 +377,11 @@ class FunscriptPulseSource : PulseSource {
         return Pair(freqA.coerceIn(0.0, 1.0), freqB.coerceIn(0.0, 1.0))
     }
 
-    private fun calculateSpatialFrequencies(time: Double, position: Double, amplitude: Double): Pair<Double, Double> {
+    private fun calculateSpatialFrequencies(
+        time: Double,
+        position: Double,
+        amplitude: Double
+    ): Pair<Double, Double> {
         // Adjusts our frequencies in various ways when we are using a multi-axis funscript
         // for a more dynamic experience.
 
@@ -465,18 +507,23 @@ class FunscriptPulseSource : PulseSource {
     override fun getPulse(time: Double, deltaTime: Double): Pulse {
         val mainAxis = axes["L0"] ?: return Pulse() // Fallback if somehow missing
 
-        val funscriptPositionalEffectStrength = Prefs.funscriptPositionalEffectStrength.value.toDouble()
+        val funscriptPositionalEffectStrength =
+            Prefs.funscriptPositionalEffectStrength.value.toDouble()
         // higher "volume" boosts slow movements more, but reduces dynamic range
         val volume = Prefs.funscriptVolume.value.toDouble()
         val scalingExponent = (1.0 - volume).coerceAtLeast(0.001)
 
         // Calculate total amplitude using the new 3D Vector pipeline
         val rawAmplitude = calculateTotalAmplitude(time)
-        val amplitude =  rawAmplitude.pow(scalingExponent).coerceIn(0.0..1.0)
+        val amplitude = rawAmplitude.pow(scalingExponent).coerceIn(0.0..1.0)
 
         val position = mainAxis.getPositionAtTime(time)
 
-        val (amplitudeA, amplitudeB) = calculatePositionalEffect(amplitude, position, funscriptPositionalEffectStrength)
+        val (amplitudeA, amplitudeB) = calculatePositionalEffect(
+            amplitude,
+            position,
+            funscriptPositionalEffectStrength
+        )
 
         val (freqA, freqB) = calculateSpatialFrequencies(time, position, rawAmplitude)
 
@@ -493,11 +540,13 @@ class FunscriptPulseSource : PulseSource {
         val normalise = Prefs.funscriptNormaliseAxes.value
 
         // The main stroke axis (L0) comes from the "actions" array and must be valid
-        val l0NormType = if (normalise) NormalisationType.FULL_RANGE else NormalisationType.OFF
-        axes["L0"] = try {
-            FunscriptAxis.create("L0", funscript.actions, l0NormType)
-        } catch (e: BadFileException) {
-            throw e
+        if (funscript.actions.size > 0) {
+            val l0NormType = if (normalise) NormalisationType.FULL_RANGE else NormalisationType.OFF
+            axes["L0"] = try {
+                FunscriptAxis.create("L0", funscript.actions, l0NormType)
+            } catch (e: BadFileException) {
+                throw e
+            }
         }
 
         // Extract and validate (axisId, actions) pairs from multi-axis scripts
@@ -505,7 +554,11 @@ class FunscriptPulseSource : PulseSource {
         val additionalAxes = buildList {
             funscript.axes?.forEach { axisData ->
                 when (axisData.id) {
-                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d("Funscript", "Skipped loading unsupported axis: ${axisData.id}")
+                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d(
+                        "Funscript",
+                        "Skipped loading unsupported axis: ${axisData.id}"
+                    )
+
                     else -> add(axisData.id to axisData.actions)
                 }
             }
@@ -513,7 +566,11 @@ class FunscriptPulseSource : PulseSource {
             funscript.channels?.forEach { (channelName, channelData) ->
                 when (val axisId = AXIS_NAME_MAP[channelName]) {
                     null -> HLog.d("Funscript", "Skipped loading unknown channel: $channelName")
-                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d("Funscript", "Skipped loading unsupported axis: $axisId (from channel $channelName)")
+                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d(
+                        "Funscript",
+                        "Skipped loading unsupported axis: $axisId (from channel $channelName)"
+                    )
+
                     else -> add(axisId to channelData.actions)
                 }
             }
@@ -557,7 +614,7 @@ class FunscriptPulseSource : PulseSource {
         // 如果正在播放相同的事件，则跳过
         if (_playingEventId != null && _playingEventId == id) {
             HLog.d("Funscript", "Skipping duplicate trigger for event '$id'")
-            return false
+            return true
         }
 
         val normalise = Prefs.funscriptNormaliseAxes.value
@@ -576,7 +633,8 @@ class FunscriptPulseSource : PulseSource {
         event.axes?.forEach { axisData ->
             if (axisData.id == "L0") return@forEach
             if (!SUPPORTED_ADDITIONAL_AXES.contains(axisData.id)) return@forEach
-            val normType = if (normalise && axisData.id in BALANCED_AXES) NormalisationType.BALANCED else NormalisationType.OFF
+            val normType =
+                if (normalise && axisData.id in BALANCED_AXES) NormalisationType.BALANCED else NormalisationType.OFF
             val axis = FunscriptAxis.createOrNull(axisData.id, axisData.actions, normType)
             if (axis != null) axes[axisData.id] = axis
         }
@@ -586,7 +644,11 @@ class FunscriptPulseSource : PulseSource {
         val additionalAxes = buildList {
             event.axes?.forEach { axisData ->
                 when (axisData.id) {
-                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d("Funscript", "Skipped loading unsupported axis: ${axisData.id}")
+                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d(
+                        "Funscript",
+                        "Skipped loading unsupported axis: ${axisData.id}"
+                    )
+
                     else -> add(axisData.id to axisData.actions)
                 }
             }
@@ -594,7 +656,11 @@ class FunscriptPulseSource : PulseSource {
             event.channels?.forEach { (channelName, channelData) ->
                 when (val axisId = AXIS_NAME_MAP[channelName]) {
                     null -> HLog.d("Funscript", "Skipped loading unknown channel: $channelName")
-                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d("Funscript", "Skipped loading unsupported axis: $axisId (from channel $channelName)")
+                    !in SUPPORTED_ADDITIONAL_AXES -> HLog.d(
+                        "Funscript",
+                        "Skipped loading unsupported axis: $axisId (from channel $channelName)"
+                    )
+
                     else -> add(axisId to channelData.actions)
                 }
             }
@@ -620,7 +686,10 @@ class FunscriptPulseSource : PulseSource {
         currentEventTitle = event.metadata?.title ?: event.id
         updateDisplayName()
 
-        HLog.i("Funscript", "Triggered event '$id' (loop=$shouldLoop, ${event.actions.size} actions${if (event.axes != null) ", ${event.axes.size} axes" else ""})")
+        HLog.i(
+            "Funscript",
+            "Triggered event '$id' (loop=$shouldLoop, ${event.actions.size} actions${if (event.axes != null) ", ${event.axes.size} axes" else ""})"
+        )
         _playingEventId = id
         return true
     }
@@ -640,7 +709,8 @@ class FunscriptPulseSource : PulseSource {
     fun open(uri: Uri, context: Context): Double? {
         clear()
 
-        val fileDescriptor: ParcelFileDescriptor? = context.contentResolver.openFileDescriptor(uri, "r")
+        val fileDescriptor: ParcelFileDescriptor? =
+            context.contentResolver.openFileDescriptor(uri, "r")
         val fileSize: Long = fileDescriptor?.statSize ?: 0
         fileDescriptor?.close()
 
@@ -687,7 +757,10 @@ class FunscriptPulseSource : PulseSource {
         if (!hasEvents) {
             shouldLoop = loop
         }
-        HLog.i("Funscript", "loadFromString: hasEvents=$hasEvents, shouldLoop=$shouldLoop, duration=$duration, eventsCount=${events.size}, apiLoopParam=$loop")
+        HLog.i(
+            "Funscript",
+            "loadFromString: hasEvents=$hasEvents, shouldLoop=$shouldLoop, duration=$duration, eventsCount=${events.size}, apiLoopParam=$loop"
+        )
         return duration
     }
 }
