@@ -205,7 +205,7 @@ fun FunscriptSettingsPanel(
     val funscriptDirectionalFreqShift by Prefs.funscriptDirectionalFreqShift.collectAsStateWithLifecycle()
     val funscriptFlipDirectionalFreqShift by Prefs.funscriptFlipDirectionalFreqShift.collectAsStateWithLifecycle()
     val funscriptNormaliseAxes by Prefs.funscriptNormaliseAxes.collectAsStateWithLifecycle()
-    val funscriptSmoothingSigma by Prefs.funscriptSmoothingSigma.collectAsStateWithLifecycle()
+    val funscriptAmplitudeWindow by Prefs.funscriptAmplitudeWindow.collectAsStateWithLifecycle()
     val funscriptMotionProfile by Prefs.funscriptMotionProfile.collectAsStateWithLifecycle()
 
     Column(modifier = modifier) {
@@ -264,11 +264,11 @@ fun FunscriptSettingsPanel(
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
         )
         SliderWithLabel(
-            label = "Amplitude calculation window",
+            label = "Amplitude calculation window (seconds)",
             subtitle = "振幅计算窗口 (0 - 0.5)",
-            value = funscriptSmoothingSigma,
-            onValueChange = { Prefs.funscriptSmoothingSigma.value = it },
-            onValueChangeFinished = { Prefs.funscriptSmoothingSigma.save() },
+            value = funscriptAmplitudeWindow,
+            onValueChange = { Prefs.funscriptAmplitudeWindow.value = it },
+            onValueChangeFinished = { Prefs.funscriptAmplitudeWindow.save() },
             valueRange = 0f..0.5f,
             steps = 49,
             valueDisplay = { String.format(Locale.US, "%03.2f", it) }
