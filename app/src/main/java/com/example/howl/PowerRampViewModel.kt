@@ -180,7 +180,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampIntensityARangeEnd.value = end
         Prefs.powerRampIntensityARangeStart.save()
         Prefs.powerRampIntensityARangeEnd.save()
-        _state.update { it.copy(powerRampIntensityARangeStart = start, powerRampIntensityARangeEnd = end) }
+        _state.update {
+            it.copy(
+                powerRampIntensityARangeStart = start,
+                powerRampIntensityARangeEnd = end
+            )
+        }
     }
 
     fun setPowerRampIntensityBRange(start: Int, end: Int) {
@@ -188,7 +193,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampIntensityBRangeEnd.value = end
         Prefs.powerRampIntensityBRangeStart.save()
         Prefs.powerRampIntensityBRangeEnd.save()
-        _state.update { it.copy(powerRampIntensityBRangeStart = start, powerRampIntensityBRangeEnd = end) }
+        _state.update {
+            it.copy(
+                powerRampIntensityBRangeStart = start,
+                powerRampIntensityBRangeEnd = end
+            )
+        }
     }
 
     fun setPowerRampSpeedModeA(mode: String) {
@@ -260,7 +270,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampNadirIntensityARangeEnd.value = end
         Prefs.powerRampNadirIntensityARangeStart.save()
         Prefs.powerRampNadirIntensityARangeEnd.save()
-        _state.update { it.copy(powerRampNadirIntensityARangeStart = start, powerRampNadirIntensityARangeEnd = end) }
+        _state.update {
+            it.copy(
+                powerRampNadirIntensityARangeStart = start,
+                powerRampNadirIntensityARangeEnd = end
+            )
+        }
     }
 
     fun setPowerRampNadirIntensityBRange(start: Int, end: Int) {
@@ -268,7 +283,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampNadirIntensityBRangeEnd.value = end
         Prefs.powerRampNadirIntensityBRangeStart.save()
         Prefs.powerRampNadirIntensityBRangeEnd.save()
-        _state.update { it.copy(powerRampNadirIntensityBRangeStart = start, powerRampNadirIntensityBRangeEnd = end) }
+        _state.update {
+            it.copy(
+                powerRampNadirIntensityBRangeStart = start,
+                powerRampNadirIntensityBRangeEnd = end
+            )
+        }
     }
 
     fun setPowerRampPeakTimeModeA(mode: String) {
@@ -288,7 +308,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampPeakTimeRandomMaxA.value = max
         Prefs.powerRampPeakTimeRandomMinA.save()
         Prefs.powerRampPeakTimeRandomMaxA.save()
-        _state.update { it.copy(powerRampPeakTimeRandomMinA = min, powerRampPeakTimeRandomMaxA = max) }
+        _state.update {
+            it.copy(
+                powerRampPeakTimeRandomMinA = min,
+                powerRampPeakTimeRandomMaxA = max
+            )
+        }
     }
 
     fun setPowerRampCycleModeA(mode: String) {
@@ -314,7 +339,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampPeakTimeRandomMaxB.value = max
         Prefs.powerRampPeakTimeRandomMinB.save()
         Prefs.powerRampPeakTimeRandomMaxB.save()
-        _state.update { it.copy(powerRampPeakTimeRandomMinB = min, powerRampPeakTimeRandomMaxB = max) }
+        _state.update {
+            it.copy(
+                powerRampPeakTimeRandomMinB = min,
+                powerRampPeakTimeRandomMaxB = max
+            )
+        }
     }
 
     fun setPowerRampCycleModeB(mode: String) {
@@ -340,7 +370,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampIntervalRandomMaxA.value = max
         Prefs.powerRampIntervalRandomMinA.save()
         Prefs.powerRampIntervalRandomMaxA.save()
-        _state.update { it.copy(powerRampIntervalRandomMinA = min, powerRampIntervalRandomMaxA = max) }
+        _state.update {
+            it.copy(
+                powerRampIntervalRandomMinA = min,
+                powerRampIntervalRandomMaxA = max
+            )
+        }
     }
 
     fun setPowerRampIntervalModeB(mode: String) {
@@ -360,7 +395,12 @@ class PowerRampViewModel : ViewModel() {
         Prefs.powerRampIntervalRandomMaxB.value = max
         Prefs.powerRampIntervalRandomMinB.save()
         Prefs.powerRampIntervalRandomMaxB.save()
-        _state.update { it.copy(powerRampIntervalRandomMinB = min, powerRampIntervalRandomMaxB = max) }
+        _state.update {
+            it.copy(
+                powerRampIntervalRandomMinB = min,
+                powerRampIntervalRandomMaxB = max
+            )
+        }
     }
 
     // Reset all power ramp runtime variables
@@ -391,12 +431,15 @@ class PowerRampViewModel : ViewModel() {
 
     // 计算某一通道下一个完整循环结束后的爬坡间隔时间，并设置坡底停留的剩余毫秒数
     private fun setupPowerRampCycleInterval(channel: Int) {
-        val mode = if (channel == 0) _state.value.powerRampIntervalModeA else _state.value.powerRampIntervalModeB
+        val mode =
+            if (channel == 0) _state.value.powerRampIntervalModeA else _state.value.powerRampIntervalModeB
         val seconds: Float = if (mode == "FIXED") {
             (if (channel == 0) _state.value.powerRampIntervalFixedA else _state.value.powerRampIntervalFixedB).toFloat()
         } else {
-            val minI = if (channel == 0) _state.value.powerRampIntervalRandomMinA else _state.value.powerRampIntervalRandomMinB
-            val maxI = if (channel == 0) _state.value.powerRampIntervalRandomMaxA else _state.value.powerRampIntervalRandomMaxB
+            val minI =
+                if (channel == 0) _state.value.powerRampIntervalRandomMinA else _state.value.powerRampIntervalRandomMinB
+            val maxI =
+                if (channel == 0) _state.value.powerRampIntervalRandomMaxA else _state.value.powerRampIntervalRandomMaxB
             (minI..maxI).random().toFloat()
         }
         if (channel == 0) {
@@ -435,11 +478,13 @@ class PowerRampViewModel : ViewModel() {
                 if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "B_ONLY") {
                     MainOptions.setChannelPower(1, nextRampRecordB)
                 }
-                powerRampCurrentA = nextRampRecordA
-                powerRampCurrentB = nextRampRecordB
             }
             // 保存开始爬坡时的强度记录
             powerRampRecordA = powerRampCurrentA
+            // 如果有坡底强度，最大强度要加上坡底的值进行计算
+            if (powerRampNadirRecordA > 0) {
+                powerRampCurrentA += powerRampNadirRecordA
+            }
             // 计算最小强度
             val minA = _state.value.powerRampIntensityARangeStart
             powerRampCurrentA += minA
@@ -450,9 +495,7 @@ class PowerRampViewModel : ViewModel() {
             }
             // 计算爬坡最大强度
             powerRampMaxA = powerRampCurrentA + _state.value.powerRampIntensityARangeEnd
-            if (powerRampMaxA > Prefs.powerLimitA.value) {
-                powerRampMaxA = Prefs.powerLimitA.value
-            }
+
             // 根据坡顶时间模式计算持续时间
             val peakTimeMode = _state.value.powerRampPeakTimeModeA
             // 固定时间
@@ -471,89 +514,65 @@ class PowerRampViewModel : ViewModel() {
             if (_state.value.powerRampSpeedModeA == "RANDOM") {
                 val minSpeed = _state.value.powerRampSpeedRandomMinA
                 val maxSpeed = _state.value.powerRampSpeedRandomMaxA
-                powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
+                powerRampIntervalTimeA =
+                    Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
             } else {
                 // 爬坡触发时间 固定
                 powerRampIntervalTimeA = _state.value.powerRampSpeedA
             }
-            if (powerRampChannelMode == "AB_SYNC") {
+
+        }
+        if (powerRampRecordB < 0 && powerRampMaxB < 0 && powerRampBottomWaitB <= 0L) {
+            // 如果是AB单独或B固定 要把这些计算值按照B设定进行计算
+            if (powerRampChannelMode == "AB_INDEPENDENT" || powerRampChannelMode == "B_ONLY") {
                 // 保存开始爬坡时的强度记录
                 powerRampRecordB = powerRampCurrentB
+                // 如果有坡底强度，最大强度要加上坡底的值进行计算
+                if (powerRampNadirRecordB > 0) {
+                    powerRampCurrentB += powerRampNadirRecordB
+                }
                 // 计算最小强度
-                val minA = _state.value.powerRampIntensityARangeStart
-                powerRampCurrentB += minA
+                val minB = _state.value.powerRampIntensityBRangeStart
+                powerRampCurrentB += minB
                 // 不能小于1
                 if (powerRampCurrentB < 1) {
                     powerRampCurrentB = 1
                     powerRampRecordB = 1
                 }
                 // 计算爬坡最大强度
-                powerRampMaxB = powerRampCurrentB + _state.value.powerRampIntensityARangeEnd
-                if (powerRampMaxB > Prefs.powerLimitB.value) {
-                    powerRampMaxB = Prefs.powerLimitB.value
-                }
+                powerRampMaxB = powerRampCurrentB + _state.value.powerRampIntensityBRangeEnd
+
+                // 根据坡顶时间模式计算持续时间
+                val peakTimeMode = _state.value.powerRampPeakTimeModeB
                 // 固定时间
                 if (peakTimeMode == "FIXED") {
                     powerRampCurrentPeakTimeB =
-                        (_state.value.powerRampPeakTimeFixedA * 1000).toLong()
+                        (_state.value.powerRampPeakTimeFixedB * 1000).toLong()
                 } else {
                     // 随机时间
-                    val minTime = _state.value.powerRampPeakTimeRandomMinA
-                    val maxTime = _state.value.powerRampPeakTimeRandomMaxA
+                    val minTime = _state.value.powerRampPeakTimeRandomMinB
+                    val maxTime = _state.value.powerRampPeakTimeRandomMaxB
                     val randomTime = (minTime..maxTime).random().toLong()
                     powerRampCurrentPeakTimeB = randomTime * 1000
                 }
 
                 // 爬坡触发时间 随机
-                if (_state.value.powerRampSpeedModeA == "RANDOM") {
-                    val minSpeed = _state.value.powerRampSpeedRandomMinA
-                    val maxSpeed = _state.value.powerRampSpeedRandomMaxA
-                    powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
+                if (_state.value.powerRampSpeedModeB == "RANDOM") {
+                    val minSpeed = _state.value.powerRampSpeedRandomMinB
+                    val maxSpeed = _state.value.powerRampSpeedRandomMaxB
+                    powerRampIntervalTimeB =
+                        Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                 } else {
                     // 爬坡触发时间 固定
-                    powerRampIntervalTimeA = _state.value.powerRampSpeedA
+                    powerRampIntervalTimeB = _state.value.powerRampSpeedB
                 }
-            }
-        }
-        if (powerRampRecordB < 0 && powerRampMaxB < 0 && powerRampBottomWaitB <= 0L) {
-            powerRampStart = true
-            // 保存开始爬坡时的强度记录
-            powerRampRecordB = powerRampCurrentB
-            // 计算最小强度
-            val minB = _state.value.powerRampIntensityBRangeStart
-            powerRampCurrentB += minB
-            // 不能小于1
-            if (powerRampCurrentB < 1) {
-                powerRampCurrentB = 1
-                powerRampRecordB = 1
-            }
-            // 计算爬坡最大强度
-            powerRampMaxB = powerRampCurrentB + _state.value.powerRampIntensityBRangeEnd
-            if (powerRampMaxB > Prefs.powerLimitB.value) {
-                powerRampMaxB = Prefs.powerLimitB.value
-            }
-            // 根据坡顶时间模式计算持续时间
-            val peakTimeMode = _state.value.powerRampPeakTimeModeB
-            // 固定时间
-            if (peakTimeMode == "FIXED") {
-                powerRampCurrentPeakTimeB =
-                    (_state.value.powerRampPeakTimeFixedB * 1000).toLong()
             } else {
-                // 随机时间
-                val minTime = _state.value.powerRampPeakTimeRandomMinB
-                val maxTime = _state.value.powerRampPeakTimeRandomMaxB
-                val randomTime =
-                    (minTime + Math.random() * (maxTime - minTime)).toLong()
-                powerRampCurrentPeakTimeB = randomTime * 1000
-            }
-            // 爬坡触发时间 随机
-            if (_state.value.powerRampSpeedModeB == "RANDOM") {
-                val minSpeed = _state.value.powerRampSpeedRandomMinB
-                val maxSpeed = _state.value.powerRampSpeedRandomMaxB
-                powerRampIntervalTimeB = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
-            } else {
-                // 爬坡触发时间 固定
-                powerRampIntervalTimeB = _state.value.powerRampSpeedB
+                // 如果是AB同步就把B的值直接设置成A的
+                powerRampRecordB = powerRampRecordA
+                powerRampCurrentB = powerRampCurrentA
+                powerRampMaxB = powerRampMaxA
+                powerRampCurrentPeakTimeB = powerRampCurrentPeakTimeA
+                powerRampIntervalTimeB = powerRampIntervalTimeA
             }
         }
         if (powerRampStart) {
@@ -582,7 +601,8 @@ class PowerRampViewModel : ViewModel() {
             if (_state.value.powerRampSpeedIntervalModeA == "EVERY" && _state.value.powerRampSpeedModeA == "RANDOM") {
                 val minSpeed = _state.value.powerRampSpeedRandomMinA
                 val maxSpeed = _state.value.powerRampSpeedRandomMaxA
-                powerRampIntervalTimeA = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
+                powerRampIntervalTimeA =
+                    Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                 HLog.d("Power Ramp", "EVERY RANDOM SpeedA:${powerRampIntervalTimeA}")
             }
         }
@@ -592,7 +612,8 @@ class PowerRampViewModel : ViewModel() {
             if (_state.value.powerRampSpeedIntervalModeB == "EVERY" && _state.value.powerRampSpeedModeB == "RANDOM") {
                 val minSpeed = _state.value.powerRampSpeedRandomMinB
                 val maxSpeed = _state.value.powerRampSpeedRandomMaxB
-                powerRampIntervalTimeB = Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
+                powerRampIntervalTimeB =
+                    Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
                 HLog.d("Power Ramp", "SpeedB:${powerRampIntervalTimeB}")
             }
         }
@@ -659,16 +680,8 @@ class PowerRampViewModel : ViewModel() {
                     if (cycleMode == "LOOP" || repeatComplete) {
                         // 如果有坡底随机时间的话 要重置成变化前的记录值
                         // 在 LOOP 模式下，需要取消平滑过程并直接设置实际值，避免电源强度越来越低
-                        val targetA = if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
-                            powerRampRecordA - powerRampNadirRecordA
-                        } else {
-                            powerRampRecordA
-                        }
-                        val targetB = if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
-                            powerRampRecordB - powerRampNadirRecordB
-                        } else {
-                            powerRampRecordB
-                        }
+                        val targetA = powerRampRecordA
+                        val targetB = powerRampRecordB
                         // LOOP 模式下直接设置实际值，取消平滑过程
                         MainOptions.updateChannelPower(0, targetA)
                         MainOptions.updateChannelPower(1, targetB)
@@ -871,7 +884,10 @@ private fun PowerRampIntervalControl(
             valueDisplay = { it.roundToInt().toString() }
         )
     } else {
-        Text(text = "$title(秒): $randomMin - $randomMax", style = MaterialTheme.typography.labelLarge)
+        Text(
+            text = "$title(秒): $randomMin - $randomMax",
+            style = MaterialTheme.typography.labelLarge
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1004,23 +1020,35 @@ fun PowerRampPanel(
 
         when (state.powerRampChannelMode) {
             "AB_SYNC" -> {
-                Text(text = "A&B通道强度：从 ${state.powerRampIntensityARangeStart} 逐渐变化到 +${state.powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "A&B通道强度：从 ${state.powerRampIntensityARangeStart} 逐渐变化到 +${state.powerRampIntensityARangeEnd}",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "${state.powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeStart}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                     RangeSlider(
                         modifier = Modifier.weight(1f),
                         value = state.powerRampIntensityARangeStart.toFloat()..state.powerRampIntensityARangeEnd.toFloat(),
                         onValueChange = { newRange ->
-                            viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                            viewModel.setPowerRampIntensityARange(
+                                newRange.start.roundToInt(),
+                                newRange.endInclusive.roundToInt()
+                            )
                         },
                         valueRange = 0f..200.0f,
                         steps = 200
                     )
-                    Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeEnd}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                 }
 
                 // 变化速度类型
@@ -1067,9 +1095,19 @@ fun PowerRampPanel(
 
                 // 变化速度
                 if (state.powerRampSpeedModeA == "FIXED") {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeA = state.powerRampSpeedA * changeCountA
-                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedA
+                            )
+                        } 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     SliderWithLabel(
                         label = "",
                         value = state.powerRampSpeedA,
@@ -1080,26 +1118,67 @@ fun PowerRampPanel(
                         valueDisplay = { String.format(Locale.US, "%.1f", it) }
                     )
                 } else {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeMinA = state.powerRampSpeedRandomMinA * changeCountA
                     val totalTimeMaxA = state.powerRampSpeedRandomMaxA * changeCountA
-                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMinA
+                            )
+                        }~${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMaxA
+                            )
+                        } 秒变化一次 共 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                totalTimeMinA
+                            )
+                        }~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMinA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampSpeedRandomMinA.toFloat()..state.powerRampSpeedRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampSpeedRandomA(newRange.start, newRange.endInclusive)
+                                viewModel.setPowerRampSpeedRandomA(
+                                    newRange.start,
+                                    newRange.endInclusive
+                                )
                             },
                             valueRange = 0.1f..60.0f,
                             steps = 599
                         )
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMaxA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1126,26 +1205,41 @@ fun PowerRampPanel(
 
                 // 坡底变化强度
                 if (state.powerRampNadirChangeModeA == "RANDOM") {
-                    Text(text = "坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeStart}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampNadirIntensityARangeStart.toFloat()..state.powerRampNadirIntensityARangeEnd.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampNadirIntensityARange(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0f..200.0f,
                             steps = 200
                         )
-                        Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeEnd}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 } else {
-                    Text(text = "坡底强度为开启时的电源强度值", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡底强度为开启时的电源强度值",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 // 坡顶时间模式
@@ -1181,23 +1275,35 @@ fun PowerRampPanel(
                         valueDisplay = { it.roundToInt().toString() }
                     )
                 } else {
-                    Text(text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMinA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampPeakTimeRandomMinA.toFloat()..state.powerRampPeakTimeRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampPeakTimeRandomA(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampPeakTimeRandomA(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0.0f..60.0f,
                             steps = 59
                         )
-                        Text(text = "${state.powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMaxA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1234,24 +1340,37 @@ fun PowerRampPanel(
                     onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
                 )
             }
+
             "AB_INDEPENDENT" -> {
-                Text(text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "${state.powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeStart}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                     RangeSlider(
                         modifier = Modifier.weight(1f),
                         value = state.powerRampIntensityARangeStart.toFloat()..state.powerRampIntensityARangeEnd.toFloat(),
                         onValueChange = { newRange ->
-                            viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                            viewModel.setPowerRampIntensityARange(
+                                newRange.start.roundToInt(),
+                                newRange.endInclusive.roundToInt()
+                            )
                         },
                         valueRange = 0f..200f,
                         steps = 200
                     )
-                    Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeEnd}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                 }
                 // A通道变化速度类型
                 Row(
@@ -1318,9 +1437,19 @@ fun PowerRampPanel(
 
                 // A通道变化速度
                 if (state.powerRampSpeedModeA == "FIXED") {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeA = state.powerRampSpeedA * changeCountA
-                    Text(text = "A通道变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "A通道变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedA
+                            )
+                        } 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     SliderWithLabel(
                         label = "",
                         value = state.powerRampSpeedA,
@@ -1331,26 +1460,67 @@ fun PowerRampPanel(
                         valueDisplay = { String.format(Locale.US, "%.1f", it) }
                     )
                 } else {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeMinA = state.powerRampSpeedRandomMinA * changeCountA
                     val totalTimeMaxA = state.powerRampSpeedRandomMaxA * changeCountA
-                    Text(text = "A通道变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "A通道变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMinA
+                            )
+                        }~${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMaxA
+                            )
+                        } 秒变化一次 共 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                totalTimeMinA
+                            )
+                        }~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMinA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampSpeedRandomMinA.toFloat()..state.powerRampSpeedRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampSpeedRandomA(newRange.start, newRange.endInclusive)
+                                viewModel.setPowerRampSpeedRandomA(
+                                    newRange.start,
+                                    newRange.endInclusive
+                                )
                             },
                             valueRange = 0.1f..60.0f,
                             steps = 599
                         )
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMaxA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1377,23 +1547,35 @@ fun PowerRampPanel(
 
                 // 坡底变化强度
                 if (state.powerRampNadirChangeModeA == "RANDOM") {
-                    Text(text = "A通道坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "A通道坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeStart}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampNadirIntensityARangeStart.toFloat()..state.powerRampNadirIntensityARangeEnd.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampNadirIntensityARange(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0f..200.0f,
                             steps = 200
                         )
-                        Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeEnd}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1430,23 +1612,35 @@ fun PowerRampPanel(
                         valueDisplay = { it.roundToInt().toString() }
                     )
                 } else {
-                    Text(text = "A通道坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "A通道坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMinA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampPeakTimeRandomMinA.toFloat()..state.powerRampPeakTimeRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampPeakTimeRandomA(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampPeakTimeRandomA(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0.0f..60.0f,
                             steps = 59
                         )
-                        Text(text = "${state.powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMaxA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1483,23 +1677,35 @@ fun PowerRampPanel(
                     onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
                 )
 
-                Text(text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "${state.powerRampIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityBRangeStart}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                     RangeSlider(
                         modifier = Modifier.weight(1f),
                         value = state.powerRampIntensityBRangeStart.toFloat()..state.powerRampIntensityBRangeEnd.toFloat(),
                         onValueChange = { newRange ->
-                            viewModel.setPowerRampIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                            viewModel.setPowerRampIntensityBRange(
+                                newRange.start.roundToInt(),
+                                newRange.endInclusive.roundToInt()
+                            )
                         },
                         valueRange = 0f..200f,
                         steps = 200
                     )
-                    Text(text = "${state.powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityBRangeEnd}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                 }
                 // B通道变化速度类型
                 Row(
@@ -1545,9 +1751,19 @@ fun PowerRampPanel(
 
                 // B通道变化速度
                 if (state.powerRampSpeedModeB == "FIXED") {
-                    val changeCountB = state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
+                    val changeCountB =
+                        state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
                     val totalTimeB = state.powerRampSpeedB * changeCountB
-                    Text(text = "B通道变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "B通道变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedB
+                            )
+                        } 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     SliderWithLabel(
                         label = "",
                         value = state.powerRampSpeedB,
@@ -1558,26 +1774,67 @@ fun PowerRampPanel(
                         valueDisplay = { String.format(Locale.US, "%.1f", it) }
                     )
                 } else {
-                    val changeCountB = state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
+                    val changeCountB =
+                        state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
                     val totalTimeMinB = state.powerRampSpeedRandomMinB * changeCountB
                     val totalTimeMaxB = state.powerRampSpeedRandomMaxB * changeCountB
-                    Text(text = "B通道变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinB)}~${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinB)}~${String.format(Locale.US, "%.1f", totalTimeMaxB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "B通道变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMinB
+                            )
+                        }~${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMaxB
+                            )
+                        } 秒变化一次 共 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                totalTimeMinB
+                            )
+                        }~${String.format(Locale.US, "%.1f", totalTimeMaxB)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinB)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMinB
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampSpeedRandomMinB.toFloat()..state.powerRampSpeedRandomMaxB.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampSpeedRandomB(newRange.start, newRange.endInclusive)
+                                viewModel.setPowerRampSpeedRandomB(
+                                    newRange.start,
+                                    newRange.endInclusive
+                                )
                             },
                             valueRange = 0.1f..60.0f,
                             steps = 599
                         )
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMaxB
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1604,23 +1861,35 @@ fun PowerRampPanel(
 
                 // B通道坡底变化强度
                 if (state.powerRampNadirChangeModeB == "RANDOM") {
-                    Text(text = "B通道坡底变化强度: ${state.powerRampNadirIntensityBRangeStart} - ${state.powerRampNadirIntensityBRangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "B通道坡底变化强度: ${state.powerRampNadirIntensityBRangeStart} - ${state.powerRampNadirIntensityBRangeEnd} 内随机",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampNadirIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityBRangeStart}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampNadirIntensityBRangeStart.toFloat()..state.powerRampNadirIntensityBRangeEnd.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampNadirIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampNadirIntensityBRange(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0f..200.0f,
                             steps = 200
                         )
-                        Text(text = "${state.powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityBRangeEnd}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1657,23 +1926,35 @@ fun PowerRampPanel(
                         valueDisplay = { it.roundToInt().toString() }
                     )
                 } else {
-                    Text(text = "B通道坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinB} - ${state.powerRampPeakTimeRandomMaxB}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "B通道坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinB} - ${state.powerRampPeakTimeRandomMaxB}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampPeakTimeRandomMinB}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMinB}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampPeakTimeRandomMinB.toFloat()..state.powerRampPeakTimeRandomMaxB.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampPeakTimeRandomB(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampPeakTimeRandomB(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0.0f..60.0f,
                             steps = 59
                         )
-                        Text(text = "${state.powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMaxB}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1710,24 +1991,37 @@ fun PowerRampPanel(
                     onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomB(min, max) }
                 )
             }
+
             "A_ONLY" -> {
-                Text(text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "A通道：强度从 ${state.powerRampIntensityARangeStart} 逐渐变化到 ${state.powerRampIntensityARangeEnd}",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "${state.powerRampIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeStart}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                     RangeSlider(
                         modifier = Modifier.weight(1f),
                         value = state.powerRampIntensityARangeStart.toFloat()..state.powerRampIntensityARangeEnd.toFloat(),
                         onValueChange = { newRange ->
-                            viewModel.setPowerRampIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                            viewModel.setPowerRampIntensityARange(
+                                newRange.start.roundToInt(),
+                                newRange.endInclusive.roundToInt()
+                            )
                         },
                         valueRange = 0f..200f,
                         steps = 200
                     )
-                    Text(text = "${state.powerRampIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityARangeEnd}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                 }
                 // 变化速度类型
                 Row(
@@ -1752,9 +2046,19 @@ fun PowerRampPanel(
 
                 // 变化速度
                 if (state.powerRampSpeedModeA == "FIXED") {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeA = state.powerRampSpeedA * changeCountA
-                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedA
+                            )
+                        } 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     SliderWithLabel(
                         label = "",
                         value = state.powerRampSpeedA,
@@ -1765,26 +2069,67 @@ fun PowerRampPanel(
                         valueDisplay = { String.format(Locale.US, "%.1f", it) }
                     )
                 } else {
-                    val changeCountA = state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
+                    val changeCountA =
+                        state.powerRampIntensityARangeEnd - state.powerRampIntensityARangeStart
                     val totalTimeMinA = state.powerRampSpeedRandomMinA * changeCountA
                     val totalTimeMaxA = state.powerRampSpeedRandomMaxA * changeCountA
-                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}~${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeMinA)}~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMinA
+                            )
+                        }~${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMaxA
+                            )
+                        } 秒变化一次 共 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                totalTimeMinA
+                            )
+                        }~${String.format(Locale.US, "%.1f", totalTimeMaxA)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMinA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampSpeedRandomMinA.toFloat()..state.powerRampSpeedRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampSpeedRandomA(newRange.start, newRange.endInclusive)
+                                viewModel.setPowerRampSpeedRandomA(
+                                    newRange.start,
+                                    newRange.endInclusive
+                                )
                             },
                             valueRange = 0.1f..60.0f,
                             steps = 599
                         )
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxA)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMaxA
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1811,23 +2156,35 @@ fun PowerRampPanel(
 
                 // 坡底变化强度
                 if (state.powerRampNadirChangeModeA == "RANDOM") {
-                    Text(text = "坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡底变化强度: ${state.powerRampNadirIntensityARangeStart} - ${state.powerRampNadirIntensityARangeEnd} 内随机",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampNadirIntensityARangeStart}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeStart}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampNadirIntensityARangeStart.toFloat()..state.powerRampNadirIntensityARangeEnd.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampNadirIntensityARange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampNadirIntensityARange(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0f..200.0f,
                             steps = 200
                         )
-                        Text(text = "${state.powerRampNadirIntensityARangeEnd}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityARangeEnd}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1864,23 +2221,35 @@ fun PowerRampPanel(
                         valueDisplay = { it.roundToInt().toString() }
                     )
                 } else {
-                    Text(text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinA} - ${state.powerRampPeakTimeRandomMaxA}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampPeakTimeRandomMinA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMinA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampPeakTimeRandomMinA.toFloat()..state.powerRampPeakTimeRandomMaxA.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampPeakTimeRandomA(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampPeakTimeRandomA(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0.0f..60.0f,
                             steps = 59
                         )
-                        Text(text = "${state.powerRampPeakTimeRandomMaxA}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMaxA}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -1917,24 +2286,37 @@ fun PowerRampPanel(
                     onRandomChange = { min, max -> viewModel.setPowerRampIntervalRandomA(min, max) }
                 )
             }
+
             "B_ONLY" -> {
-                Text(text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "B通道：强度从 ${state.powerRampIntensityBRangeStart} 逐渐变化到 ${state.powerRampIntensityBRangeEnd}",
+                    style = MaterialTheme.typography.labelLarge
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "${state.powerRampIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityBRangeStart}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                     RangeSlider(
                         modifier = Modifier.weight(1f),
                         value = state.powerRampIntensityBRangeStart.toFloat()..state.powerRampIntensityBRangeEnd.toFloat(),
                         onValueChange = { newRange ->
-                            viewModel.setPowerRampIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                            viewModel.setPowerRampIntensityBRange(
+                                newRange.start.roundToInt(),
+                                newRange.endInclusive.roundToInt()
+                            )
                         },
                         valueRange = 0f..200f,
                         steps = 99
                     )
-                    Text(text = "${state.powerRampIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                    Text(
+                        text = "${state.powerRampIntensityBRangeEnd}",
+                        modifier = Modifier.widthIn(40.dp)
+                    )
                 }
                 // 变化速度类型
                 Row(
@@ -1959,9 +2341,19 @@ fun PowerRampPanel(
 
                 // 变化速度
                 if (state.powerRampSpeedModeB == "FIXED") {
-                    val changeCountB = state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
+                    val changeCountB =
+                        state.powerRampIntensityBRangeEnd - state.powerRampIntensityBRangeStart
                     val totalTimeB = state.powerRampSpeedB * changeCountB
-                    Text(text = "变化速度: 每 ${String.format(Locale.US, "%.1f", state.powerRampSpeedB)} 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度: 每 ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedB
+                            )
+                        } 秒变化一次 共 ${String.format(Locale.US, "%.1f", totalTimeB)} 秒",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     SliderWithLabel(
                         label = "",
                         value = state.powerRampSpeedB,
@@ -1972,23 +2364,51 @@ fun PowerRampPanel(
                         valueDisplay = { String.format(Locale.US, "%.1f", it) }
                     )
                 } else {
-                    Text(text = "变化速度(秒): ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinB)} - ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxB)}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "变化速度(秒): ${
+                            String.format(
+                                Locale.US,
+                                "%.1f",
+                                state.powerRampSpeedRandomMinB
+                            )
+                        } - ${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxB)}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMinB)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMinB
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampSpeedRandomMinB.toFloat()..state.powerRampSpeedRandomMaxB.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampSpeedRandomB(newRange.start, newRange.endInclusive)
+                                viewModel.setPowerRampSpeedRandomB(
+                                    newRange.start,
+                                    newRange.endInclusive
+                                )
                             },
                             valueRange = 0.1f..60.0f,
                             steps = 599
                         )
-                        Text(text = "${String.format(Locale.US, "%.1f", state.powerRampSpeedRandomMaxB)}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${
+                                String.format(
+                                    Locale.US,
+                                    "%.1f",
+                                    state.powerRampSpeedRandomMaxB
+                                )
+                            }", modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -2015,23 +2435,35 @@ fun PowerRampPanel(
 
                 // B通道坡底变化强度
                 if (state.powerRampNadirChangeModeB == "RANDOM") {
-                    Text(text = "坡底变化强度: ${state.powerRampNadirIntensityBRangeStart} - ${state.powerRampNadirIntensityBRangeEnd} 内随机", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡底变化强度: ${state.powerRampNadirIntensityBRangeStart} - ${state.powerRampNadirIntensityBRangeEnd} 内随机",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampNadirIntensityBRangeStart}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityBRangeStart}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampNadirIntensityBRangeStart.toFloat()..state.powerRampNadirIntensityBRangeEnd.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampNadirIntensityBRange(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampNadirIntensityBRange(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0f..200.0f,
                             steps = 200
                         )
-                        Text(text = "${state.powerRampNadirIntensityBRangeEnd}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampNadirIntensityBRangeEnd}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
@@ -2068,23 +2500,35 @@ fun PowerRampPanel(
                         valueDisplay = { it.roundToInt().toString() }
                     )
                 } else {
-                    Text(text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinB} - ${state.powerRampPeakTimeRandomMaxB}", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = "坡顶持续时间(秒): ${state.powerRampPeakTimeRandomMinB} - ${state.powerRampPeakTimeRandomMaxB}",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "${state.powerRampPeakTimeRandomMinB}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMinB}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                         RangeSlider(
                             modifier = Modifier.weight(1f),
                             value = state.powerRampPeakTimeRandomMinB.toFloat()..state.powerRampPeakTimeRandomMaxB.toFloat(),
                             onValueChange = { newRange ->
-                                viewModel.setPowerRampPeakTimeRandomB(newRange.start.roundToInt(), newRange.endInclusive.roundToInt())
+                                viewModel.setPowerRampPeakTimeRandomB(
+                                    newRange.start.roundToInt(),
+                                    newRange.endInclusive.roundToInt()
+                                )
                             },
                             valueRange = 0.0f..60.0f,
                             steps = 59
                         )
-                        Text(text = "${state.powerRampPeakTimeRandomMaxB}", modifier = Modifier.widthIn(40.dp))
+                        Text(
+                            text = "${state.powerRampPeakTimeRandomMaxB}",
+                            modifier = Modifier.widthIn(40.dp)
+                        )
                     }
                 }
 
