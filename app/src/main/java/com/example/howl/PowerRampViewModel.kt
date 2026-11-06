@@ -430,7 +430,7 @@ class PowerRampViewModel : ViewModel() {
     }
 
     // 计算某一通道下一个完整循环结束后的爬坡间隔时间，并设置坡底停留的剩余毫秒数
-    private fun setupPowerRampCycleInterval(channel: Int) {
+    private fun setupPowerRampCycleInterval(channel: Int): Long {
         val mode =
             if (channel == 0) _state.value.powerRampIntervalModeA else _state.value.powerRampIntervalModeB
         val seconds: Float = if (mode == "FIXED") {
@@ -442,28 +442,28 @@ class PowerRampViewModel : ViewModel() {
                 if (channel == 0) _state.value.powerRampIntervalRandomMaxA else _state.value.powerRampIntervalRandomMaxB
             (minI..maxI).random().toFloat()
         }
-        if (channel == 0) {
-            powerRampBottomWaitA = (seconds * 1000).toLong()
-        } else {
-            powerRampBottomWaitB = (seconds * 1000).toLong()
-        }
+        return (seconds * 1000).toLong()
     }
 
     // Process power ramp logic - called from MainOptions.autoIncreasePower
     fun processPowerRamp(elapsed: Double, options: MainOptionsState) {
+        var powerRampStart = false
         val powerRampEnabled = _state.value.powerRampEnabled
         val powerRampChannelMode = _state.value.powerRampChannelMode
 
-        if (!powerRampEnabled) return
+        // 如果自动提升关闭了
+        if (!powerRampEnabled){
+            // 所有数据项重置
+            resetPowerRamp()
+            return
+        }
 
         // 获取当前电源强度
         var powerRampCurrentA = MainOptions.getChannelPower(0)
         var powerRampCurrentB = MainOptions.getChannelPower(1)
-        var powerRampStart = false
 
         // 是否有开始爬坡时的强度记录
         if (powerRampRecordA < 0 && powerRampMaxA < 0 && powerRampBottomWaitA <= 0L) {
-            powerRampStart = true
             // 如果有坡底随机时间的话 要设置成坡底时间 只是不改变初始的记录强度
             if (powerRampNadirRecordA > 0 || powerRampNadirRecordB > 0) {
                 var nextRampRecordA = powerRampCurrentA + powerRampNadirRecordA
@@ -520,7 +520,7 @@ class PowerRampViewModel : ViewModel() {
                 // 爬坡触发时间 固定
                 powerRampIntervalTimeA = _state.value.powerRampSpeedA
             }
-
+            powerRampStart = true
         }
         if (powerRampRecordB < 0 && powerRampMaxB < 0 && powerRampBottomWaitB <= 0L) {
             // 如果是AB单独或B固定 要把这些计算值按照B设定进行计算
@@ -561,7 +561,8 @@ class PowerRampViewModel : ViewModel() {
                     val minSpeed = _state.value.powerRampSpeedRandomMinB
                     val maxSpeed = _state.value.powerRampSpeedRandomMaxB
                     powerRampIntervalTimeB =
-                        Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1).toFloat()
+                        Random.nextDouble(minSpeed.toDouble(), maxSpeed.toDouble() + 0.1)
+                            .toFloat()
                 } else {
                     // 爬坡触发时间 固定
                     powerRampIntervalTimeB = _state.value.powerRampSpeedB
@@ -574,9 +575,11 @@ class PowerRampViewModel : ViewModel() {
                 powerRampCurrentPeakTimeB = powerRampCurrentPeakTimeA
                 powerRampIntervalTimeB = powerRampIntervalTimeA
             }
+            powerRampStart = true
         }
+
         if (powerRampStart) {
-            var message = "Starting power auto ramp";
+            var message = "Starting power auto ramp ";
             if (powerRampChannelMode == "AB_SYNC") {
                 message += "channel_A&B: A:[${powerRampCurrentA}~${powerRampMaxA}] B:[${powerRampCurrentB}~${powerRampMaxB}]"
             } else {
@@ -697,8 +700,8 @@ class PowerRampViewModel : ViewModel() {
                         powerRampTallyA++
                         powerRampTallyB++
                         // 完整循环结束，设置下一轮爬坡前的坡底间隔停留
-                        setupPowerRampCycleInterval(0)
-                        setupPowerRampCycleInterval(1)
+                        powerRampBottomWaitA = setupPowerRampCycleInterval(0)
+                        powerRampBottomWaitB = powerRampBottomWaitA
                         HLog.d(
                             "Power Ramp",
                             "Power to nadir A:${powerRampRecordA} B:${powerRampRecordB} RampTally:${powerRampTallyA}"
@@ -766,7 +769,7 @@ class PowerRampViewModel : ViewModel() {
                                 "Power Ramp",
                                 "Power to nadir A:${powerRampRecordA} RampTallyA:${powerRampTallyA}"
                             )
-                            setupPowerRampCycleInterval(0)
+                            powerRampBottomWaitA = setupPowerRampCycleInterval(0)
                             powerRampRecordA = -1
                             powerRampMaxA = -1
                             powerRampPeakCounterA = 0L
@@ -802,7 +805,7 @@ class PowerRampViewModel : ViewModel() {
                             MainOptions.decrementChannelPower(1, 1, false)
                         }
                     } else {
-                        val cycleMode = _state.value.powerRampCycleModeB
+                        // 如果是循环模式或者 往复完成一圈后
                         if (cycleMode == "LOOP" || repeatComplete) {
                             // LOOP 模式下需要取消平滑过程并直接设置实际值，避免电源强度越来越低
                             val targetB = if (powerRampNadirRecordB != 0) {
@@ -818,11 +821,12 @@ class PowerRampViewModel : ViewModel() {
                                 val maxNadir = _state.value.powerRampNadirIntensityBRangeEnd
                                 powerRampNadirRecordB = (minNadir..maxNadir).random()
                             }
+                            powerRampTallyB++
                             HLog.d(
                                 "Power Ramp",
                                 "Power to nadir B:${powerRampRecordB} RampTallyB:${powerRampTallyB}"
                             )
-                            setupPowerRampCycleInterval(1)
+                            powerRampBottomWaitB = setupPowerRampCycleInterval(1)
                             powerRampRecordB = -1
                             powerRampMaxB = -1
                             powerRampPeakCounterB = 0L
