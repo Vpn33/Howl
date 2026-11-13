@@ -241,7 +241,9 @@ class WaveViewModel : ViewModel() {
             aChannelPlayIndex = 0, // 重启后重置播放索引
             bChannelPlayIndex = 0, // 重启后重置播放索引
             aChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
-            bChannelPlayElapsedTime = 0.0 // 重启后重置播放时间
+            bChannelPlayElapsedTime = 0.0, // 重启后重置播放时间
+            aChannelRate = "x1", // A通道播放速率
+            bChannelRate = "x1" // B通道播放速率
         )
 
         // 标记已经加载过保存的状态
@@ -264,9 +266,11 @@ class WaveViewModel : ViewModel() {
         val bChannelWavesJson = json.encodeToString(currentState.bChannelSelectedWaves)
         editor.putString("bChannelSelectedWaves", bChannelWavesJson)
 
-        // 保存播放模式和播放时间
+        // 保存播放模式、速率和播放时间
         editor.putString("aChannelPlayMode", currentState.aChannelPlayMode)
         editor.putString("bChannelPlayMode", currentState.bChannelPlayMode)
+        editor.putString("aChannelRate", currentState.aChannelRate)
+        editor.putString("bChannelRate", currentState.bChannelRate)
         editor.putString("aChannelPlayTime", currentState.aChannelPlayTime)
         editor.putString("bChannelPlayTime", currentState.bChannelPlayTime)
 
@@ -645,7 +649,14 @@ class WaveViewModel : ViewModel() {
             // 处理A通道
             if (currentState.aChannelPlaying && aChannelWaves.isNotEmpty()) {
                 val aWave = aChannelWaves[currentState.aChannelPlayIndex]
-                val aCtrlItem = getCtrlItem(context, aWave)
+                // rate: x1=1, x2=2, x4=4
+                val aRate = when (currentState.aChannelRate) {
+                    "x1" -> 1
+                    "x2" -> 2
+                    "x4" -> 4
+                    else -> 1
+                }
+                val aCtrlItem = getCtrlItem(context, aWave, aRate)
                 if (aCtrlItem != null) {
                     val aV3ModelList = aCtrlItem.getV3ModelList()
 
@@ -667,7 +678,14 @@ class WaveViewModel : ViewModel() {
             // 处理B通道（如果A通道不是双通道）
             if (currentState.bChannelPlaying && bChannelWaves.isNotEmpty() && bChannelV3List.isEmpty()) {
                 val bWave = bChannelWaves[currentState.bChannelPlayIndex]
-                val bCtrlItem = getCtrlItem(context, bWave)
+                // rate: x1=1, x2=2, x4=4
+                val bRate = when (currentState.bChannelRate) {
+                    "x1" -> 1
+                    "x2" -> 2
+                    "x4" -> 4
+                    else -> 1
+                }
+                val bCtrlItem = getCtrlItem(context, bWave, bRate)
                 if (bCtrlItem != null) {
                     val bV3ModelList = bCtrlItem.getV3ModelList()
 
@@ -768,7 +786,7 @@ class WaveViewModel : ViewModel() {
     }
 
     // 获取CtrlItem，使用缓存避免重复解析
-    fun getCtrlItem(context: Context, wave: WaveInfo): CtrlItem? {
+    fun getCtrlItem(context: Context, wave: WaveInfo, rate: Int): CtrlItem? {
         // 先检查缓存
         if (ctrlItemCache.containsKey(wave.path)) {
             return ctrlItemCache[wave.path]
@@ -778,12 +796,21 @@ class WaveViewModel : ViewModel() {
         val content = readPulseFile(context, wave.path)
         if (content != null) {
             // 解析波形文件
-            val ctrlItem = WaveUtil.parsePulseToCtrlItem(wave.name, content)
+            val ctrlItem = WaveUtil.parsePulseToCtrlItem(wave.name, content, rate)
             // 缓存解析结果
             ctrlItemCache[wave.path] = ctrlItem
             return ctrlItem
         }
         return null
+    }
+
+    fun getRateByStr(rate: String): Int {
+        when (rate) {
+            "x1" -> return 1
+            "x2" -> return 2
+            "x4" -> return 4
+            else -> return 1
+        }
     }
 
     // 生成Pulse数据
@@ -829,6 +856,7 @@ class WaveViewModel : ViewModel() {
 
         return pulseList
     }
+
 
     // 波形脉冲源
     class WavePulseSource(
@@ -878,6 +906,11 @@ class WaveViewModel : ViewModel() {
             syncTimeToViewModel()
             // 检查是否需要切换A通道波形
             val currentState = viewModel.state.value
+            // rate: x1=1, x2=2, x4=4
+            val aChannelRate = viewModel.getRateByStr(currentState.aChannelRate)
+
+            // rate: x1=1, x2=2, x4=4
+            val bChannelRate = viewModel.getRateByStr(currentState.bChannelRate)
 
             // 更新播放时间
             if (currentState.aChannelPlaying) {
@@ -892,7 +925,7 @@ class WaveViewModel : ViewModel() {
 
             if (aChannelWaves.isNotEmpty() && currentState.aChannelPlaying && !isChannelAGenerating) {
                 val currentAWave = aChannelWaves[aChannelPlayIndex]
-                val aCtrlItem = viewModel.getCtrlItem(context, currentAWave)
+                val aCtrlItem = viewModel.getCtrlItem(context, currentAWave, aChannelRate)
                 if (aCtrlItem != null) {
                     val aDuration = aCtrlItem.getTotalTime() / 1000.0 // 转换为秒
                     val aMinPlayTime = viewModel.parsePlayTime(aChannelPlayTime).toDouble()
@@ -930,7 +963,7 @@ class WaveViewModel : ViewModel() {
             // 检查是否需要切换B通道波形
             if (bChannelWaves.isNotEmpty() && !isChannelBGenerating) {
                 val currentBWave = bChannelWaves[bChannelPlayIndex]
-                val bCtrlItem = viewModel.getCtrlItem(context, currentBWave)
+                val bCtrlItem = viewModel.getCtrlItem(context, currentBWave, bChannelRate)
                 if (bCtrlItem != null) {
                     val bDuration = bCtrlItem.getTotalTime() / 1000.0 // 转换为秒
                     val bMinPlayTime = viewModel.parsePlayTime(bChannelPlayTime).toDouble()
@@ -1001,6 +1034,41 @@ class WaveViewModel : ViewModel() {
 
         // 保存状态
         saveState(context)
+    }
+
+    // 更新通道速率
+    fun updateChannelRate(channel: String, rate: String, context: Context) {
+        // 获取当前通道的波形列表，用于对比删除的波形
+        val currentState = _state.value
+        var selectedWave: WaveInfo? = null
+        // 保存状态到 state
+        _state.update {
+            when (channel) {
+                "A" -> {
+                    selectedWave =
+                        currentState.aChannelSelectedWaves[currentState.aChannelPlayIndex]
+                    it.copy(aChannelRate = rate)
+                }
+
+                "B" -> it.copy(bChannelRate = rate)
+                else -> it
+            }
+        }
+
+        // 保存状态
+        saveState(context)
+
+        if (selectedWave != null) {
+            waveCache.remove(selectedWave.path)
+            ctrlItemCache.remove(selectedWave.path)
+        }
+
+        // rate 变化时，重新生成波形数据（清除缓存并重新获取）
+        if (state.value.aChannelPlaying && channel == "A") {
+            generateChannelPlayData(context)
+        } else if (state.value.bChannelPlaying && channel == "B") {
+            generateChannelPlayData(context)
+        }
     }
 
     // 更新播放时间
@@ -1163,8 +1231,11 @@ data class WaveState(
     // 播放时间（秒）
     val aChannelPlayElapsedTime: Double = 0.0,
     val bChannelPlayElapsedTime: Double = 0.0,
-)
 
+    // 通道速率 (x1, x2, x4)
+    val aChannelRate: String = "x1",
+    val bChannelRate: String = "x1",
+)
 
 @Composable
 fun WavePanel(
@@ -1348,7 +1419,40 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(painter = painterResource(R.drawable.plus), contentDescription = null)
-                    Text(text = "选择波形")
+                    Text(text = "选择")
+                }
+            }
+            // 速率 (rate: x1, x2, x4)
+            var rateExpanded by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 4.dp)
+            ) {
+                Button(
+                    onClick = { rateExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (channel == "A") state.aChannelRate else state.bChannelRate,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+                DropdownMenu(
+                    expanded = rateExpanded,
+                    onDismissRequest = { rateExpanded = false }
+                ) {
+                    listOf("x1", "x2", "x4").forEach { rate ->
+                        DropdownMenuItem(
+                            text = { Text(text = rate) },
+                            onClick = {
+                                viewModel.updateChannelRate(channel, rate, context)
+                                rateExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -1387,6 +1491,7 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                     }
                 }
             }
+
 
             // 播放时间
             var timeExpanded by remember { mutableStateOf(false) }
@@ -1455,7 +1560,9 @@ fun WaveChannelPanel(channel: String, viewModel: WaveViewModel, modifier: Modifi
                                     if (isPlaying) {
                                         Modifier
                                             .background(
-                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(
+                                                    alpha = 0.5f
+                                                ),
                                                 shape = MaterialTheme.shapes.small
                                             )
                                             .border(

@@ -281,8 +281,13 @@ object WaveUtil {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
-    // 解析pulse文件内容为CtrlItem对象
+    // 解析pulse文件内容为CtrlItem对象 默认x1速率
     fun parsePulseToCtrlItem(pulseName: String, pulseContent: String): CtrlItem {
+        return parsePulseToCtrlItem(pulseName, pulseContent, 0)
+    }
+
+    // 解析pulse文件内容为CtrlItem对象 可覆盖速率
+    fun parsePulseToCtrlItem(pulseName: String, pulseContent: String, rateOverride: Int): CtrlItem {
         val ctrlItem = CtrlItem()
 
         // 移除换行符，将整个内容作为一行处理
@@ -299,16 +304,16 @@ object WaveUtil {
                 if (pulseData.indexOf('=') < 0) {
                     // 休息时长
                     ctrlItem.restTime = 0
-                    // 播放速率
-                    ctrlItem.rate = 1
+                    // 播放速率（使用传入的 rateOverride，如果为 0 则使用默认值）
+                    ctrlItem.rate = if (rateOverride != 0) rateOverride else 1
                     // 第三个值8/16都有 暂时未发现这个值有什么用 这里不解析
                 } else {
                     val pulseDataParts = pulseData.split('=')
                     val itemInfo = pulseDataParts[0].split(',')
                     // 休息时长
                     ctrlItem.restTime = itemInfo[0].toIntOrNull() ?: 0
-                    // 播放速率
-                    ctrlItem.rate = itemInfo[1].toIntOrNull() ?: 1
+                    // 播放速率（使用传入的 rateOverride，如果为 0 则使用默认值）
+                    ctrlItem.rate = if (rateOverride != 0) rateOverride else itemInfo[1].toIntOrNull() ?: 1
                     // 继续解析后续的波形小节信息
                     pulseData = pulseDataParts[1]
                 }
