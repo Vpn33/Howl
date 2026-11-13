@@ -478,6 +478,7 @@ class FunscriptPulseSource : PulseSource {
         Higher values give smoother and more consistent amplitude, but track the script less
         closely and are more smeared in time.
         */
+        val threshold = 0.005
         val windowWidth = Prefs.funscriptAmplitudeWindow.value.toDouble().coerceAtLeast(0.01)
         val sigma = windowWidth / WINDOW_WIDTH_SIGMAS
         val totalSteps = (WINDOW_WIDTH_SIGMAS * SAMPLES_PER_SIGMA).toInt()
@@ -497,7 +498,7 @@ class FunscriptPulseSource : PulseSource {
 
         // Square root gives the RMS (Root Mean Square) velocity magnitude
         val rawAmp = sqrt(smoothedEnergy).coerceIn(0.0, 1.0)
-        return rawAmp
+        return if (rawAmp < threshold) 0.0 else rawAmp
     }
 
     override fun getPulse(time: Double, deltaTime: Double): Pulse {
